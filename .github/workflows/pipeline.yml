@@ -1,0 +1,15 @@
+name: Pipeline
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    permissions:
+      contents: read
+    uses: JJT-INGSIS/github-workflows/.github/workflows/kotlin-service-pipeline.yml@main
+    secrets:
+      GH_PACKAGES_USER: ${{ secrets.GH_PACKAGES_USER }}
+      GH_PACKAGES_READ_TOKEN: ${{ secrets.GH_PACKAGES_READ_TOKEN }}
