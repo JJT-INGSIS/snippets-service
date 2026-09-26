@@ -7,7 +7,15 @@ Servicio HTTP de Snippet Searcher. Este repositorio contiene por ahora solo el a
 - JDK 21 para ejecutar Gradle y la aplicación.
 - No hace falta instalar Gradle: el repositorio incluye su wrapper.
 
-La configuración inicial usa Spring Boot 4.1.1, Kotlin 2.4.10 y Gradle 9.3.0.
+La configuración compartida vive en `gradle-conventions`, versión `0.1.0`. El wrapper usa Gradle 9.3.0.
+
+## Verificación
+
+```powershell
+.\gradlew.bat check
+```
+
+`check` ejecuta tests, ktlint y detekt, y genera el reporte JaCoCo. Para usar la convención publicada localmente durante el desarrollo, ejecutar `gradle-conventions\gradlew.bat publishToMavenLocal` desde ese repositorio y luego agregar `-PuseLocalConventions=true` al comando del servicio. Sin esa propiedad, Gradle resuelve la versión publicada en GitHub Packages mediante `GITHUB_ACTOR` y `GITHUB_TOKEN`.
 
 ## Arranque local
 
