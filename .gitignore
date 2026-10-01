@@ -31,7 +31,6 @@ build/
 .idea/
 *.iml
 
-# Local Docker configuration
+# Local configuration
 .env
 .env.*
-!.env.example
