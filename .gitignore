@@ -30,3 +30,8 @@ replay_pid*
 build/
 .idea/
 *.iml
+
+# Local Docker configuration
+.env
+.env.*
+!.env.example
