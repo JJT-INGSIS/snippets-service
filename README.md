@@ -106,6 +106,42 @@ docker compose stop snippets-service snippets-db
 
 Los datos se conservan. Los volúmenes del antiguo Compose de este servicio no se importan automáticamente a infra. Los comandos de conexión SQL, limpieza de volúmenes y configuración del entorno completo están documentados en el README de infra.
 
+## Language: validación de código
+
+Los casos de uso validan código mediante `Language`, sin conocer qué servicio atiende cada lenguaje:
+
+```kotlin
+language.validate(language = "printscript", version = "1.0", code = "println(1);")
+```
+
+La respuesta es un `ValidationResult`, que obliga a tratar por separado cada caso:
+
+| Resultado | Significado |
+| --- | --- |
+| `Valid` | El código es válido. |
+| `Invalid` | No lo es. Cada diagnóstico conserva regla, mensaje, línea y columna. |
+| `UnsupportedLanguage` | Ningún validador atiende ese lenguaje. |
+| `UnsupportedVersion` | El servicio del lenguaje no soporta esa versión. |
+| `Failed` | Falla técnica: el servicio está caído, tardó más que el límite o no respondió según su contrato. No dice nada sobre el código. |
+
+Para PrintScript, `PrintScriptValidator` llama por HTTP a `POST /validate` de [printscript-service](https://github.com/JJT-INGSIS/printscript-service/blob/main/docs/validation.md). Es la única clase que conoce ese contrato; este servicio no usa la biblioteca PrintScript. Las versiones soportadas las decide `printscript-service`.
+
+| Propiedad | Variable de entorno | Valor por defecto |
+| --- | --- | --- |
+| `language.printscript.base-url` | `LANGUAGE_PRINTSCRIPT_BASE_URL` | `http://localhost:8082` |
+| `language.printscript.connect-timeout` | `LANGUAGE_PRINTSCRIPT_CONNECT_TIMEOUT` | `2s` |
+| `language.printscript.read-timeout` | `LANGUAGE_PRINTSCRIPT_READ_TIMEOUT` | `5s` |
+
+No hay reintentos. Si `printscript-service` no está disponible, este servicio arranca igual y cada validación devuelve `Failed`.
+
+Los tests usan un servidor HTTP local. Para comprobar además contra el servicio real, levantarlo y definir su dirección:
+
+```bash
+PRINTSCRIPT_SERVICE_URL=http://localhost:8082 ./gradlew test
+```
+
+Sin esa variable, `PrintScriptServiceLiveTest` se omite.
+
 ## Responsabilidad prevista
 
 Este servicio administrará los metadatos y el ciclo de vida de los snippets, los listados y los tests, y coordinará operaciones con los servicios de permisos y de lenguaje. La persistencia, el almacenamiento del código y los contratos HTTP aún no están definidos.
