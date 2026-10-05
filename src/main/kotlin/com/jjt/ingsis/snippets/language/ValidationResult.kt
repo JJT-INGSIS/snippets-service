@@ -14,7 +14,6 @@ sealed interface ValidationResult {
     data class UnsupportedVersion(
         val language: String,
         val version: String,
-        val supportedVersions: List<String>,
     ) : ValidationResult
 
     data class Failed(
