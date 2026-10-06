@@ -12,6 +12,9 @@ interface SnippetMetadataStore {
 
     fun findConfirmed(id: UUID): SnippetMetadata?
 
+    // Internal read: includes pending metadata and does not publish it as available.
+    fun findMetadata(id: UUID): SnippetMetadata?
+
     // The caller must complete storage and ownership before confirming metadata.
     fun confirmCreation(id: UUID): SnippetMetadata?
 

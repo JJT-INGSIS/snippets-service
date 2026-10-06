@@ -2,8 +2,11 @@ package com.jjt.ingsis.snippets.creation
 
 import com.jjt.ingsis.snippets.identity.ActorContext
 import com.jjt.ingsis.snippets.identity.ActorIdentity
+import com.jjt.ingsis.snippets.permissions.ModificationChecker
 import com.jjt.ingsis.snippets.permissions.OwnershipReader
 import com.jjt.ingsis.snippets.permissions.OwnershipRegistrar
+import com.jjt.ingsis.snippets.update.PrepareUpdate
+import com.jjt.ingsis.snippets.update.UpdatePreparationResult
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Test
@@ -29,12 +32,19 @@ class PreparationWiringTest
         private val preparation: PrepareCreation,
         private val registrar: OwnershipRegistrar,
         private val reader: OwnershipReader,
+        private val update: PrepareUpdate,
+        private val modification: ModificationChecker,
         @Value("\${local.server.port}") private val port: Int,
     ) {
         @Test
         fun `context wires preparation and clients without enabling development identity`() {
             assertNotNull(registrar)
             assertNotNull(reader)
+            assertNotNull(modification)
+            assertEquals(
+                UpdatePreparationResult.Rejected(PreparationRejection.IdentityRejected(ActorIdentity.Disabled)),
+                update.prepare(draft(), UUID.randomUUID().toString(), ActorContext(listOf("dev-thiago"))),
+            )
             assertEquals(
                 PreparationResult.Rejected(PreparationRejection.IdentityRejected(ActorIdentity.Disabled)),
                 preparation.prepare(draft(), UUID.randomUUID().toString(), ActorContext(listOf("dev-thiago"))),

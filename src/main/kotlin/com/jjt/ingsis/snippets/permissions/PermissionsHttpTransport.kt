@@ -53,6 +53,16 @@ class PermissionsHttpTransport(
 
     internal fun find(path: String): PermissionsExchange = exchange(client.get().uri(path))
 
+    internal fun modification(
+        path: String,
+        actorId: String,
+    ): PermissionsExchange =
+        exchange(
+            client.get().uri { builder ->
+                builder.path(path).queryParam("actorId", "{actorId}").build(actorId)
+            },
+        )
+
     private fun exchange(request: RestClient.RequestHeadersSpec<*>): PermissionsExchange =
         try {
             request.exchange { _, response ->

@@ -49,3 +49,22 @@ fun interface OwnershipRegistrar {
 fun interface OwnershipReader {
     fun find(snippetId: UUID): OwnershipLookup
 }
+
+sealed interface ModificationPermission {
+    data object Allowed : ModificationPermission
+
+    data object Denied : ModificationPermission
+
+    data object OwnershipMissing : ModificationPermission
+
+    data class Failed(
+        val reason: PermissionsFailure,
+    ) : ModificationPermission
+}
+
+fun interface ModificationChecker {
+    fun check(
+        snippetId: UUID,
+        actorId: String,
+    ): ModificationPermission
+}

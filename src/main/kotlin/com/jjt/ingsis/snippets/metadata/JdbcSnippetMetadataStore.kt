@@ -138,8 +138,10 @@ class JdbcSnippetMetadataStore(
                 key,
             ).singleOrNull()
 
-    private fun findMetadata(id: UUID): SnippetMetadata? =
-        jdbc.query("SELECT * FROM snippets WHERE id = ?", { row, _ -> row.toMetadata() }, id).singleOrNull()
+    override fun findMetadata(id: UUID): SnippetMetadata? =
+        databaseOperation {
+            jdbc.query("SELECT * FROM snippets WHERE id = ?", { row, _ -> row.toMetadata() }, id).singleOrNull()
+        }
 
     private fun <T : Any> inTransaction(operation: () -> T): T =
         databaseOperation { transaction.execute { operation() } }
