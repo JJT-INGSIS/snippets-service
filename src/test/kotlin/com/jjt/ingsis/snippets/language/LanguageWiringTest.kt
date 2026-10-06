@@ -12,6 +12,7 @@ import java.time.Duration
         "spring.datasource.url=jdbc:h2:mem:language;DB_CLOSE_ON_EXIT=FALSE",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
+        "spring.flyway.enabled=false",
         "language.printscript.base-url=http://127.0.0.1:1",
         "language.printscript.connect-timeout=300ms",
         "language.printscript.read-timeout=400ms",
