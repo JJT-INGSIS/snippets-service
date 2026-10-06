@@ -1,11 +1,12 @@
 # Snippets Service
 
-Servicio HTTP de Snippet Searcher. Este repositorio contiene por ahora solo el arranque con Kotlin y Spring Boot; los contratos y las integraciones se definirán durante el TP.
+Servicio HTTP de Snippet Searcher con Kotlin y Spring Boot. Incluye validación de lenguaje mediante HTTP y persistencia interna de metadatos; el flujo público de creación y el storage siguen pendientes.
 
 ## Requisitos
 
 - JDK 21 para ejecutar Gradle y la aplicación.
 - No hace falta instalar Gradle: el repositorio incluye su wrapper.
+- Docker disponible para las pruebas de persistencia PostgreSQL con Testcontainers.
 
 La configuración compartida vive en `gradle-conventions`, versión `0.2.0`. El wrapper usa Gradle 9.3.0.
 
@@ -17,7 +18,7 @@ La configuración compartida vive en `gradle-conventions`, versión `0.2.0`. El 
 
 `check` ejecuta tests, ktlint y detekt, y genera el reporte JaCoCo. Gradle resuelve la convención publicada en GitHub Packages mediante `GITHUB_ACTOR` y `GITHUB_TOKEN`.
 
-El test de arranque usa H2 en memoria, disponible solo en tests, y comprueba que Spring crea una conexión válida. No requiere PostgreSQL ni Docker y no verifica compatibilidad con PostgreSQL; las pruebas de persistencia contra PostgreSQL se incorporarán cuando exista esa implementación.
+El test de arranque y el wiring de lenguaje usan H2 en memoria, disponible solo en tests, con Flyway desactivado. Las pruebas de metadatos usan PostgreSQL 18.6 mediante Testcontainers: requieren Docker y comprueban persistencia, reintentos, concurrencia, rollback y reinicio de la aplicación.
 
 Para probar cambios de `gradle-conventions` sin publicarlos, con ese repositorio clonado al lado de este:
 
@@ -144,4 +145,12 @@ Sin esa variable, `PrintScriptServiceLiveTest` se omite.
 
 ## Responsabilidad prevista
 
-Este servicio administrará los metadatos y el ciclo de vida de los snippets, los listados y los tests, y coordinará operaciones con los servicios de permisos y de lenguaje. La persistencia, el almacenamiento del código y los contratos HTTP aún no están definidos.
+Este servicio administrará los metadatos y el ciclo de vida de los snippets, los listados y los tests, y coordinará operaciones con los servicios de permisos y de lenguaje.
+
+## Metadatos — SNI-6
+
+La persistencia JDBC y sus garantías están documentadas en [docs/metadata.md](docs/metadata.md). Flyway prepara el esquema PostgreSQL al arrancar. El usuario de base necesita permisos para crear la tabla y el historial de migraciones.
+
+`SnippetMetadataStore` permite reservar creaciones, consultar pendientes o confirmados, confirmar y actualizar metadatos. No expone endpoints nuevos ni guarda código o propietarios. Cada escritura confirma su propia transacción antes de devolver un resultado.
+
+La vinculación con contenido espera el contrato real de storage. `confirmCreation` es una operación interna cuya precondición debe cumplir SNI-9; por sí sola no demuestra que existan contenido y ownership. La generación de la huella del pedido y la coordinación de reintentos externos también corresponden a SNI-9.

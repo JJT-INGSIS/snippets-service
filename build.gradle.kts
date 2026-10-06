@@ -8,9 +8,12 @@ version = "0.0.1-SNAPSHOT"
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("tools.jackson.module:jackson-module-kotlin")
 
     runtimeOnly("org.postgresql:postgresql")
+    runtimeOnly("org.flywaydb:flyway-database-postgresql")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("com.h2database:h2")
 }
 

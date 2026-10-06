@@ -11,6 +11,7 @@ import javax.sql.DataSource
         "spring.datasource.url=jdbc:h2:mem:snippets;DB_CLOSE_ON_EXIT=FALSE",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
+        "spring.flyway.enabled=false",
     ],
 )
 class SnippetsServiceApplicationTest
