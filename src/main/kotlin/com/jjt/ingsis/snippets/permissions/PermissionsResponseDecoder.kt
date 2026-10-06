@@ -37,6 +37,13 @@ class PermissionsResponseDecoder {
             listOf("title", "detail").all { body.get(it)?.isString == true && body.get(it).asString().isNotBlank() }
     }
 
+    internal fun allowed(response: PermissionsResponse): Boolean? {
+        if (response.contentType != "application/json") return null
+        val body = tree(response.body) ?: return null
+        val allowed = body.get("allowed") ?: return null
+        return if (allowed.isBoolean) allowed.booleanValue() else null
+    }
+
     private fun tree(json: String): JsonNode? =
         try {
             mapper.readTree(json)?.takeIf { it.isObject }

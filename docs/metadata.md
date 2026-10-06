@@ -72,10 +72,16 @@ devuelve el registro vigente; no revierte modificaciones posteriores.
 | --- | --- |
 | `findCreation(key, actorId)` | `Found(metadata)`, `Missing` o `IdentityConflict`. Incluye pendientes y confirmados. |
 | `findConfirmed(id)` | Metadatos confirmados o `null` si falta el UUID o sigue pendiente. |
+| `findMetadata(id)` | Lectura interna por UUID: incluye PENDING/CONFIRMED; `null` solo si no existe. |
 | `confirmCreation(id)` | Metadatos confirmados o `null` si no existe. Repetir la confirmación conserva el registro. |
 
 Un pendiente no se presenta como un snippet creado. `findCreation` exige una
 identidad no blanca y no devuelve metadatos si esa identidad no coincide.
+
+SNI-10 añade `findMetadata` para distinguir inexistente y pendiente durante la
+preparación de actualización. No cambia el esquema ni `findConfirmed`; no es una
+consulta pública de snippets disponibles. La lectura conserva la traducción de
+fallas JDBC a `MetadataPersistenceException` y no realiza escrituras.
 
 **Precondición de `confirmCreation`:** el caso de uso debe completar y comprobar
 los pasos externos requeridos antes de invocarla. Esta operación cambia únicamente

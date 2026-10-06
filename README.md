@@ -170,3 +170,15 @@ Compose entrega `PRINTSCRIPT_BASE_URL` como fallback de Language; el override
 Los resultados son datos tipados. `MetadataPersistenceException` se traduce a falla
 técnica en el caso de uso, sin modificar el contrato de persistencia. La identidad
 por header solo está disponible con el perfil Spring `dev`; no es autenticación.
+
+## Preparación de actualización — SNI-10
+
+[docs/update.md](docs/update.md) propone un reemplazo completo por `PUT`, pero no
+habilita el endpoint. `PrepareUpdate` distingue metadatos pendientes e inexistentes,
+comprueba permisos y valida el candidato completo usando las piezas de SNI-9.
+Todos sus resultados son de preparación: no modifica metadatos, ownership ni
+contenido. La edición real espera SNI-18 y el storage de SNI-8.
+
+`findMetadata` permite consultar el estado interno sin cambiar `findConfirmed`.
+El cliente de Permissions codifica `actorId` y distingue denegación, ownership
+inexistente y fallas técnicas; nunca convierte un timeout en permiso denegado.
