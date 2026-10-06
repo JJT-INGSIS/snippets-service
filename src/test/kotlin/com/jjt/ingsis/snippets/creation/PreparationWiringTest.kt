@@ -1,0 +1,61 @@
+package com.jjt.ingsis.snippets.creation
+
+import com.jjt.ingsis.snippets.identity.ActorContext
+import com.jjt.ingsis.snippets.identity.ActorIdentity
+import com.jjt.ingsis.snippets.permissions.OwnershipReader
+import com.jjt.ingsis.snippets.permissions.OwnershipRegistrar
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Test
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.test.context.SpringBootTest
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.util.UUID
+
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = [
+        "spring.datasource.url=jdbc:h2:mem:preparation;DB_CLOSE_ON_EXIT=FALSE",
+        "spring.datasource.username=sa", "spring.datasource.password=", "spring.flyway.enabled=false",
+    ],
+)
+class PreparationWiringTest
+    @Autowired
+    constructor(
+        private val preparation: PrepareCreation,
+        private val registrar: OwnershipRegistrar,
+        private val reader: OwnershipReader,
+        @Value("\${local.server.port}") private val port: Int,
+    ) {
+        @Test
+        fun `context wires preparation and clients without enabling development identity`() {
+            assertNotNull(registrar)
+            assertNotNull(reader)
+            assertEquals(
+                PreparationResult.Rejected(PreparationRejection.IdentityRejected(ActorIdentity.Disabled)),
+                preparation.prepare(draft(), UUID.randomUUID().toString(), ActorContext(listOf("dev-thiago"))),
+            )
+        }
+
+        @Test
+        fun `creation and update endpoints remain unavailable`() {
+            listOf("POST" to "/snippets", "PUT" to "/snippets/${UUID.randomUUID()}").forEach { (method, path) ->
+                val request =
+                    HttpRequest
+                        .newBuilder(URI("http://localhost:$port$path"))
+                        .header("Content-Type", "application/json")
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .header("X-Dev-Actor-Id", "dev-thiago")
+                        .method(method, HttpRequest.BodyPublishers.ofString("{}"))
+                        .build()
+                assertEquals(
+                    404,
+                    HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.discarding()).statusCode(),
+                )
+            }
+        }
+    }

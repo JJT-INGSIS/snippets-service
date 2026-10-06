@@ -153,4 +153,20 @@ La persistencia JDBC y sus garantías están documentadas en [docs/metadata.md](
 
 `SnippetMetadataStore` permite reservar creaciones, consultar pendientes o confirmados, confirmar y actualizar metadatos. No expone endpoints nuevos ni guarda código o propietarios. Cada escritura confirma su propia transacción antes de devolver un resultado.
 
-La vinculación con contenido espera el contrato real de storage. `confirmCreation` es una operación interna cuya precondición debe cumplir SNI-9; por sí sola no demuestra que existan contenido y ownership. La generación de la huella del pedido y la coordinación de reintentos externos también corresponden a SNI-9.
+La vinculación con contenido espera el contrato real de storage. `confirmCreation` es una operación interna cuya precondición completará SNI-17; por sí sola no demuestra que existan contenido y ownership.
+
+## Preparación de creación — SNI-9
+
+La [propuesta de contrato](docs/creation.md) incorpora identidad de desarrollo,
+huella del pedido, validación, reservas PENDING, reintentos y clientes de Permissions.
+No habilita `POST /snippets`, storage ni confirmación del alta. El flujo parcial
+tampoco registra ownership: SNI-17 completará esas operaciones después de SNI-8.
+
+Compose entrega `PRINTSCRIPT_BASE_URL` como fallback de Language; el override
+`LANGUAGE_PRINTSCRIPT_BASE_URL` conserva prioridad. Permissions utiliza
+`PERMISSIONS_BASE_URL` (default `http://localhost:8081`), con
+`PERMISSIONS_CONNECT_TIMEOUT=2s` y `PERMISSIONS_READ_TIMEOUT=5s` por defecto.
+
+Los resultados son datos tipados. `MetadataPersistenceException` se traduce a falla
+técnica en el caso de uso, sin modificar el contrato de persistencia. La identidad
+por header solo está disponible con el perfil Spring `dev`; no es autenticación.
