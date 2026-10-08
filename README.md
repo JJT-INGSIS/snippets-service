@@ -185,9 +185,9 @@ inexistente y fallas técnicas; nunca convierte un timeout en permiso denegado.
 
 ## CI, publicación y branches — SNI-23
 
-Las ramas por cambio nacen desde `dev` y se integran mediante PR a `dev`. La promoción se hace con PR `dev` → `main`; `main` sigue siendo la default branch. Usar squash para cambios individuales y merge commit para la promoción. Mantener ambas ramas protegidas con PR, CI requerido y actualización con la base, sin aprobación humana obligatoria.
+Las ramas por cambio nacen desde `dev` y se integran mediante PR a `dev`. La promoción se hace con PR `dev` → `main`; `dev` es la default branch. Usar squash para cambios individuales y merge commit para la promoción. Mantener ambas ramas protegidas con PR, CI requerido y actualización con la base, sin aprobación humana obligatoria.
 
-`.github/workflows/pipeline.yml` conserva los triggers y llama a `kotlin-service-pipeline.yml@v0.3.0` del repo [github-workflows](https://github.com/JJT-INGSIS/github-workflows). Este tag debe publicarse antes de integrar los callers definitivos; para verificar el candidato, usar temporalmente su SHA como explica el README central.
+`.github/workflows/pipeline.yml` conserva los triggers y llama a `kotlin-service-pipeline.yml@v0.3.1` del repo [github-workflows](https://github.com/JJT-INGSIS/github-workflows). Este tag debe publicarse antes de integrar los callers definitivos; para verificar el candidato, usar temporalmente su SHA como explica el README central.
 
 | Evento | Resultado |
 | --- | --- |
@@ -196,7 +196,7 @@ Las ramas por cambio nacen desde `dev` y se integran mediante PR a `dev`. La pro
 | Push a main | CI; la promoción a prod se incorpora en SNI-25 |
 | Actions → Pipeline → Run workflow | CI; activar `publish` para bootstrap desde dev/main |
 
-La ejecución manual estará disponible cuando el caller esté en `main`. El check actual `verify / verify / build` conserva sus IDs; seleccionar en branch rules el nombre exacto que muestre GitHub. Un CI fallido o cancelado impide publicar.
+La ejecución manual requiere el caller en la default branch, actualmente `dev`. El check actual `verify / verify / build` conserva sus IDs; seleccionar en branch rules el nombre exacto que muestre GitHub. Un CI fallido o cancelado impide publicar.
 
 Paquete: `ghcr.io/jjt-ingsis/snippets-service`. Cada publicación registra el SHA, el Git tree, las plataformas y el digest. Los tags son `sha-<SHA completo>` y `run-<run_id>-<run_attempt>`; para descargar/desplegar usar el `image-ref` por digest que muestra el resumen de Actions. La imagen sigue necesitando datasource y destinos HTTP externos al ejecutarse.
 
