@@ -182,3 +182,28 @@ contenido. La edición real espera SNI-18 y el storage de SNI-8.
 `findMetadata` permite consultar el estado interno sin cambiar `findConfirmed`.
 El cliente de Permissions codifica `actorId` y distingue denegación, ownership
 inexistente y fallas técnicas; nunca convierte un timeout en permiso denegado.
+
+## CI, publicación y branches — SNI-23
+
+Las ramas por cambio nacen desde `dev` y se integran mediante PR a `dev`. La promoción se hace con PR `dev` → `main`; `main` sigue siendo la default branch. Usar squash para cambios individuales y merge commit para la promoción. Mantener ambas ramas protegidas con PR, CI requerido y actualización con la base, sin aprobación humana obligatoria.
+
+`.github/workflows/pipeline.yml` conserva los triggers y llama a `kotlin-service-pipeline.yml@v0.3.0` del repo [github-workflows](https://github.com/JJT-INGSIS/github-workflows). Este tag debe publicarse antes de integrar los callers definitivos; para verificar el candidato, usar temporalmente su SHA como explica el README central.
+
+| Evento | Resultado |
+| --- | --- |
+| PR a dev/main | `build` con tests y controles de calidad; no publica |
+| Push a dev | CI → publicar únicamente la imagen de snippets |
+| Push a main | CI; la promoción a prod se incorpora en SNI-25 |
+| Actions → Pipeline → Run workflow | CI; activar `publish` para bootstrap desde dev/main |
+
+La ejecución manual estará disponible cuando el caller esté en `main`. El check actual `verify / verify / build` conserva sus IDs; seleccionar en branch rules el nombre exacto que muestre GitHub. Un CI fallido o cancelado impide publicar.
+
+Paquete: `ghcr.io/jjt-ingsis/snippets-service`. Cada publicación registra el SHA, el Git tree, las plataformas y el digest. Los tags son `sha-<SHA completo>` y `run-<run_id>-<run_attempt>`; para descargar/desplegar usar el `image-ref` por digest que muestra el resumen de Actions. La imagen sigue necesitando datasource y destinos HTTP externos al ejecutarse.
+
+Los secrets `GH_PACKAGES_USER` y `GH_PACKAGES_READ_TOKEN` pueden venir de la organización con acceso a este repo. Son para dependencias de Gradle y secretos de build; GHCR se autentica con el `GITHUB_TOKEN` automático y permiso `packages: write`. No agregar otro PAT para publicar.
+
+La variable de repositorio `DOCKER_PLATFORMS` define la arquitectura; sin ella se usa `linux/amd64`. Confirmar la VM con Thiago; se admite también `linux/arm64` o `linux/amd64,linux/arm64`.
+
+Crear GitHub Environments `dev` (solo branch dev) y `prod` (solo main). SNI-25 usará variables `SSH_HOST`, `SSH_USER`, `SSH_PORT` y secrets `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS` de cada environment. Los valores reales y el despliegue SSH se configuran cuando estén las VMs y el stack. El environment de GitHub no activa por sí solo un perfil Spring.
+
+El contrato reusable, la visibilidad de GHCR, los outputs y el orden de integración están en el [README central](https://github.com/JJT-INGSIS/github-workflows/blob/main/README.md). Las verificaciones completas de esta configuración y las primeras publicaciones quedan pendientes hasta integrar/publicar esa versión.

@@ -2,14 +2,31 @@ name: Pipeline
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [dev, main]
   push:
-    branches: [main]
+    branches: [dev, main]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publicar una imagen de bootstrap después de CI; solo desde dev o main.
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
 
 jobs:
   verify:
     permissions:
       contents: read
-    uses: JJT-INGSIS/github-workflows/.github/workflows/kotlin-service-pipeline.yml@v0.1.1
+      packages: write
+    uses: JJT-INGSIS/github-workflows/.github/workflows/kotlin-service-pipeline.yml@cd2b0a9e2f4a22309d45e226dc1e1dfcd3d76414
+    with:
+      publish: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+      image-name: ghcr.io/jjt-ingsis/snippets-service
+      platforms: ${{ vars.DOCKER_PLATFORMS || 'linux/amd64' }}
     secrets:
       GH_PACKAGES_USER: ${{ secrets.GH_PACKAGES_USER }}
       GH_PACKAGES_READ_TOKEN: ${{ secrets.GH_PACKAGES_READ_TOKEN }}
