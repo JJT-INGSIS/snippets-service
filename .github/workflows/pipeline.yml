@@ -22,7 +22,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: JJT-INGSIS/github-workflows/.github/workflows/kotlin-service-pipeline.yml@73cc46862500f0cd19736f047d834ea7738d6021
+    uses: JJT-INGSIS/github-workflows/.github/workflows/kotlin-service-pipeline.yml@v0.3.0
     with:
       publish: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
       image-name: ghcr.io/jjt-ingsis/snippets-service
