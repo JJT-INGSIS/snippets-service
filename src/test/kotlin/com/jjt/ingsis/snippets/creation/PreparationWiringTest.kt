@@ -52,20 +52,25 @@ class PreparationWiringTest
         }
 
         @Test
-        fun `creation and update endpoints remain unavailable`() {
-            listOf("POST" to "/snippets", "PUT" to "/snippets/${UUID.randomUUID()}").forEach { (method, path) ->
-                val request =
-                    HttpRequest
-                        .newBuilder(URI("http://localhost:$port$path"))
-                        .header("Content-Type", "application/json")
-                        .header("Idempotency-Key", UUID.randomUUID().toString())
-                        .header("X-Dev-Actor-Id", "dev-thiago")
-                        .method(method, HttpRequest.BodyPublishers.ofString("{}"))
-                        .build()
-                assertEquals(
-                    404,
-                    HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.discarding()).statusCode(),
-                )
-            }
+        fun `creation requires an identity and the update endpoint remains unavailable`() {
+            assertEquals(401, status("POST", "/snippets"))
+            assertEquals(404, status("PUT", "/snippets/${UUID.randomUUID()}"))
+        }
+
+        private fun status(
+            method: String,
+            path: String,
+        ): Int {
+            val body = """{"name":"Example","language":"printscript","version":"1.0","code":"println(1);"}"""
+            val request =
+                HttpRequest
+                    .newBuilder(URI("http://localhost:$port$path"))
+                    .header("Content-Type", "application/json")
+                    .header("Idempotency-Key", UUID.randomUUID().toString())
+                    .header("X-Dev-Actor-Id", "dev-thiago")
+                    .method(method, HttpRequest.BodyPublishers.ofString(body))
+                    .build()
+
+            return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.discarding()).statusCode()
         }
     }
