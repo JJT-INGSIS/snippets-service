@@ -7,6 +7,7 @@ import com.jjt.ingsis.snippets.language.Language
 import com.jjt.ingsis.snippets.metadata.CreationRequest
 import com.jjt.ingsis.snippets.metadata.CreationResult
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
+import com.jjt.ingsis.snippets.metadata.SnippetMetadata
 import com.jjt.ingsis.snippets.metadata.SnippetMetadataStore
 import org.springframework.stereotype.Service
 
@@ -48,11 +49,18 @@ class PrepareCreation(
     private fun reserve(request: CreationRequest): PreparationResult =
         try {
             when (val result = metadata.prepareCreation(request)) {
-                is CreationResult.Created -> PreparationResult.Prepared(result.metadata, replayed = false)
-                is CreationResult.Existing -> PreparationResult.Prepared(result.metadata, replayed = true)
+                is CreationResult.Created -> prepared(result.metadata, request, replayed = false)
+                is CreationResult.Existing -> prepared(result.metadata, request, replayed = true)
                 CreationResult.Conflict -> PreparationResult.Conflict
             }
         } catch (_: MetadataPersistenceException) {
             PreparationResult.Rejected(PreparationRejection.TechnicalFailure("metadata"))
         }
+
+    private fun prepared(
+        reserved: SnippetMetadata,
+        request: CreationRequest,
+        replayed: Boolean,
+    ): PreparationResult =
+        PreparationResult.Prepared(metadata = reserved, replayed = replayed, actorId = request.actorId)
 }
