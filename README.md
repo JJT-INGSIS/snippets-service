@@ -1,6 +1,6 @@
 # Snippets Service
 
-Servicio HTTP de Snippet Searcher con Kotlin y Spring Boot. Incluye validación de lenguaje mediante HTTP y persistencia interna de metadatos; el flujo público de creación y el storage siguen pendientes.
+Servicio HTTP de Snippet Searcher con Kotlin y Spring Boot. Incluye validación de lenguaje mediante HTTP y persistencia interna de metadatos y storage local provisional de contenido; el flujo público de creación sigue pendiente.
 
 ## Requisitos
 
@@ -153,7 +153,15 @@ La persistencia JDBC y sus garantías están documentadas en [docs/metadata.md](
 
 `SnippetMetadataStore` permite reservar creaciones, consultar pendientes o confirmados, confirmar y actualizar metadatos. No expone endpoints nuevos ni guarda código o propietarios. Cada escritura confirma su propia transacción antes de devolver un resultado.
 
-La vinculación con contenido espera el contrato real de storage. `confirmCreation` es una operación interna cuya precondición completará SNI-17; por sí sola no demuestra que existan contenido y ownership.
+La vinculación con contenido está disponible desde SNI-8. `confirmCreation` es una operación interna cuya precondición completará SNI-17; por sí sola no demuestra que existan contenido y ownership.
+
+## Storage de contenido — SNI-8
+
+[docs/storage.md](docs/storage.md) documenta la interfaz `SnippetContentStorage`, su adaptador con archivos locales, las garantías y el vínculo con los metadatos. Es provisional, autorizado por la cátedra el 7 de octubre de 2026; la adaptación al contrato oficial se seguirá en SNI-19.
+
+El contenido guardado nunca se sobrescribe. Reemplazar es guardar contenido nuevo, cambiar la referencia en una sola sentencia SQL y borrar el anterior. No expone endpoints: SNI-17 y SNI-18 lo usarán para completar creación y actualización.
+
+`STORAGE_LOCAL_DIRECTORY` define el directorio; por defecto es `build/snippet-content`, apto solo para trabajo local. En la imagen es `/var/lib/snippets/content`, declarado como volumen y propiedad del usuario `10001`. Si el servicio no puede escribir en el directorio, no arranca.
 
 ## Preparación de creación — SNI-9
 
