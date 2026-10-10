@@ -312,7 +312,7 @@ El pedido no lleva `X-Dev-Actor-Id`.
 | `Conflict` | La clave pertenece a otro pedido o a otra identidad. |
 | `Incomplete(failure)` | Hay una reserva `PENDING` y un paso no se pudo completar. |
 
-El caso de uso no conoce HTTP. `SnippetsController` decodifica el body y los headers, `CreationOutcomeTranslator` traduce cada resultado y `SnippetProblem` reúne el catálogo de errores. `CreationResponse.fromConfirmed` rechaza los pendientes, por lo que la capa HTTP no puede armar una respuesta exitosa con una reserva.
+El caso de uso no conoce HTTP. `SnippetsController` decodifica el body y los headers, `CreationOutcomeTranslator` traduce cada resultado, `RejectionTranslator` traduce los rechazos de la preparación, que comparte con la actualización, y `SnippetProblem` reúne el catálogo de errores de los dos endpoints. `CreationResponse.fromConfirmed` rechaza los pendientes, por lo que la capa HTTP no puede armar una respuesta exitosa con una reserva.
 
 `MetadataPersistenceException` se traduce a falla técnica dentro de cada paso, sin SQL ni credenciales. No se mantiene una transacción JDBC abierta durante las llamadas a storage o a Permissions.
 
@@ -339,7 +339,8 @@ El caso de uso no conoce HTTP. `SnippetsController` decodifica el body y los hea
 | --- | --- | --- |
 | `CreationHttpTest` | Los ejemplos de este documento, las reglas del pedido, el owner tomado del contexto, el código de un archivo sin alterar, y fallas reales de PrintScript, Permissions y storage con su reintento. | HTTP real, PostgreSQL real, storage local real y servidores HTTP locales en lugar de PrintScript y Permissions. |
 | `CreationFlowTest` | Cada falla parcial, los resultados inciertos de la base, los reintentos y la concurrencia. | PostgreSQL real y storage local real. |
-| `CreationOutcomeTranslatorTest` | La traducción de cada resultado a HTTP y que la tabla de errores de este documento coincida con el catálogo. | Sin Spring ni Docker. |
+| `CreationOutcomeTranslatorTest` | La traducción de cada resultado a HTTP. | Sin Spring ni Docker. |
+| `SnippetProblemTest` | Que las tablas de errores de este documento y de [update.md](update.md) coincidan con el catálogo. | Sin Spring ni Docker. |
 | `CreationLiveTest` | El alta completa contra los servicios reales. | PostgreSQL real, storage local real, `printscript-service` y `permissions-service` reales. |
 
 `CreationLiveTest` se omite salvo que se indiquen los dos servicios:

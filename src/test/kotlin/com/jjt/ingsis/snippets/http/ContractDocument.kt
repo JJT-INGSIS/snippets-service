@@ -2,6 +2,17 @@ package com.jjt.ingsis.snippets.http
 
 import java.io.File
 
+private const val EXAMPLE_HEADING_PREFIX = "#### "
+
+private val sectionStart = Regex("^(?=#{1,6} )", RegexOption.MULTILINE)
+private val exampleHeading = Regex("^#### `(\\d{3})` (.+)")
+private val jsonBlock = Regex("```json\\n(.*?)\\n```", RegexOption.DOT_MATCHES_ALL)
+private val problemRow = Regex("^\\| `(\\d{3})` \\| `(urn:snippets:problem:[a-z-]+)` \\|", RegexOption.MULTILINE)
+
+internal val creationContract = ContractDocument("docs/creation.md")
+
+internal val updateContract = ContractDocument("docs/update.md")
+
 internal data class ContractExample(
     val title: String,
     val status: Int,
@@ -14,15 +25,10 @@ internal data class DocumentedProblem(
     val type: String,
 )
 
-internal object CreationContract {
-    private const val EXAMPLE_HEADING_PREFIX = "#### "
-
-    private val sectionStart = Regex("^(?=#{1,6} )", RegexOption.MULTILINE)
-    private val exampleHeading = Regex("^#### `(\\d{3})` (.+)")
-    private val jsonBlock = Regex("```json\\n(.*?)\\n```", RegexOption.DOT_MATCHES_ALL)
-    private val problemRow = Regex("^\\| `(\\d{3})` \\| `(urn:snippets:problem:[a-z-]+)` \\|", RegexOption.MULTILINE)
-
-    private val text: String = File("docs/creation.md").readText().replace("\r\n", "\n")
+internal class ContractDocument(
+    private val path: String,
+) {
+    private val text: String = File(path).readText().replace("\r\n", "\n")
 
     val examples: List<ContractExample> =
         text
@@ -38,7 +44,7 @@ internal object CreationContract {
 
     fun example(title: String): ContractExample =
         checkNotNull(examples.find { example -> example.title == title }) {
-            "docs/creation.md has no example titled '$title'"
+            "$path has no example titled '$title'"
         }
 
     private fun exampleIn(section: String): ContractExample {

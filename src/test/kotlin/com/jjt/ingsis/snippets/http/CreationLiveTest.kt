@@ -40,7 +40,7 @@ class CreationLiveTest
         @Test
         fun `the real services create a snippet with its code, metadata and owner`() {
             val key = UUID.randomUUID().toString()
-            val request = CreationContract.example("Alta válida").request
+            val request = creationContract.example("Alta válida").request
 
             val created = api.create(request, keys = listOf(key))
             val retried = api.create(request, keys = listOf(key))
@@ -55,7 +55,7 @@ class CreationLiveTest
 
         @Test
         fun `the real PrintScript diagnostics reach the documented response`() {
-            val example = CreationContract.example("Código inválido")
+            val example = creationContract.example("Código inválido")
 
             val answer = api.create(example.request)
 
