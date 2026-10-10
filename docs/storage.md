@@ -83,15 +83,19 @@ La migración `V2__link_snippet_content.sql` agrega la columna `content_referenc
 
 Las fallas de base se propagan como `MetadataPersistenceException`, igual que en [metadata.md](metadata.md). PostgreSQL guarda solo la referencia, nunca otra copia del código. Ownership sigue en Permissions.
 
-La base no exige que un snippet confirmado tenga contenido. SNI-17 debe vincular el contenido antes de llamar a `confirmCreation`.
+La base no exige que un snippet confirmado tenga contenido. `CreateSnippet` vincula el contenido antes de llamar a `confirmCreation`.
 
-## Uso previsto en creación — SNI-17
+## Uso en creación — SNI-17
+
+`CreationContent` aplica estos pasos dentro de `CreateSnippet`. El flujo completo, sus respuestas y sus reintentos están en [creation.md](creation.md).
 
 1. `PrepareCreation` devuelve una reserva `PENDING`.
-2. Si `findContent` ya devuelve una referencia, es un reintento: no hace falta guardar de nuevo.
+2. Si `findContent` ya devuelve una referencia, es un reintento: no se guarda de nuevo.
 3. `store(code)`.
 4. `linkContent(id, reference)`.
 5. Registrar ownership y `confirmCreation`.
+
+Si `linkContent` informa que reemplazó una referencia, o que el snippet ya estaba confirmado, la copia que quedó sin usar se borra. Si `linkContent` falla, no se borra nada: el vínculo pudo haberse guardado.
 
 | Falla | Estado resultante |
 | --- | --- |
@@ -128,4 +132,4 @@ En ningún punto el contenido vigente se sobrescribe ni se presenta contenido in
 
 Cubren texto preservado exactamente, contenido inexistente, referencias inválidas, fallas del sistema de archivos, escrituras interrumpidas, escrituras concurrentes, reemplazos concurrentes, reintentos y la migración sobre datos existentes.
 
-La persistencia entre contenedores se comprueba en el Compose de `snippet-searcher-infra`, que monta un volumen en el directorio de la imagen. El recorrido completo por HTTP llegará con SNI-17, cuando exista el endpoint de creación.
+La persistencia entre contenedores se comprueba en el Compose de `snippet-searcher-infra`, que monta un volumen en el directorio de la imagen. El recorrido completo por HTTP está en `CreationHttpTest`, descrito en [creation.md](creation.md).
