@@ -89,10 +89,10 @@ el estado en PostgreSQL. No comprueba que exista contenido ni ownership y no
 constituye una transacción distribuida. Todavía no hay endpoint público de creación
 que la invoque.
 
-El campo de vinculación con contenido, sus restricciones y las operaciones para
-registrarlo quedan pendientes del contrato real de SNI-8. No se presupone una URL,
-un identificador de tipo string ni garantías de idempotencia del storage. SNI-9 no
-puede ofrecer todavía creación completa basándose solamente en esta persistencia.
+La vinculación con contenido la agrega SNI-8 sin modificar este contrato: la columna
+`content_reference` y la interfaz separada `SnippetContentLinks` están descritas en
+[storage.md](storage.md). `confirmCreation` no comprueba esa vinculación; SNI-17 debe
+vincular el contenido antes de confirmar.
 
 ## Actualización
 
@@ -128,7 +128,8 @@ que el registro no existe ni generar automáticamente una nueva clave.
 
 ## Esquema y pruebas
 
-Flyway crea la tabla con `V1__create_snippets.sql` y valida su historial al arrancar.
+Flyway crea la tabla con `V1__create_snippets.sql`, agrega la referencia de contenido con
+`V2__link_snippet_content.sql` y valida su historial al arrancar.
 La cuenta de PostgreSQL necesita permisos para crear la tabla y el historial de
 migraciones. No se crean tablas en la base de Permissions.
 

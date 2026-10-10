@@ -104,16 +104,18 @@ It does NOT own:
 
 ## Storage
 
-The course will provide the storage interface and its Azure-backed implementation.
+The course will provide the official storage interface and its Azure-backed implementation.
+
+Until then, as the course authorised on 2026-10-07, `snippets-service` uses its own minimal `SnippetContentStorage` interface with a local file adapter. See [storage.md](storage.md). Adapting it to the official contract is tracked in SNI-19.
 
 Do NOT:
 
-- invent a replacement interface;
 - implement Azure directly;
-- bypass the provided abstraction;
+- bypass the abstraction;
+- grow the provisional interface into a generic framework;
 - duplicate snippet content as another authoritative source.
 
-Integrate the provided contract only when it becomes available.
+Integrate the official contract when it becomes available.
 
 
 # 2. Architectural boundaries

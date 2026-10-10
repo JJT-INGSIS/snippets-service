@@ -2,7 +2,8 @@
 
 Propuesta backend sujeta a revisión con la UI. **No hay un endpoint funcional
 POST /snippets**. SNI-9 prepara piezas internas; SNI-17 habilitará la creación tras
-integrar el storage real en SNI-8. No se inventa una interfaz de almacenamiento.
+integrar el storage de SNI-8, que define una interfaz propia y un adaptador local
+([storage.md](storage.md)).
 
 ## Request propuesto
 
