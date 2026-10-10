@@ -52,9 +52,9 @@ class PreparationWiringTest
         }
 
         @Test
-        fun `creation requires an identity and the update endpoint remains unavailable`() {
+        fun `creation and update require an identity`() {
             assertEquals(401, status("POST", "/snippets"))
-            assertEquals(404, status("PUT", "/snippets/${UUID.randomUUID()}"))
+            assertEquals(401, status("PUT", "/snippets/${UUID.randomUUID()}"))
         }
 
         private fun status(

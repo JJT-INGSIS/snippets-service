@@ -259,7 +259,7 @@ El body intenta elegir el owner.
   "type": "urn:snippets:problem:invalid-request",
   "title": "Bad Request",
   "status": 400,
-  "detail": "The body, one of its fields or the Idempotency-Key header is missing or invalid.",
+  "detail": "The body, one of its fields, a header or the snippet id is missing or invalid.",
   "instance": "/snippets"
 }
 ```
