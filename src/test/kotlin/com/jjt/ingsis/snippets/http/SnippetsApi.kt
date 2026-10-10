@@ -45,14 +45,35 @@ internal class SnippetsApi(
         actors: List<String> = listOf(ACTOR),
         contentType: String = "application/json",
     ): HttpAnswer {
-        val request =
-            HttpRequest
-                .newBuilder(URI("http://localhost:$port/snippets"))
-                .header("Content-Type", contentType)
-                .POST(HttpRequest.BodyPublishers.ofString(body))
+        val request = request("/snippets", contentType, actors).POST(HttpRequest.BodyPublishers.ofString(body))
         keys.forEach { key -> request.header("Idempotency-Key", key) }
+
+        return send(request)
+    }
+
+    fun update(
+        snippetId: String,
+        body: String,
+        actors: List<String> = listOf(ACTOR),
+        contentType: String = "application/json",
+    ): HttpAnswer {
+        val request = request("/snippets/$snippetId", contentType, actors)
+
+        return send(request.PUT(HttpRequest.BodyPublishers.ofString(body)))
+    }
+
+    private fun request(
+        path: String,
+        contentType: String,
+        actors: List<String>,
+    ): HttpRequest.Builder {
+        val request = HttpRequest.newBuilder(URI("http://localhost:$port$path")).header("Content-Type", contentType)
         actors.forEach { actor -> request.header("X-Dev-Actor-Id", actor) }
 
+        return request
+    }
+
+    private fun send(request: HttpRequest.Builder): HttpAnswer {
         val response = client.send(request.build(), HttpResponse.BodyHandlers.ofString())
 
         return HttpAnswer(

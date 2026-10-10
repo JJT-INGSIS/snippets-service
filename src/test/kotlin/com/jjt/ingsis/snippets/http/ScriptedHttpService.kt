@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicReference
 internal data class StubRequest(
     val method: String,
     val path: String,
+    val query: String?,
     val body: String,
 )
 
@@ -58,6 +59,7 @@ internal class ScriptedHttpService(
             StubRequest(
                 method = exchange.requestMethod,
                 path = exchange.requestURI.path,
+                query = exchange.requestURI.query,
                 body = exchange.requestBody.readBytes().toString(Charsets.UTF_8),
             )
         received.add(request)
