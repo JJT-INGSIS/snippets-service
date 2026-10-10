@@ -1,6 +1,6 @@
 # Snippets Service
 
-Servicio HTTP de Snippet Searcher con Kotlin y Spring Boot. Incluye validación de lenguaje mediante HTTP y persistencia interna de metadatos y storage local provisional de contenido; el flujo público de creación sigue pendiente.
+Servicio HTTP de Snippet Searcher con Kotlin y Spring Boot. Expone la creación de snippets en `POST /snippets`: valida el código mediante HTTP, guarda los metadatos en PostgreSQL y el código en un storage local provisional, y registra el owner en Permissions.
 
 ## Requisitos
 
@@ -51,6 +51,7 @@ docker compose stop snippets-service
 docker compose up -d --wait snippets-db
 cd ..\snippets-service
 
+$env:SPRING_PROFILES_ACTIVE = "dev"
 $env:SPRING_DATASOURCE_URL = "jdbc:postgresql://localhost:5432/snippets"
 $env:SPRING_DATASOURCE_USERNAME = "snippets"
 $databasePassword = Read-Host "SNIPPETS_DB_PASSWORD del .env de infra" -AsSecureString
@@ -60,7 +61,7 @@ Remove-Variable databasePassword
 .\gradlew.bat bootRun
 ```
 
-El servidor arranca en el puerto 8080 predeterminado de Spring Boot. Todavía no expone endpoints propios.
+El servidor arranca en el puerto 8080 predeterminado de Spring Boot. El perfil `dev` habilita la identidad de desarrollo por header; sin él, `POST /snippets` responde `401`. Para crear snippets también deben estar disponibles Permissions y PrintScript en sus destinos configurados.
 
 ## Arranque con Docker
 
@@ -97,7 +98,7 @@ El `Dockerfile` genera el `bootJar` con JDK 21 y lo ejecuta con JRE 21 y un usua
 
 La conexión JDBC se configura mediante `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` y `SPRING_DATASOURCE_PASSWORD`. Dentro del contenedor se usa `snippets-db:5432`; con `bootRun` en la computadora, `localhost:5432`. Gradle ejecutado directamente no lee el `.env` de infra automáticamente y sigue necesitando sus credenciales locales.
 
-El servidor queda disponible en `http://localhost:8080`. Un HTTP 404 en `/` es esperable porque todavía no hay endpoints propios y no comprueba la conexión JDBC a PostgreSQL.
+El servidor queda disponible en `http://localhost:8080`. El único endpoint es `POST /snippets`; un HTTP 404 en `/` es esperable.
 
 Para detener solo snippets y su base sin afectar permisos, desde infra:
 
@@ -153,22 +154,36 @@ La persistencia JDBC y sus garantías están documentadas en [docs/metadata.md](
 
 `SnippetMetadataStore` permite reservar creaciones, consultar pendientes o confirmados, confirmar y actualizar metadatos. No expone endpoints nuevos ni guarda código o propietarios. Cada escritura confirma su propia transacción antes de devolver un resultado.
 
-La vinculación con contenido está disponible desde SNI-8. `confirmCreation` es una operación interna cuya precondición completará SNI-17; por sí sola no demuestra que existan contenido y ownership.
+La vinculación con contenido está disponible desde SNI-8. `confirmCreation` es una operación interna: por sí sola no demuestra que existan contenido y ownership. `CreateSnippet` (SNI-17) cumple su precondición antes de invocarla.
 
 ## Storage de contenido — SNI-8
 
 [docs/storage.md](docs/storage.md) documenta la interfaz `SnippetContentStorage`, su adaptador con archivos locales, las garantías y el vínculo con los metadatos. Es provisional, autorizado por la cátedra el 7 de octubre de 2026; la adaptación al contrato oficial se seguirá en SNI-19.
 
-El contenido guardado nunca se sobrescribe. Reemplazar es guardar contenido nuevo, cambiar la referencia en una sola sentencia SQL y borrar el anterior. No expone endpoints: SNI-17 y SNI-18 lo usarán para completar creación y actualización.
+El contenido guardado nunca se sobrescribe. Reemplazar es guardar contenido nuevo, cambiar la referencia en una sola sentencia SQL y borrar el anterior. La creación de SNI-17 ya lo usa; SNI-18 lo usará para la actualización.
 
 `STORAGE_LOCAL_DIRECTORY` define el directorio; por defecto es `build/snippet-content`, apto solo para trabajo local. En la imagen es `/var/lib/snippets/content`, declarado como volumen y propiedad del usuario `10001`. Si el servicio no puede escribir en el directorio, no arranca.
 
-## Preparación de creación — SNI-9
+## Creación de snippets — SNI-9 y SNI-17
 
-La [propuesta de contrato](docs/creation.md) incorpora identidad de desarrollo,
-huella del pedido, validación, reservas PENDING, reintentos y clientes de Permissions.
-No habilita `POST /snippets`, storage ni confirmación del alta. El flujo parcial
-tampoco registra ownership: SNI-17 completará esas operaciones después de SNI-8.
+`POST /snippets` crea un snippet. El [contrato](docs/creation.md) documenta el pedido,
+las respuestas, los errores, la idempotencia y las fallas parciales, con ejemplos que
+los tests ejecutan. Es una propuesta backend sujeta a revisión con la UI.
+
+```bash
+curl -i -X POST http://localhost:8080/snippets \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: 7c9e6679-7425-40de-944b-e07fc1f90ae7' \
+  -H 'X-Dev-Actor-Id: dev-juan' \
+  -d '{"name":"Example","description":null,"language":"printscript","version":"1.0","code":"println(1);"}'
+```
+
+`CreateSnippet` ejecuta la secuencia: validar y reservar (`PrepareCreation`, SNI-9),
+guardar y vincular el código (`CreationContent`), registrar el owner con el UUID
+reservado (`CreationOwner`) y confirmar (`CreationConfirmation`). No hay una transacción
+entre PostgreSQL, el storage y Permissions: cada paso se puede repetir y el reintento
+con la misma `Idempotency-Key` completa lo que falte. Una reserva `PENDING` nunca se
+responde como snippet creado. El owner es la identidad del pedido, nunca un dato del body.
 
 Compose entrega `PRINTSCRIPT_BASE_URL` como fallback de Language; el override
 `LANGUAGE_PRINTSCRIPT_BASE_URL` conserva prioridad. Permissions utiliza

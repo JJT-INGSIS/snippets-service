@@ -49,7 +49,8 @@ La clave es única en PostgreSQL. Otra solicitud con la misma clave:
 
 La reserva concurrente se resuelve mediante la restricción única y una transacción.
 Esto evita duplicar metadatos; no impide que dos callers compatibles intenten una
-misma operación externa. SNI-9 debe acordar ese comportamiento con SNI-8.
+misma operación externa. SNI-17 lo resuelve con pasos que se pueden repetir; ver
+[creation.md](creation.md).
 
 ### Responsabilidad de la huella
 
@@ -86,13 +87,13 @@ fallas JDBC a `MetadataPersistenceException` y no realiza escrituras.
 **Precondición de `confirmCreation`:** el caso de uso debe completar y comprobar
 los pasos externos requeridos antes de invocarla. Esta operación cambia únicamente
 el estado en PostgreSQL. No comprueba que exista contenido ni ownership y no
-constituye una transacción distribuida. Todavía no hay endpoint público de creación
-que la invoque.
+constituye una transacción distribuida. `CreateSnippet` (SNI-17) la invoca después
+de vincular el contenido y registrar el owner; ver [creation.md](creation.md).
 
 La vinculación con contenido la agrega SNI-8 sin modificar este contrato: la columna
 `content_reference` y la interfaz separada `SnippetContentLinks` están descritas en
-[storage.md](storage.md). `confirmCreation` no comprueba esa vinculación; SNI-17 debe
-vincular el contenido antes de confirmar.
+[storage.md](storage.md). `confirmCreation` no comprueba esa vinculación; `CreateSnippet`
+vincula el contenido antes de confirmar.
 
 ## Actualización
 

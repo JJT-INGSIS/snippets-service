@@ -79,7 +79,7 @@ y no se afirma atomicidad entre servicios.
 `check` y `build` cubren permisos contra un servidor HTTP controlado, encoding,
 respuestas incompatibles y timeouts; candidatos completos y diagnósticos;
 lecturas PostgreSQL reales y preservación de metadatos; wiring y ausencia
-de endpoints públicos. No son una prueba de edición completa contra storage.
+del endpoint público de actualización. No son una prueba de edición completa contra storage.
 
 Verificación local del 6 de octubre de 2026: `sh ./gradlew check build --no-daemon`
 finalizó correctamente con JDK 21 y Docker disponible. La suite completa registró
