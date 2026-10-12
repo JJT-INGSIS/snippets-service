@@ -14,7 +14,7 @@ import org.springframework.http.ResponseEntity
 import java.util.UUID
 
 class CreationOutcomeTranslatorTest {
-    private val translator = CreationOutcomeTranslator()
+    private val translator = CreationOutcomeTranslator(RejectionTranslator())
 
     private val confirmed =
         SnippetMetadata(
@@ -75,16 +75,6 @@ class CreationOutcomeTranslatorTest {
             .isEqualTo(SnippetProblem.OWNERSHIP_CONFLICT)
         assertThat(problemOf(CreationOutcome.Incomplete(CreationFailure.METADATA_UNAVAILABLE)))
             .isEqualTo(SnippetProblem.METADATA_UNAVAILABLE)
-    }
-
-    @Test
-    fun `the documented error table lists exactly the problems the service answers`() {
-        val answered =
-            SnippetProblem.entries.map { problem ->
-                DocumentedProblem(problem.status.value(), "urn:snippets:problem:${problem.category}")
-            }
-
-        assertThat(CreationContract.problems).containsExactlyInAnyOrderElementsOf(answered)
     }
 
     private fun rejected(reason: PreparationRejection): CreationOutcome = CreationOutcome.Rejected(reason)

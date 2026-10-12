@@ -13,12 +13,22 @@ enum class SnippetProblem(
     INVALID_REQUEST(
         HttpStatus.BAD_REQUEST,
         "invalid-request",
-        "The body, one of its fields or the Idempotency-Key header is missing or invalid.",
+        "The body, one of its fields, a header or the snippet id is missing or invalid.",
     ),
     IDENTITY_UNAVAILABLE(
         HttpStatus.UNAUTHORIZED,
         "identity-unavailable",
         "The request does not carry a usable identity.",
+    ),
+    MODIFICATION_DENIED(
+        HttpStatus.FORBIDDEN,
+        "modification-denied",
+        "Only the owner can modify this snippet.",
+    ),
+    SNIPPET_NOT_FOUND(
+        HttpStatus.NOT_FOUND,
+        "snippet-not-found",
+        "There is no snippet with that id.",
     ),
     CREATION_CONFLICT(
         HttpStatus.CONFLICT,
@@ -29,6 +39,16 @@ enum class SnippetProblem(
         HttpStatus.CONFLICT,
         "ownership-conflict",
         "The snippet already has a different owner. The creation is not confirmed.",
+    ),
+    SNIPPET_PENDING(
+        HttpStatus.CONFLICT,
+        "snippet-pending",
+        "The creation of this snippet is not confirmed yet.",
+    ),
+    OWNERSHIP_MISSING(
+        HttpStatus.CONFLICT,
+        "ownership-missing",
+        "The snippet has no registered owner, so nobody can modify it.",
     ),
     INVALID_CODE(
         HttpStatus.UNPROCESSABLE_CONTENT,
@@ -53,17 +73,17 @@ enum class SnippetProblem(
     DEPENDENCY_FAILURE(
         HttpStatus.BAD_GATEWAY,
         "dependency-failure",
-        "A service this operation depends on did not answer correctly. Retry with the same Idempotency-Key.",
+        "A service this operation depends on did not answer correctly. Repeating the same request is safe.",
     ),
     METADATA_UNAVAILABLE(
         HttpStatus.SERVICE_UNAVAILABLE,
         "metadata-unavailable",
-        "The snippet data could not be saved. Retry with the same Idempotency-Key.",
+        "The snippet data could not be saved. Repeating the same request is safe.",
     ),
     STORAGE_UNAVAILABLE(
         HttpStatus.SERVICE_UNAVAILABLE,
         "storage-unavailable",
-        "The snippet code could not be saved. Retry with the same Idempotency-Key.",
+        "The snippet code could not be saved. Repeating the same request is safe.",
     ),
     ;
 

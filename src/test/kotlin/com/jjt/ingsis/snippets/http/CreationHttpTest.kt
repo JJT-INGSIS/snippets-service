@@ -52,7 +52,7 @@ class CreationHttpTest
 
         @Test
         fun `the documented creation leaves code, metadata and owner under one UUID`() {
-            val example = CreationContract.example("Alta válida")
+            val example = creationContract.example("Alta válida")
 
             val answer = api.create(example.request)
 
@@ -66,7 +66,7 @@ class CreationHttpTest
 
         @Test
         fun `the documented retry answers the snippet that already exists`() {
-            val example = CreationContract.example("Reintento del mismo pedido")
+            val example = creationContract.example("Reintento del mismo pedido")
             val key = newKey()
             val created = api.create(example.request, keys = listOf(key))
 
@@ -80,13 +80,13 @@ class CreationHttpTest
 
         @Test
         fun `the documented conflict rejects a key reused by another request or another actor`() {
-            val example = CreationContract.example("Misma clave con otro pedido")
+            val example = creationContract.example("Misma clave con otro pedido")
             val key = newKey()
-            api.create(CreationContract.example("Alta válida").request, keys = listOf(key))
+            api.create(creationContract.example("Alta válida").request, keys = listOf(key))
 
             val otherRequest = api.create(example.request, keys = listOf(key))
             val otherActor =
-                api.create(CreationContract.example("Alta válida").request, keys = listOf(key), actors = listOf("x"))
+                api.create(creationContract.example("Alta válida").request, keys = listOf(key), actors = listOf("x"))
 
             assertThat(otherRequest.status).isEqualTo(example.status)
             assertThat(otherRequest.contentType).isEqualTo("application/problem+json")
@@ -96,7 +96,7 @@ class CreationHttpTest
 
         @Test
         fun `the documented invalid code is rejected with rule, message, line and column`() {
-            val example = CreationContract.example("Código inválido")
+            val example = creationContract.example("Código inválido")
             val diagnostics = json.readTree(example.response).get("diagnostics")
             val key = newKey()
             printScript.answerWith { StubResponse(200, """{"valid":false,"diagnostics":$diagnostics}""") }
@@ -111,7 +111,7 @@ class CreationHttpTest
 
         @Test
         fun `the documented field outside the contract cannot choose the owner`() {
-            val example = CreationContract.example("Campo no admitido")
+            val example = creationContract.example("Campo no admitido")
 
             val answer = api.create(example.request)
 
@@ -122,7 +122,7 @@ class CreationHttpTest
 
         @Test
         fun `the documented request without identity is rejected`() {
-            val example = CreationContract.example("Pedido sin identidad")
+            val example = creationContract.example("Pedido sin identidad")
 
             val answer = api.create(example.request, actors = emptyList())
             val twoIdentities = api.create(example.request, actors = listOf(ACTOR, "dev-thiago"))
@@ -135,7 +135,7 @@ class CreationHttpTest
 
         @Test
         fun `every documented example is one of the tests above`() {
-            assertThat(CreationContract.examples.map { example -> example.title }).containsExactly(
+            assertThat(creationContract.examples.map { example -> example.title }).containsExactly(
                 "Alta válida",
                 "Reintento del mismo pedido",
                 "Misma clave con otro pedido",

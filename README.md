@@ -1,6 +1,6 @@
 # Snippets Service
 
-Servicio HTTP de Snippet Searcher con Kotlin y Spring Boot. Expone la creación de snippets en `POST /snippets`: valida el código mediante HTTP, guarda los metadatos en PostgreSQL y el código en un storage local provisional, y registra el owner en Permissions.
+Servicio HTTP de Snippet Searcher con Kotlin y Spring Boot. Expone la creación de snippets en `POST /snippets` y su actualización en `PUT /snippets/{id}`: valida el código mediante HTTP, guarda los metadatos en PostgreSQL y el código en un storage local provisional, y usa Permissions para registrar al owner y comprobar que solo él modifique.
 
 ## Requisitos
 
@@ -61,7 +61,7 @@ Remove-Variable databasePassword
 .\gradlew.bat bootRun
 ```
 
-El servidor arranca en el puerto 8080 predeterminado de Spring Boot. El perfil `dev` habilita la identidad de desarrollo por header; sin él, `POST /snippets` responde `401`. Para crear snippets también deben estar disponibles Permissions y PrintScript en sus destinos configurados.
+El servidor arranca en el puerto 8080 predeterminado de Spring Boot. El perfil `dev` habilita la identidad de desarrollo por header; sin él, `POST /snippets` y `PUT /snippets/{id}` responden `401`. Para crear o actualizar snippets también deben estar disponibles Permissions y PrintScript en sus destinos configurados.
 
 ## Arranque con Docker
 
@@ -98,7 +98,7 @@ El `Dockerfile` genera el `bootJar` con JDK 21 y lo ejecuta con JRE 21 y un usua
 
 La conexión JDBC se configura mediante `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` y `SPRING_DATASOURCE_PASSWORD`. Dentro del contenedor se usa `snippets-db:5432`; con `bootRun` en la computadora, `localhost:5432`. Gradle ejecutado directamente no lee el `.env` de infra automáticamente y sigue necesitando sus credenciales locales.
 
-El servidor queda disponible en `http://localhost:8080`. El único endpoint es `POST /snippets`; un HTTP 404 en `/` es esperable.
+El servidor queda disponible en `http://localhost:8080`. Los endpoints son `POST /snippets` y `PUT /snippets/{id}`; un HTTP 404 en `/` es esperable.
 
 Para detener solo snippets y su base sin afectar permisos, desde infra:
 
@@ -160,7 +160,7 @@ La vinculación con contenido está disponible desde SNI-8. `confirmCreation` es
 
 [docs/storage.md](docs/storage.md) documenta la interfaz `SnippetContentStorage`, su adaptador con archivos locales, las garantías y el vínculo con los metadatos. Es provisional, autorizado por la cátedra el 7 de octubre de 2026; la adaptación al contrato oficial se seguirá en SNI-19.
 
-El contenido guardado nunca se sobrescribe. Reemplazar es guardar contenido nuevo, cambiar la referencia en una sola sentencia SQL y borrar el anterior. La creación de SNI-17 ya lo usa; SNI-18 lo usará para la actualización.
+El contenido guardado nunca se sobrescribe. Reemplazar es guardar contenido nuevo, cambiar la referencia en una sola sentencia SQL y borrar el anterior. Lo usan la creación de SNI-17 y la actualización de SNI-18.
 
 `STORAGE_LOCAL_DIRECTORY` define el directorio; por defecto es `build/snippet-content`, apto solo para trabajo local. En la imagen es `/var/lib/snippets/content`, declarado como volumen y propiedad del usuario `10001`. Si el servicio no puede escribir en el directorio, no arranca.
 
@@ -194,13 +194,27 @@ Los resultados son datos tipados. `MetadataPersistenceException` se traduce a fa
 técnica en el caso de uso, sin modificar el contrato de persistencia. La identidad
 por header solo está disponible con el perfil Spring `dev`; no es autenticación.
 
-## Preparación de actualización — SNI-10
+## Actualización de snippets — SNI-10 y SNI-18
 
-[docs/update.md](docs/update.md) propone un reemplazo completo por `PUT`, pero no
-habilita el endpoint. `PrepareUpdate` distingue metadatos pendientes e inexistentes,
-comprueba permisos y valida el candidato completo usando las piezas de SNI-9.
-Todos sus resultados son de preparación: no modifica metadatos, ownership ni
-contenido. La edición real espera SNI-18 y el storage de SNI-8.
+`PUT /snippets/{id}` reemplaza el código y los datos de un snippet. El
+[contrato](docs/update.md) documenta el pedido, qué pasa con los campos ausentes o
+nulos, las respuestas, los errores, las fallas parciales y la concurrencia, con
+ejemplos que los tests ejecutan. Es una propuesta backend sujeta a revisión con la UI.
+
+```bash
+curl -i -X PUT http://localhost:8080/snippets/<id> \
+  -H 'Content-Type: application/json' \
+  -H 'X-Dev-Actor-Id: dev-juan' \
+  -d '{"name":"Renamed","description":null,"language":"printscript","version":"1.1","code":"println(2);"}'
+```
+
+`UpdateSnippet` ejecuta la secuencia. `PrepareUpdate` (SNI-10) distingue snippet
+inexistente y pendiente, pregunta a Permissions si la identidad puede modificarlo y
+valida el reemplazo completo, sin escribir nada. `SnippetReplacement` guarda el código
+nuevo, cambia datos y referencia en una sola sentencia SQL y borra el código anterior.
+El contenido vigente nunca se sobrescribe: el snippet muestra lo anterior completo o lo
+nuevo completo. Un pedido rechazado no modifica nada, y una falla de Permissions es un
+`502`, nunca un permiso denegado.
 
 `findMetadata` permite consultar el estado interno sin cambiar `findConfirmed`.
 El cliente de Permissions codifica `actorId` y distingue denegación, ownership
