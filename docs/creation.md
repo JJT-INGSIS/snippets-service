@@ -6,6 +6,9 @@ SNI-9 preparó la identidad, la validación, la huella del pedido y las reservas
 
 Los ejemplos de este documento son tests del contrato: `CreationHttpTest` lee este archivo, envía cada pedido y compara la respuesta completa. Si el comportamiento cambia y el ejemplo no, el build falla.
 
+La [verificación integrada de SNI-15](creation-verification.md) complementa esos
+tests con los servicios reales en Compose y la persistencia entre contenedores.
+
 ## Pedido
 
 `POST /snippets`

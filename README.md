@@ -170,6 +170,10 @@ El contenido guardado nunca se sobrescribe. Reemplazar es guardar contenido nuev
 las respuestas, los errores, la idempotencia y las fallas parciales, con ejemplos que
 los tests ejecutan. Es una propuesta backend sujeta a revisión con la UI.
 
+La [verificación integrada de SNI-15](docs/creation-verification.md) explica cómo
+comprobar la creación con los tres servicios reales, metadatos, contenido y owner,
+los fallos parciales y la persistencia al recrear el contenedor.
+
 ```bash
 curl -i -X POST http://localhost:8080/snippets \
   -H 'Content-Type: application/json' \
