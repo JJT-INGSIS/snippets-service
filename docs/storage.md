@@ -103,7 +103,9 @@ Si `linkContent` informa que reemplazó una referencia, o que el snippet ya esta
 | En `linkContent` | Queda un contenido sin referenciar. La reserva sigue sin contenido. |
 | Después de vincular | La reserva `PENDING` conserva su contenido. El reintento continúa desde el paso 5. |
 
-## Uso previsto en actualización — SNI-18
+## Uso en actualización — SNI-18
+
+`SnippetReplacement` aplica estos pasos dentro de `UpdateSnippet`. El flujo completo, sus respuestas y su comportamiento ante pedidos simultáneos están en [update.md](update.md).
 
 1. `PrepareUpdate` devuelve un candidato ya validado.
 2. `store(code)` del candidato.
@@ -113,10 +115,13 @@ Si `linkContent` informa que reemplazó una referencia, o que el snippet ya esta
 | Falla | Estado resultante |
 | --- | --- |
 | En `store` | El snippet vigente no cambió. |
-| En `replaceContent` | El snippet vigente no cambió. Queda un contenido sin referenciar. |
+| En `replaceContent`, sin llegar a guardarse | El snippet vigente no cambió. Queda sin referenciar el contenido nuevo. |
+| En `replaceContent`, guardado pero sin confirmación | El snippet ya muestra los datos y el contenido nuevos. Queda sin referenciar el contenido anterior. |
 | En `delete` | El snippet ya muestra los datos y el contenido nuevos. Queda sin referenciar el contenido anterior. |
 
 En ningún punto el contenido vigente se sobrescribe ni se presenta contenido incompleto: el snippet apunta al contenido anterior completo o al nuevo completo.
+
+Si `replaceContent` falla, el contenido nuevo no se borra: el cambio pudo haberse guardado. Solo se borra cuando la base confirmó que no lo vinculó.
 
 ## Límites
 
@@ -132,4 +137,4 @@ En ningún punto el contenido vigente se sobrescribe ni se presenta contenido in
 
 Cubren texto preservado exactamente, contenido inexistente, referencias inválidas, fallas del sistema de archivos, escrituras interrumpidas, escrituras concurrentes, reemplazos concurrentes, reintentos y la migración sobre datos existentes.
 
-La persistencia entre contenedores se comprueba en el Compose de `snippet-searcher-infra`, que monta un volumen en el directorio de la imagen. El recorrido completo por HTTP está en `CreationHttpTest`, descrito en [creation.md](creation.md).
+La persistencia entre contenedores se comprueba en el Compose de `snippet-searcher-infra`, que monta un volumen en el directorio de la imagen. El recorrido completo por HTTP está en `CreationHttpTest` y `UpdateHttpTest`, descritos en [creation.md](creation.md) y [update.md](update.md).

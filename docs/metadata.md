@@ -112,6 +112,11 @@ sea necesario. Esta operación no autoriza al usuario ni modifica contenido. Las
 actualizaciones concurrentes se serializan y la última aplicada reemplaza los
 cuatro campos: no se implementa control de revisión ni historial en SNI-6.
 
+La actualización pública de SNI-18 no usa esta operación: `UpdateSnippet` cambia los
+cuatro campos junto con la referencia del contenido mediante `replaceContent`, descrita
+en [storage.md](storage.md), para que datos y código cambien a la vez. Ver
+[update.md](update.md).
+
 ## Transacciones y errores
 
 Cada escritura usa su propia transacción corta (`REQUIRES_NEW`) y devuelve su
