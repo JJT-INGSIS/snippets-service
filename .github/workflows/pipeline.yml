@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publicar una imagen de bootstrap después de CI; solo desde dev o main.
+        description: Publicar una imagen de bootstrap después de CI; solo desde dev.
         required: false
         default: false
         type: boolean
@@ -22,11 +22,17 @@ jobs:
     permissions:
       contents: read
       packages: write
-    uses: JJT-INGSIS/github-workflows/.github/workflows/kotlin-service-pipeline.yml@v0.3.1
+      actions: read
+      pull-requests: read
+      deployments: write
+    uses: JJT-INGSIS/github-workflows/.github/workflows/kotlin-service-pipeline.yml@v0.4.0
     with:
       publish: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
+      deploy: ${{ vars.CD_ENABLED == 'true' }}
       image-name: ghcr.io/jjt-ingsis/snippets-service
       platforms: ${{ vars.DOCKER_PLATFORMS || 'linux/amd64' }}
     secrets:
       GH_PACKAGES_USER: ${{ secrets.GH_PACKAGES_USER }}
       GH_PACKAGES_READ_TOKEN: ${{ secrets.GH_PACKAGES_READ_TOKEN }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
