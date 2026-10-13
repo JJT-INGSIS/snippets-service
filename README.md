@@ -237,7 +237,7 @@ a administradores y no admitir bypass de pushes directos. El merge de esa PR es
 la autorización humana; no se agrega otro approval en GitHub Environments.
 
 El caller `.github/workflows/pipeline.yml` prepara
-`kotlin-service-pipeline.yml@v0.4.0` de [github-workflows](https://github.com/JJT-INGSIS/github-workflows).
+`kotlin-service-pipeline.yml@v0.5.0` de [github-workflows](https://github.com/JJT-INGSIS/github-workflows).
 **Esta versión debe integrarse, publicarse y comprobarse antes de integrar el caller.**
 El candidato se prueba por SHA siguiendo la
 [guía central](https://github.com/JJT-INGSIS/github-workflows/blob/main/docs/sni-25-integration.md).
