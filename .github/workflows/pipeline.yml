@@ -25,7 +25,7 @@ jobs:
       actions: read
       pull-requests: read
       deployments: write
-    uses: JJT-INGSIS/github-workflows/.github/workflows/kotlin-service-pipeline.yml@v0.4.0
+    uses: JJT-INGSIS/github-workflows/.github/workflows/kotlin-service-pipeline.yml@21a64a5e1d156a30fd262b452a4bd88863a378fd
     with:
       publish: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
       deploy: ${{ vars.CD_ENABLED == 'true' }}
