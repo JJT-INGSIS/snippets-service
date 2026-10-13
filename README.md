@@ -205,6 +205,10 @@ por header solo está disponible con el perfil Spring `dev`; no es autenticació
 nulos, las respuestas, los errores, las fallas parciales y la concurrencia, con
 ejemplos que los tests ejecutan. Es una propuesta backend sujeta a revisión con la UI.
 
+La [verificación integrada de SNI-16](docs/update-verification.md) documenta la
+actualización con los servicios reales, los permisos, los rechazos sin cambios,
+la concurrencia y la persistencia al recrear el contenedor.
+
 ```bash
 curl -i -X PUT http://localhost:8080/snippets/<id> \
   -H 'Content-Type: application/json' \
