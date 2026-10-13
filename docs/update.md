@@ -6,6 +6,9 @@ SNI-10 preparó la identidad, la comprobación de existencia, el permiso y la va
 
 Los ejemplos de este documento son tests del contrato: `UpdateHttpTest` lee este archivo, envía cada pedido y compara la respuesta completa. Si el comportamiento cambia y el ejemplo no, el build falla.
 
+La [verificación integrada de SNI-16](update-verification.md) complementa esos
+tests con la imagen de Snippets y los servicios reales en Compose.
+
 ## Pedido
 
 `PUT /snippets/{id}`
