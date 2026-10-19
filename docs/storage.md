@@ -2,7 +2,10 @@
 
 El 7 de octubre de 2026 la cátedra indicó avanzar con un storage propio mientras no esté disponible su interfaz oficial. Este documento describe la interfaz mínima de Snippets, su adaptador con archivos locales y las garantías que pueden usar la creación (SNI-17) y la actualización (SNI-18).
 
-Es provisional. La adaptación al contrato oficial se seguirá en SNI-19 y debería limitarse a escribir otro adaptador de la misma interfaz. No hay integración con Azure.
+El adaptador local se conserva como proveedor por defecto. SNI-19 agrega un
+adaptador HTTP de la misma interfaz para el Asset Service oficial; Snippets no
+implementa Azure directamente. Configuración, decisiones y transición de datos:
+[asset-storage.md](asset-storage.md). Cambiar de proveedor no migra los archivos.
 
 Aquí «local» significa archivos del backend, no almacenamiento del navegador.
 

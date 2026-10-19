@@ -1,5 +1,20 @@
 # Snippets Service
 
+## Asset Service — SNI-19
+
+El storage se selecciona con `STORAGE_PROVIDER=local|asset`; `local` sigue siendo
+el default. Para Asset configurar `STORAGE_ASSET_BASE_URL` y, opcionalmente,
+`STORAGE_ASSET_CONTAINER`, timeouts y límite de bytes. No hay fallback entre
+proveedores: activar Asset sin copiar/verificar los datos locales deja referencias
+sin contenido accesible. No se ejecuta una migración al arrancar.
+
+El contrato, los trade-offs aprobados y el procedimiento de transición/recuperación
+están en [docs/asset-storage.md](docs/asset-storage.md). Las pruebas de Asset usan
+el servicio oficial y Azurite con imágenes fijadas, y PostgreSQL mediante Docker.
+Asset guarda una envoltura `snippet-content-v1` con el código exacto; también admite
+código vacío. PostgreSQL solo guarda metadatos y la referencia UUID. Una copia
+desde local debe envolver el código y verificarlo al leer, no copiar bytes crudos.
+
 Servicio HTTP de Snippet Searcher con Kotlin y Spring Boot. Expone la creación de snippets en `POST /snippets` y su actualización en `PUT /snippets/{id}`: valida el código mediante HTTP, guarda los metadatos en PostgreSQL y el código en un storage local provisional, y usa Permissions para registrar al owner y comprobar que solo él modifique.
 
 ## Requisitos
