@@ -243,6 +243,23 @@ nuevo completo. Un pedido rechazado no modifica nada, y una falla de Permissions
 El cliente de Permissions codifica `actorId` y distingue denegación, ownership
 inexistente y fallas técnicas; nunca convierte un timeout en permiso denegado.
 
+## Contrato con la UI — SNI-26
+
+Contrato acordado para conectar la UI de la cátedra con US1–7. Listado, detalle,
+lenguajes, destinatarios y sharing son **contratos propuestos, todavía no
+implementados**.
+
+| Documento | Contenido |
+| --- | --- |
+| [docs/ui-integration.md](docs/ui-integration.md) | Representación común, traducción de los tipos de la UI, lint, capacidades, identidad y usuarios de dev, 403/404, operaciones conectadas y deshabilitadas |
+| [docs/reading.md](docs/reading.md) | `GET /snippets`, `GET /snippets/{id}` y `GET /languages` |
+| [docs/sharing.md](docs/sharing.md) | `GET /users` y `PUT /snippets/{id}/shares/{userId}` |
+
+El listado obtiene de Permissions los IDs accesibles y después filtra, ordena y
+pagina en la base de Snippets, sin leer código. El detalle lee un solo contenido,
+después de comprobar el acceso. El lint se informa como `not-implemented`: US5 y
+US6 no están completas hasta que existan lint y tests.
+
 ## CI/CD y branches — SNI-23 / SNI-25
 
 Crear ramas cortas desde `dev`, abrir PR a dev y promover mediante PR dev → main.
