@@ -48,7 +48,7 @@ class PrepareCreationTest {
         val metadata = reservedMetadata()
         `when`(store.prepareCreation(request())).thenReturn(CreationResult.Created(metadata))
         val result = preparation().prepare(draft(), key, context)
-        assertEquals(PreparationResult.Prepared(metadata, replayed = false), result)
+        assertEquals(PreparationResult.Prepared(metadata, replayed = false, actorId = "dev-thiago"), result)
         verify(store).prepareCreation(
             com.jjt.ingsis.snippets.metadata.CreationRequest(
                 key = UUID.fromString(key),
@@ -65,7 +65,7 @@ class PrepareCreationTest {
         val metadata = reservedMetadata(SnippetState.CONFIRMED)
         `when`(store.prepareCreation(request())).thenReturn(CreationResult.Existing(metadata), CreationResult.Conflict)
         assertEquals(
-            PreparationResult.Prepared(metadata, replayed = true),
+            PreparationResult.Prepared(metadata, replayed = true, actorId = "dev-thiago"),
             preparation().prepare(draft(), key, context),
         )
         assertEquals(PreparationResult.Conflict, preparation().prepare(draft(), key, context))

@@ -3,6 +3,14 @@
 These instructions apply to every code change in this repository.
 Prefer simple, readable, testable and maintainable code over clever or over-engineered solutions.
 
+For planning and implementation, read and apply
+[design-tradeoffs](.agents/skills/design-tradeoffs/SKILL.md).
+Consult the user before implementing new design decisions, including choices made
+for convention, convenience, time or cost. Present alternatives, advantages,
+disadvantages and a justified recommendation; record approvals and accepted costs.
+The skill defines exceptions for mechanical details and previously approved choices.
+It does not grant permission for deployments, migrations or additional Git operations.
+
 ## 1. Scope and preparation
 
 - Treat each service as an independent repository; respect service ownership.
@@ -47,9 +55,11 @@ Does not own snippets, snippet metadata, ownership, permissions or users.
 
 ### Storage
 
-The course will provide the storage interface and its Azure-backed implementation.
-Integrate that contract only when it becomes available.
-Do not invent a replacement, implement Azure directly, bypass the abstraction,
+The course will provide the official storage interface and its Azure-backed implementation.
+Until then, as the course authorised on 2026-10-07, snippets-service uses its own minimal
+`SnippetContentStorage` interface with a local file adapter, described in
+[docs/storage.md](docs/storage.md). Adapting it to the official contract is tracked in SNI-19.
+Do not implement Azure directly, bypass the abstraction, grow it into a generic framework,
 or duplicate snippet content as another authoritative source.
 
 ## 3. Architectural boundaries

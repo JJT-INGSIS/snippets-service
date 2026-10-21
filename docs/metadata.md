@@ -49,7 +49,8 @@ La clave es única en PostgreSQL. Otra solicitud con la misma clave:
 
 La reserva concurrente se resuelve mediante la restricción única y una transacción.
 Esto evita duplicar metadatos; no impide que dos callers compatibles intenten una
-misma operación externa. SNI-9 debe acordar ese comportamiento con SNI-8.
+misma operación externa. SNI-17 lo resuelve con pasos que se pueden repetir; ver
+[creation.md](creation.md).
 
 ### Responsabilidad de la huella
 
@@ -86,13 +87,13 @@ fallas JDBC a `MetadataPersistenceException` y no realiza escrituras.
 **Precondición de `confirmCreation`:** el caso de uso debe completar y comprobar
 los pasos externos requeridos antes de invocarla. Esta operación cambia únicamente
 el estado en PostgreSQL. No comprueba que exista contenido ni ownership y no
-constituye una transacción distribuida. Todavía no hay endpoint público de creación
-que la invoque.
+constituye una transacción distribuida. `CreateSnippet` (SNI-17) la invoca después
+de vincular el contenido y registrar el owner; ver [creation.md](creation.md).
 
-El campo de vinculación con contenido, sus restricciones y las operaciones para
-registrarlo quedan pendientes del contrato real de SNI-8. No se presupone una URL,
-un identificador de tipo string ni garantías de idempotencia del storage. SNI-9 no
-puede ofrecer todavía creación completa basándose solamente en esta persistencia.
+La vinculación con contenido la agrega SNI-8 sin modificar este contrato: la columna
+`content_reference` y la interfaz separada `SnippetContentLinks` están descritas en
+[storage.md](storage.md). `confirmCreation` no comprueba esa vinculación; `CreateSnippet`
+vincula el contenido antes de confirmar.
 
 ## Actualización
 
@@ -111,6 +112,11 @@ sea necesario. Esta operación no autoriza al usuario ni modifica contenido. Las
 actualizaciones concurrentes se serializan y la última aplicada reemplaza los
 cuatro campos: no se implementa control de revisión ni historial en SNI-6.
 
+La actualización pública de SNI-18 no usa esta operación: `UpdateSnippet` cambia los
+cuatro campos junto con la referencia del contenido mediante `replaceContent`, descrita
+en [storage.md](storage.md), para que datos y código cambien a la vez. Ver
+[update.md](update.md).
+
 ## Transacciones y errores
 
 Cada escritura usa su propia transacción corta (`REQUIRES_NEW`) y devuelve su
@@ -128,7 +134,8 @@ que el registro no existe ni generar automáticamente una nueva clave.
 
 ## Esquema y pruebas
 
-Flyway crea la tabla con `V1__create_snippets.sql` y valida su historial al arrancar.
+Flyway crea la tabla con `V1__create_snippets.sql`, agrega la referencia de contenido con
+`V2__link_snippet_content.sql` y valida su historial al arrancar.
 La cuenta de PostgreSQL necesita permisos para crear la tabla y el historial de
 migraciones. No se crean tablas en la base de Permissions.
 

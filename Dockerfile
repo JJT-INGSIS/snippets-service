@@ -17,7 +17,12 @@ RUN --mount=type=cache,target=/root/.gradle \
 FROM eclipse-temurin:21-jre AS runtime
 WORKDIR /app
 
+RUN mkdir -p /var/lib/snippets/content && chown 10001:10001 /var/lib/snippets/content
+
 COPY --from=build /app/build/libs/*.jar app.jar
+
+ENV STORAGE_LOCAL_DIRECTORY=/var/lib/snippets/content
+VOLUME /var/lib/snippets/content
 
 USER 10001:10001
 EXPOSE 8080

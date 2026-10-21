@@ -46,6 +46,7 @@ sealed interface PreparationResult {
     data class Prepared(
         val metadata: SnippetMetadata,
         val replayed: Boolean,
+        val actorId: String,
     ) : PreparationResult
 
     data class Rejected(
