@@ -30,16 +30,54 @@ internal class AccessLedger {
     }
 
     fun answer(request: StubRequest): StubResponse {
+        if (request.method == "PUT") return registerShare(request)
         val pairs = request.query.orEmpty().split('&')
         val query = pairs.associate { it.substringBefore('=') to decoded(it.substringAfter('=')) }
         val actorId = query.getValue("actorId")
 
         return if (request.path == "/access") {
             list(actorId, query.getValue("relation"))
+        } else if (request.path.endsWith("/can-modify")) {
+            val id = UUID.fromString(request.path.split('/')[2])
+            val allowed = grants.any { it.snippetId == id && it.ownerId == actorId }
+            StubResponse(200, json.writeValueAsString(mapOf("allowed" to allowed)))
         } else {
             single(UUID.fromString(request.path.split('/')[2]), actorId, request.path)
         }
     }
+
+    private fun registerShare(request: StubRequest): StubResponse =
+        synchronized(grants) {
+            val id = UUID.fromString(request.path.split('/')[2])
+            val actor = json.readTree(request.body).get("actorId").asString()
+            val recipient = request.path.substringAfter("/shares/")
+            val owner =
+                grants.find { it.snippetId == id }?.ownerId ?: return@synchronized ownershipMissing(request.path)
+            if (owner != actor) {
+                val relation = if (grants.any { it.snippetId == id && it.actorId == actor }) "shared" else "none"
+                val body =
+                    mapOf(
+                        "type" to "urn:permissions:problem:share-denied",
+                        "status" to 403,
+                        "title" to "Forbidden",
+                        "detail" to "Only the owner can share this snippet.",
+                        "instance" to request.path,
+                        "relation" to relation,
+                    )
+                return@synchronized StubResponse(403, json.writeValueAsString(body), "application/problem+json")
+            }
+            val existing = grants.any { it.snippetId == id && it.actorId == recipient }
+            if (!existing) share(owner, id, recipient)
+            StubResponse(
+                if (existing) 200 else 201,
+                json.writeValueAsString(
+                    mapOf(
+                        "snippetId" to id.toString(),
+                        "recipientId" to recipient,
+                    ),
+                ),
+            )
+        }
 
     private fun single(
         snippetId: UUID,

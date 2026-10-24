@@ -73,6 +73,28 @@ class PermissionsResponseDecoder {
         }
     }
 
+    internal fun confirmsShare(
+        response: PermissionsResponse,
+        snippetId: UUID,
+        recipientId: String,
+    ): Boolean {
+        if (response.contentType != "application/json") return false
+        val body = tree(response.body) ?: return false
+        return text(body, "snippetId") == snippetId.toString() && text(body, "recipientId") == recipientId
+    }
+
+    internal fun shareDenial(
+        response: PermissionsResponse,
+        path: String,
+    ): ShareRegistration? {
+        if (!problem(response, path, "share-denied")) return null
+        return when (text(tree(response.body) ?: return null, "relation")) {
+            "shared" -> ShareRegistration.Denied
+            "none" -> ShareRegistration.Missing
+            else -> null
+        }
+    }
+
     private fun access(item: JsonNode): SnippetAccess? {
         val snippetId = text(item, "snippetId")?.let(::canonicalUuid)
         val owner = text(item, "ownerId")

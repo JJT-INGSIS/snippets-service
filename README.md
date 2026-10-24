@@ -34,6 +34,18 @@ comprobar además compatibilidad con PrintScript real, definir
 `PRINTSCRIPT_SERVICE_URL=http://127.0.0.1:8082` antes del build. Sin esa variable,
 los tests optativos de integración con ese proveedor se omiten explícitamente.
 
+## Compartir snippets — SNI-32
+
+`PUT /snippets/{id}/shares/{userId}` permite al owner conceder lectura a un usuario
+conocido. No lleva body ni `Idempotency-Key`: el primer registro responde `201` y
+repetirlo responde `200` con `{snippetId,userId}`, sin duplicar accesos. La identidad
+proviene del contexto del request; Permissions comprueba el ownership al registrar.
+
+El destinatario ve el mismo contenido mediante listado/detalle y no puede editar
+ni volver a compartir. Un timeout se informa como falta de confirmación: se puede
+repetir explícitamente el PUT; no hay reintentos automáticos ni borrado compensatorio.
+Ver [contrato, decisiones y pruebas reales](docs/sharing.md).
+
 ## Requisitos
 
 - JDK 21 para ejecutar Gradle y la aplicación.
@@ -264,8 +276,7 @@ inexistente y fallas técnicas; nunca convierte un timeout en permiso denegado.
 
 Contrato acordado para conectar la UI de la cátedra con US1–7. El listado
 (SNI-30), el detalle (SNI-31) y la búsqueda de destinatarios (SNI-29) están
-implementados; lenguajes y sharing son **contratos propuestos, todavía no
-implementados**.
+implementados, al igual que el catálogo de lenguajes (SNI-54) y sharing (SNI-32).
 
 | Documento | Contenido |
 | --- | --- |
