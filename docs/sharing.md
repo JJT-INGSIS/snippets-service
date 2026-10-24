@@ -1,7 +1,11 @@
-# Compartir snippets — SNI-26
+# Compartir snippets — SNI-26 y SNI-29
 
-Contrato propuesto para buscar destinatarios y compartir un snippet (US7).
-**No está implementado.** Los ejemplos todavía no se ejecutan como tests.
+Contrato para buscar destinatarios y compartir un snippet (US7), acordado en SNI-26.
+
+| Operación | Estado |
+| --- | --- |
+| `GET /users` | **Implementado en SNI-29.** Sus ejemplos son tests: `UsersHttpTest` envía cada pedido y compara la respuesta completa. |
+| `PUT /snippets/{id}/shares/{userId}` | Propuesto, no implementado (SNI-32). Sus ejemplos todavía no se ejecutan. |
 
 La identidad, el directorio de usuarios de desarrollo, las capacidades y la
 política 403/404 están en [ui-integration.md](ui-integration.md).
@@ -79,6 +83,51 @@ X-Dev-Actor-Id: dev-juan
 | `400` | `urn:snippets:problem:invalid-request` | Parámetro desconocido, repetido o inválido. `parameter` lo nombra. |
 | `401` | `urn:snippets:problem:identity-unavailable` | Identidad ausente, inválida o deshabilitada. |
 | `500` | `urn:snippets:problem:technical-failure` | Error inesperado. |
+
+Los parámetros se validan antes que la identidad, como en el listado: un pedido
+con parámetros inválidos y sin identidad responde `400`.
+
+### Directorio de desarrollo — SNI-29
+
+Todavía no hay usuarios reales: Auth0 queda para una entrega posterior. Mientras
+tanto, los destinatarios salen de un catálogo de desarrollo explícito.
+
+| Pieza | Qué hace |
+| --- | --- |
+| `application-dev.properties` | Declara los usuarios (`development.users[i].id` y `.name`). Spring lo carga solo con el perfil `dev`. |
+| `DevelopmentUsers` | Lee esa lista. Si un `id` o un `name` está en blanco, o un `id` se repite, el servicio no arranca. |
+| `UserDirectory` | Puerto: `search(name, excluding, page)` y `contains(id)`. Es el punto de reemplazo por un directorio real. |
+| `ConfiguredUserDirectory` | Implementación en memoria sobre el catálogo: filtra, excluye al actor, ordena y pagina. |
+| `SearchUsers` | Caso de uso: resuelve la identidad y busca excluyendo al actor. |
+| `UsersController` | `GET /users`: valida parámetros (`ParsedUserSearch`) y responde `{page, page_size, count, users}`. |
+
+- El catálogo contiene los cinco usuarios de [ui-integration.md](ui-integration.md#usuarios-de-desarrollo).
+  Sus `id` son los mismos que se envían en `X-Dev-Actor-Id` y que guarda Permissions.
+- Los `id` no cambian entre reinicios mientras la configuración sea la misma. Se
+  pueden reemplazar sin recompilar con variables de entorno, por ejemplo
+  `DEVELOPMENT_USERS_0_ID` y `DEVELOPMENT_USERS_0_NAME`.
+- Sin el perfil `dev` el catálogo queda vacío y `GET /users` responde `401`, como el
+  resto de la API: el catálogo nunca autentica a nadie.
+- La respuesta solo expone `id` y `name`. No hay contraseñas, tokens ni perfiles.
+- `contains(id)` indica si un destinatario existe. Lo usa la operación de compartir
+  (SNI-32) para que un destinatario desconocido nunca reciba un share.
+- Cuando se integre Auth0 se escribe otra implementación de `UserDirectory`. El caso
+  de uso, el controller y la respuesta no cambian.
+
+### Decisiones — SNI-29
+
+Propuestas en el plan de SNI-29 y aprobadas por Juan el 24/10/2026 («todas las
+recomendadas, dale armalo»). Estado: implementadas y verificadas por los tests.
+
+| Decisión | Alternativa descartada | Beneficio | Costo aceptado |
+| --- | --- | --- | --- |
+| Catálogo en `application-dev.properties` | Lista fija en Kotlin con `@Profile("dev")`; archivo JSON | Configurable sin recompilar y solo activo en `dev` | Datos de prueba visibles en el repositorio |
+| Sin perfil `dev`: catálogo vacío y `401` | Endpoint solo en `dev` (404 afuera) | Igual que el resto de la API, sin cableado condicional | El bean existe aunque esté vacío |
+| Catálogo inválido impide arrancar | Descartar entradas inválidas | Ningún destinatario ambiguo | Un error de configuración frena el servicio |
+| Búsqueda en memoria | Tabla en la base | Sin migración ni perfiles persistidos | Solo sirve para catálogos chicos |
+| `contains(id)` en el puerto | Que SNI-32 lo agregue | El directorio decide quién existe | Un método sin uso hasta SNI-32 |
+| Reglas de parámetros en `QueryParameters` | Copiarlas | Mismas reglas en listado y usuarios | `ParsedListing` cambia de lugar sus helpers, sin cambiar comportamiento |
+| Reusar `PageRequest` del paquete `metadata` | Moverlo o duplicarlo | Un solo concepto de página | `users` depende de un tipo de `metadata` |
 
 ## Compartir
 

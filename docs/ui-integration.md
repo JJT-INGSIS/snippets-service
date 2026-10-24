@@ -4,17 +4,19 @@ Contrato acordado entre el backend y la UI provista por la cátedra para US1–7
 Define una sola representación del snippet, cómo se traducen los tipos de la UI,
 qué operaciones se conectan y cuáles quedan deshabilitadas.
 
-**Estado:** creación (`POST /snippets`), actualización (`PUT /snippets/{id}`) y
-listado (`GET /snippets`, SNI-30) y catálogo (`GET /languages`, SNI-54) están implementados. Detalle,
-destinatarios y sharing son **contratos propuestos, todavía no implementados**:
-sus ejemplos no se ejecutan como tests hasta que exista cada endpoint.
+**Estado:** creación (`POST /snippets`), actualización (`PUT /snippets/{id}`),
+listado (`GET /snippets`, SNI-30), catálogo (`GET /languages`, SNI-54) y búsqueda
+de destinatarios (`GET /users`, SNI-29) están implementados.
+Detalle y sharing son **contratos propuestos,
+todavía no implementados**: sus ejemplos no se ejecutan como tests hasta que
+exista cada endpoint.
 
 | Documento | Contenido |
 | --- | --- |
 | [creation.md](creation.md) | `POST /snippets` (implementado) |
 | [update.md](update.md) | `PUT /snippets/{id}` (implementado) |
 | [reading.md](reading.md) | `GET /snippets` y `GET /languages` (implementados), `GET /snippets/{id}` (pendiente) |
-| [sharing.md](sharing.md) | `GET /users`, `PUT /snippets/{id}/shares/{userId}` |
+| [sharing.md](sharing.md) | `GET /users` (implementado), `PUT /snippets/{id}/shares/{userId}` |
 | [access.md de Permissions](https://github.com/JJT-INGSIS/permissions-service/blob/dev/docs/access.md) | API interna de acceso y shares que usa Snippets |
 
 ## Fuente revisada
@@ -145,6 +147,9 @@ Sirve para elegir el actor en la UI y para buscar destinatarios de un share.
 - Solo se puede compartir con un usuario del directorio.
 - Con Auth0, el directorio y el `id` se reemplazan por los usuarios reales. El
   contrato de destinatarios (`{id, name}`) no cambia.
+- Implementado en SNI-29: el catálogo vive en `application-dev.properties` y se
+  puede reemplazar con variables de entorno. Ver
+  [sharing.md](sharing.md#directorio-de-desarrollo--sni-29).
 
 ## Errores
 
@@ -191,7 +196,7 @@ Reintentar una lectura o un share es seguro: no modifica nada o es idempotente.
 | `getFileTypes` | US1, US3 | `GET /languages` | Implementado (SNI-54), público y sin versión por defecto |
 | `listSnippetDescriptors` | US5 | `GET /snippets` | Implementado (SNI-30), sin lint |
 | `getSnippetById` | US6 | `GET /snippets/{id}` | Contrato |
-| `getUserFriends` | US7 | `GET /users` | Contrato |
+| `getUserFriends` | US7 | `GET /users` | Implementado (SNI-29) |
 | `shareSnippet` | US7 | `PUT /snippets/{id}/shares/{userId}` | Contrato |
 
 ### Funciones que quedan deshabilitadas
