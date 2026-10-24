@@ -246,8 +246,9 @@ inexistente y fallas técnicas; nunca convierte un timeout en permiso denegado.
 ## Contrato con la UI — SNI-26
 
 Contrato acordado para conectar la UI de la cátedra con US1–7. El listado
-(SNI-30) y la búsqueda de destinatarios (SNI-29) están implementados; detalle,
-lenguajes y sharing son **contratos propuestos, todavía no implementados**.
+(SNI-30), el detalle (SNI-31) y la búsqueda de destinatarios (SNI-29) están
+implementados; lenguajes y sharing son **contratos propuestos, todavía no
+implementados**.
 
 | Documento | Contenido |
 | --- | --- |
@@ -276,6 +277,23 @@ curl -i 'http://localhost:8080/snippets?relation=all&name=hello&page=0&page_size
 los IDs accesibles y busca solo esos en PostgreSQL. Si Permissions falla responde
 `502` y si falla la base `503`: nunca una lista vacía. No lee código del storage.
 No cierra US5: el filtro por lint sigue en SNI-37.
+
+## Detalle de un snippet — SNI-31
+
+`GET /snippets/{id}` devuelve un snippet que el actor puede leer, con su código y
+sus capacidades: el owner puede modificar y compartir; un destinatario, solo leer.
+El [contrato](docs/reading.md) documenta la secuencia, los errores, la lectura
+durante una actualización y las decisiones, con ejemplos que `DetailHttpTest` ejecuta.
+
+```bash
+curl -i 'http://localhost:8080/snippets/<id>' -H 'X-Dev-Actor-Id: dev-juan'
+```
+
+`ReadSnippet` comprueba la existencia, pregunta a Permissions la relación y recién
+entonces lee el código, así un actor sin acceso nunca llega al storage. Metadatos y
+referencia salen de una misma fila; si una actualización borró el código leído, se
+relee una vez y se responde la versión nueva completa, o `503` reintentable. No
+cierra US6: las infracciones de lint y los tests siguen en SNI-37.
 
 ## Destinatarios de desarrollo — SNI-29
 

@@ -1,4 +1,4 @@
-# Consultas de snippets — SNI-26 y SNI-30
+# Consultas de snippets — SNI-26, SNI-30 y SNI-31
 
 Contrato para listar snippets (US5), ver su detalle (US6) y consultar los
 lenguajes disponibles (US1 y US3), acordado en SNI-26.
@@ -6,7 +6,7 @@ lenguajes disponibles (US1 y US3), acordado en SNI-26.
 | Operación | Estado |
 | --- | --- |
 | `GET /snippets` | **Implementado en SNI-30.** Sus ejemplos son tests: `ListingHttpTest` envía cada pedido y compara la respuesta completa. |
-| `GET /snippets/{id}` | Propuesto, no implementado (SNI-31). Sus ejemplos todavía no se ejecutan. |
+| `GET /snippets/{id}` | **Implementado en SNI-31.** Sus ejemplos son tests: `DetailHttpTest` envía cada pedido y compara la respuesta completa. |
 | `GET /languages` | Propuesto, no implementado. Sus ejemplos todavía no se ejecutan. |
 
 La representación del snippet, el lint, las capacidades, la identidad y la
@@ -311,7 +311,7 @@ X-Dev-Actor-Id: dev-juan
 
 | Status | `type` | Significado |
 | --- | --- | --- |
-| `400` | `urn:snippets:problem:invalid-request` | `{id}` no es un UUID canónico. |
+| `400` | `urn:snippets:problem:invalid-request` | `{id}` no es un UUID canónico. `field` vale `snippetId`, igual que en el `PUT`. |
 | `401` | `urn:snippets:problem:identity-unavailable` | Identidad ausente, inválida o deshabilitada. |
 | `404` | `urn:snippets:problem:snippet-not-found` | No existe, sigue pendiente o el actor no tiene acceso. |
 | `500` | `urn:snippets:problem:technical-failure` | Error inesperado, incluido un snippet confirmado sin referencia de contenido. |
@@ -320,10 +320,48 @@ X-Dev-Actor-Id: dev-juan
 | `503` | `urn:snippets:problem:storage-unavailable` | Falló el storage o el código no se pudo leer de forma coherente con una actualización simultánea. |
 
 Los textos de `detail` son los del catálogo `SnippetProblem` y pueden cambiar.
-Desde SNI-30, `metadata-unavailable` dice que los datos no están disponibles, porque
-el mismo `type` sirve para guardar y para leer. `storage-unavailable` todavía dice
-«could not be saved»; al implementar el detalle su texto debe pasar a ser neutro,
-como el del ejemplo.
+`metadata-unavailable` (desde SNI-30) y `storage-unavailable` (desde SNI-31) dicen
+que los datos o el código no están disponibles, porque el mismo `type` sirve para
+guardar y para leer.
+
+Si el snippet existe pero Permissions no tiene owner registrado, el detalle
+responde `404`: sin owner nadie tiene acceso. Es distinto del `PUT`, que responde
+`409 ownership-missing`, porque una lectura no revela estados internos.
+
+### Implementación — SNI-31
+
+| Paso | Clase | Qué hace |
+| --- | --- | --- |
+| 1 | `ReadSnippet` | Resuelve la identidad y valida `{id}` con el mismo `canonicalUuid` del `PUT`. |
+| 2 | `SnippetContentLinks.findLinked` | Un solo `SELECT` trae metadatos y referencia de la misma fila. |
+| 3 | `HttpAccessChecker` | `GET /ownership/{id}/access` de Permissions (SNI-28): `owned`, `shared`, `none` o sin owner. |
+| 4 | `ContentReading` | Lee el código solo después del paso 3 y aplica la regla de lectura durante una actualización. |
+| 5 | `DetailOutcomeTranslator` | Responde la representación de la lista (`@JsonUnwrapped`) más `code` y `capabilities`. |
+
+- `capabilities` se calcula desde la relación (`Capabilities.of`): no se guarda.
+- Un actor sin acceso nunca provoca una lectura del storage.
+- `ListingHttpTest` y el listado no cambian: `GET /snippets` y `GET /snippets/{id}`
+  viven en `SnippetQueriesController`; `POST` y `PUT` siguen en `SnippetsController`.
+- `DetailConcurrencyTest` ejecuta 150 actualizaciones reales mientras lee el detalle
+  sin parar, con PostgreSQL y archivos reales: cada lectura empareja un nombre con
+  su propio código, o es un `503` reintentable.
+
+### Decisiones — SNI-31
+
+Propuestas en el plan de SNI-31 y aprobadas por Juan el 24/10/2026 («todas las
+recomendadas, dale armalo»). Estado: implementadas y verificadas por los tests.
+
+| Decisión | Alternativa descartada | Beneficio | Costo aceptado |
+| --- | --- | --- | --- |
+| `findLinked`: metadatos y referencia en un `SELECT` | `findMetadata` y `findContent` por separado; o las dos en `REPEATABLE READ` | Nunca mezcla versiones, con la consulta más simple | Un método más en `SnippetContentLinks` |
+| Sin owner en Permissions: `404` | `409 ownership-missing` como el `PUT` | No revela estados internos en una lectura | Un owner ausente no se distingue desde la API |
+| Lecturas en `SnippetQueriesController`, escrituras en `SnippetsController` | Un controller solo para el detalle; suprimir detekt | Ningún controller supera el límite de dependencias | `GET /snippets` cambió de archivo, sin cambiar comportamiento |
+| Detalle con `@JsonUnwrapped` sobre la representación de la lista | Un DTO plano nuevo | Lista y detalle no pueden divergir | Depende de una anotación de Jackson |
+| Test unitario de la regla y test concurrente real | Solo el unitario | Prueba la regla y el comportamiento con base y archivos reales | El test concurrente tarda unos segundos |
+
+Limitaciones que siguen: el detalle no trae infracciones de lint ni tests del
+snippet (SNI-37), y la integración con el Permissions y el storage reales se
+verifica en SNI-36.
 
 ## Lenguajes disponibles
 
