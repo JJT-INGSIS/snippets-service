@@ -56,12 +56,12 @@ class PermissionsHttpTransport(
     internal fun modification(
         path: String,
         actorId: String,
-    ): PermissionsExchange =
-        exchange(
-            client.get().uri { builder ->
-                builder.path(path).queryParam("actorId", "{actorId}").build(actorId)
-            },
-        )
+    ): PermissionsExchange = forActor(path, actorId)
+
+    internal fun access(
+        path: String,
+        actorId: String,
+    ): PermissionsExchange = forActor(path, actorId)
 
     internal fun access(
         path: String,
@@ -75,6 +75,16 @@ class PermissionsHttpTransport(
                     .queryParam("actorId", "{actorId}")
                     .queryParam("relation", "{relation}")
                     .build(actorId, relation)
+            },
+        )
+
+    private fun forActor(
+        path: String,
+        actorId: String,
+    ): PermissionsExchange =
+        exchange(
+            client.get().uri { builder ->
+                builder.path(path).queryParam("actorId", "{actorId}").build(actorId)
             },
         )
 

@@ -5,17 +5,16 @@ Define una sola representación del snippet, cómo se traducen los tipos de la U
 qué operaciones se conectan y cuáles quedan deshabilitadas.
 
 **Estado:** creación (`POST /snippets`), actualización (`PUT /snippets/{id}`),
-listado (`GET /snippets`, SNI-30), catálogo (`GET /languages`, SNI-54) y búsqueda
-de destinatarios (`GET /users`, SNI-29) están implementados.
-Detalle y sharing son **contratos propuestos,
-todavía no implementados**: sus ejemplos no se ejecutan como tests hasta que
-exista cada endpoint.
+listado (`GET /snippets`, SNI-30), detalle (`GET /snippets/{id}`, SNI-31), catálogo
+(`GET /languages`, SNI-54) y búsqueda de destinatarios (`GET /users`, SNI-29) están
+implementados. Sharing es un **contrato propuesto, todavía no implementado**: sus
+ejemplos no se ejecutan como tests hasta que exista el endpoint.
 
 | Documento | Contenido |
 | --- | --- |
 | [creation.md](creation.md) | `POST /snippets` (implementado) |
 | [update.md](update.md) | `PUT /snippets/{id}` (implementado) |
-| [reading.md](reading.md) | `GET /snippets` y `GET /languages` (implementados), `GET /snippets/{id}` (pendiente) |
+| [reading.md](reading.md) | `GET /snippets`, `GET /snippets/{id}` y `GET /languages` (implementados) |
 | [sharing.md](sharing.md) | `GET /users` (implementado), `PUT /snippets/{id}/shares/{userId}` |
 | [access.md de Permissions](https://github.com/JJT-INGSIS/permissions-service/blob/dev/docs/access.md) | API interna de acceso y shares que usa Snippets |
 
@@ -195,7 +194,7 @@ Reintentar una lectura o un share es seguro: no modifica nada o es idempotente.
 | `updateSnippetById` | US2, US4 | `PUT /snippets/{id}` | Implementado |
 | `getFileTypes` | US1, US3 | `GET /languages` | Implementado (SNI-54), público y sin versión por defecto |
 | `listSnippetDescriptors` | US5 | `GET /snippets` | Implementado (SNI-30), sin lint |
-| `getSnippetById` | US6 | `GET /snippets/{id}` | Contrato |
+| `getSnippetById` | US6 | `GET /snippets/{id}` | Implementado (SNI-31), sin lint ni tests |
 | `getUserFriends` | US7 | `GET /users` | Implementado (SNI-29) |
 | `shareSnippet` | US7 | `PUT /snippets/{id}/shares/{userId}` | Contrato |
 

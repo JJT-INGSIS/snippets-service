@@ -57,6 +57,22 @@ class PermissionsResponseDecoder {
         return if (valid) accesses else null
     }
 
+    internal fun accessTo(
+        response: PermissionsResponse,
+        snippetId: UUID,
+    ): AccessLookup? {
+        if (response.contentType != "application/json") return null
+        val body = tree(response.body) ?: return null
+        val owner = text(body, "ownerId")
+        val relation = text(body, "relation")
+        val valid = text(body, "snippetId") == snippetId.toString() && !owner.isNullOrBlank()
+        return when {
+            !valid -> null
+            relation == "none" -> AccessLookup.Denied
+            else -> access(body)?.let(AccessLookup::Granted)
+        }
+    }
+
     private fun access(item: JsonNode): SnippetAccess? {
         val snippetId = text(item, "snippetId")?.let(::canonicalUuid)
         val owner = text(item, "ownerId")

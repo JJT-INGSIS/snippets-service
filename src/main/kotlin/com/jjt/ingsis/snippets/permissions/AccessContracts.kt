@@ -29,6 +29,27 @@ sealed interface AccessListing {
     ) : AccessListing
 }
 
+sealed interface AccessLookup {
+    data class Granted(
+        val access: SnippetAccess,
+    ) : AccessLookup
+
+    data object Denied : AccessLookup
+
+    data object Missing : AccessLookup
+
+    data class Failed(
+        val reason: PermissionsFailure,
+    ) : AccessLookup
+}
+
+fun interface AccessChecker {
+    fun check(
+        snippetId: UUID,
+        actorId: String,
+    ): AccessLookup
+}
+
 fun interface AccessLister {
     fun list(
         actorId: String,

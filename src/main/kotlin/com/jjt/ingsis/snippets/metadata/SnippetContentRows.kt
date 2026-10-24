@@ -28,6 +28,14 @@ class SnippetContentRows(
             .query("SELECT content_reference FROM snippets WHERE id = ?", { row, _ -> row.reference() }, id)
             .singleOrNull()
 
+    fun findLinked(id: UUID): LinkedSnippet? =
+        jdbc
+            .query(
+                "SELECT * FROM snippets WHERE id = ?",
+                { row, _ -> LinkedSnippet(row.metadata(), row.reference()) },
+                id,
+            ).singleOrNull()
+
     fun setReference(
         id: UUID,
         reference: ContentReference,
@@ -51,6 +59,16 @@ class SnippetContentRows(
             id,
         )
     }
+
+    private fun ResultSet.metadata(): SnippetMetadata =
+        SnippetMetadata(
+            id = getObject("id", UUID::class.java),
+            name = getString("name"),
+            description = getString("description"),
+            language = getString("language"),
+            version = getString("version"),
+            state = SnippetState.valueOf(getString("state")),
+        )
 
     private fun ResultSet.reference(): ContentReference? {
         val value = getString("content_reference") ?: return null
