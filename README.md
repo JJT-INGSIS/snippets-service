@@ -17,6 +17,23 @@ desde local debe envolver el código y verificarlo al leer, no copiar bytes crud
 
 Servicio HTTP de Snippet Searcher con Kotlin y Spring Boot. Expone la creación de snippets en `POST /snippets` y su actualización en `PUT /snippets/{id}`: valida el código mediante HTTP, guarda los metadatos en PostgreSQL y el código en un storage local provisional, y usa Permissions para registrar al owner y comprobar que solo él modifique.
 
+## Catálogo de lenguajes — SNI-54
+
+`GET /languages` es público, también fuera del perfil `dev`. Devuelve directamente
+`[{"language":"printscript","extension":"prs","versions":["1.0","1.1"]}]`.
+No requiere identidad ni consulta servicios externos. Describe capacidades
+configuradas; no es un healthcheck. `Language` usa las mismas versiones para
+rechazar pedidos no soportados antes de validar el código con PrintScript.
+
+La UI local accede mediante `/api/languages`: el proxy de Vite elimina `/api`.
+Esto no depende del futuro NGINX. No se agregan CORS ni rutas con `/api` al backend.
+Ver contrato, decisiones aprobadas y costos en [docs/reading.md](docs/reading.md#lenguajes-disponibles).
+
+La verificación completa usa `.\gradlew.bat build` con Docker disponible. Para
+comprobar además compatibilidad con PrintScript real, definir
+`PRINTSCRIPT_SERVICE_URL=http://127.0.0.1:8082` antes del build. Sin esa variable,
+los tests optativos de integración con ese proveedor se omiten explícitamente.
+
 ## Requisitos
 
 - JDK 21 para ejecutar Gradle y la aplicación.
