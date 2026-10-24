@@ -78,7 +78,7 @@ enum class SnippetProblem(
     METADATA_UNAVAILABLE(
         HttpStatus.SERVICE_UNAVAILABLE,
         "metadata-unavailable",
-        "The snippet data could not be saved. Repeating the same request is safe.",
+        "The snippet data is not available right now. Repeating the same request is safe.",
     ),
     STORAGE_UNAVAILABLE(
         HttpStatus.SERVICE_UNAVAILABLE,

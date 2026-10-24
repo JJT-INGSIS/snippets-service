@@ -6,12 +6,14 @@ private const val EXAMPLE_HEADING_PREFIX = "#### "
 
 private val sectionStart = Regex("^(?=#{1,6} )", RegexOption.MULTILINE)
 private val exampleHeading = Regex("^#### `(\\d{3})` (.+)")
-private val jsonBlock = Regex("```json\\n(.*?)\\n```", RegexOption.DOT_MATCHES_ALL)
+private val exampleBlock = Regex("```(?:json|http)\\n(.*?)\\n```", RegexOption.DOT_MATCHES_ALL)
 private val problemRow = Regex("^\\| `(\\d{3})` \\| `(urn:snippets:problem:[a-z-]+)` \\|", RegexOption.MULTILINE)
 
 internal val creationContract = ContractDocument("docs/creation.md")
 
 internal val updateContract = ContractDocument("docs/update.md")
+
+internal val readingContract = ContractDocument("docs/reading.md")
 
 internal data class ContractExample(
     val title: String,
@@ -52,7 +54,7 @@ internal class ContractDocument(
             checkNotNull(exampleHeading.find(section)) {
                 "An example heading must look like: #### `201` Title. Found: ${section.lineSequence().first()}"
             }
-        val blocks = jsonBlock.findAll(section).map { block -> block.groupValues[1] }.toList()
+        val blocks = exampleBlock.findAll(section).map { block -> block.groupValues[1] }.toList()
 
         check(blocks.size == 2) {
             "The example '${heading.groupValues[2]}' must have a request block and a response block"
