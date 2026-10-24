@@ -20,10 +20,18 @@ class LanguageTest {
             .isEqualTo(ValidationResult.UnsupportedLanguage("python"))
     }
 
+    @Test
+    fun `knows the file extension of each supported language`() {
+        assertThat(language.extensionOf("printscript")).isEqualTo("txt")
+        assertThat(language.extensionOf("python")).isNull()
+    }
+
     private class FixedValidator(
         override val language: String,
         private val result: ValidationResult,
     ) : LanguageValidator {
+        override val extension: String = "txt"
+
         override fun validate(
             version: String,
             code: String,

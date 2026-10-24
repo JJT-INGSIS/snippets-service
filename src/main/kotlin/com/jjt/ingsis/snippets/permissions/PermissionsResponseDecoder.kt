@@ -44,6 +44,42 @@ class PermissionsResponseDecoder {
         return if (allowed.isBoolean) allowed.booleanValue() else null
     }
 
+    internal fun accesses(
+        response: PermissionsResponse,
+        actorId: String,
+    ): List<SnippetAccess>? {
+        if (response.contentType != "application/json") return null
+        val body = tree(response.body) ?: return null
+        val items = body.get("snippets")
+        if (text(body, "actorId") != actorId || items?.isArray != true) return null
+        val accesses = items.values().mapNotNull(::access)
+        val valid = accesses.size == items.size() && accesses.distinctBy { it.snippetId }.size == accesses.size
+        return if (valid) accesses else null
+    }
+
+    private fun access(item: JsonNode): SnippetAccess? {
+        val snippetId = text(item, "snippetId")?.let(::canonicalUuid)
+        val owner = text(item, "ownerId")
+        val relation = AccessRelation.entries.find { it.name.lowercase() == text(item, "relation") }
+        return if (snippetId == null || owner.isNullOrBlank() || relation == null) {
+            null
+        } else {
+            SnippetAccess(snippetId, owner, relation)
+        }
+    }
+
+    private fun text(
+        node: JsonNode,
+        field: String,
+    ): String? = node.get(field)?.takeIf { it.isString }?.asString()
+
+    private fun canonicalUuid(value: String): UUID? =
+        try {
+            UUID.fromString(value).takeIf { it.toString() == value }
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+
     private fun tree(json: String): JsonNode? =
         try {
             mapper.readTree(json)?.takeIf { it.isObject }

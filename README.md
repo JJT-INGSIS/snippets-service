@@ -245,9 +245,9 @@ inexistente y fallas técnicas; nunca convierte un timeout en permiso denegado.
 
 ## Contrato con la UI — SNI-26
 
-Contrato acordado para conectar la UI de la cátedra con US1–7. Listado, detalle,
-lenguajes, destinatarios y sharing son **contratos propuestos, todavía no
-implementados**.
+Contrato acordado para conectar la UI de la cátedra con US1–7. El listado está
+implementado (SNI-30); detalle, lenguajes, destinatarios y sharing son
+**contratos propuestos, todavía no implementados**.
 
 | Documento | Contenido |
 | --- | --- |
@@ -259,6 +259,23 @@ El listado obtiene de Permissions los IDs accesibles y después filtra, ordena y
 pagina en la base de Snippets, sin leer código. El detalle lee un solo contenido,
 después de comprobar el acceso. El lint se informa como `not-implemented`: US5 y
 US6 no están completas hasta que existan lint y tests.
+
+## Listado de snippets — SNI-30
+
+`GET /snippets` lista los snippets que el actor puede leer, propios, compartidos o
+ambos, con filtros por nombre y lenguaje, orden estable y paginación desde `0`.
+El [contrato](docs/reading.md) documenta parámetros, respuestas, errores y
+decisiones, con ejemplos que `ListingHttpTest` ejecuta.
+
+```bash
+curl -i 'http://localhost:8080/snippets?relation=all&name=hello&page=0&page_size=10' \
+  -H 'X-Dev-Actor-Id: dev-juan'
+```
+
+`ListSnippets` resuelve la identidad, pide a Permissions (`GET /access`, SNI-28)
+los IDs accesibles y busca solo esos en PostgreSQL. Si Permissions falla responde
+`502` y si falla la base `503`: nunca una lista vacía. No lee código del storage.
+No cierra US5: el filtro por lint sigue en SNI-37.
 
 ## CI/CD y branches — SNI-23 / SNI-25
 

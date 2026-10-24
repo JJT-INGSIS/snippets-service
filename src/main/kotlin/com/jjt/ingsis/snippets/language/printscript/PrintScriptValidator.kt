@@ -20,6 +20,8 @@ class PrintScriptValidator(
 
     override val language: String = "printscript"
 
+    override val extension: String = "prs"
+
     override fun validate(
         version: String,
         code: String,
