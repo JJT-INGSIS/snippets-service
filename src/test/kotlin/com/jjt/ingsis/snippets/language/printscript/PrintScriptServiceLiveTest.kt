@@ -1,6 +1,7 @@
 package com.jjt.ingsis.snippets.language.printscript
 
 import com.jjt.ingsis.snippets.language.Diagnostic
+import com.jjt.ingsis.snippets.language.Language
 import com.jjt.ingsis.snippets.language.ValidationResult
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -15,9 +16,11 @@ class PrintScriptServiceLiveTest {
 
     @Test
     fun `the real service accepts valid code of both versions`() {
-        assertThat(validator.validate("1.0", "let total: number = 2 + 3;\nprintln(total);"))
+        val registry = Language(listOf(validator))
+        assertThat(registry.supportedLanguages().single().versions).containsExactly("1.0", "1.1")
+        assertThat(registry.validate("printscript", "1.0", "let total: number = 2 + 3;\nprintln(total);"))
             .isEqualTo(ValidationResult.Valid)
-        assertThat(validator.validate("1.1", codeOnlyValidIn11)).isEqualTo(ValidationResult.Valid)
+        assertThat(registry.validate("printscript", "1.1", codeOnlyValidIn11)).isEqualTo(ValidationResult.Valid)
     }
 
     @Test

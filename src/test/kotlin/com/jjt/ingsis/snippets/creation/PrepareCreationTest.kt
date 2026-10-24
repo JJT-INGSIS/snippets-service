@@ -30,6 +30,8 @@ internal fun language(result: ValidationResult): Language =
 
                 override val extension = "prs"
 
+                override val supportedVersions = setOf("1.0", "1.1")
+
                 override fun validate(
                     version: String,
                     code: String,

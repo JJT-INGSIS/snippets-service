@@ -5,6 +5,8 @@ interface LanguageValidator {
 
     val extension: String
 
+    val supportedVersions: Set<String>
+
     fun validate(
         version: String,
         code: String,

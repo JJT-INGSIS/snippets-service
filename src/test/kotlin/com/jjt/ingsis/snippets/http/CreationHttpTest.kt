@@ -165,9 +165,6 @@ class CreationHttpTest
         @Test
         fun `unsupported languages and versions are rejected without reserving`() {
             val key = newKey()
-            printScript.answerWith {
-                StubResponse(422, """{"status":422,"supportedVersions":["1.0","1.1"]}""", "application/problem+json")
-            }
 
             val language = api.create(requestBody(language = "python"), keys = listOf(key))
             val version = api.create(requestBody(version = "9.9"), keys = listOf(key))
@@ -176,6 +173,7 @@ class CreationHttpTest
             assertThat(language.type).isEqualTo("urn:snippets:problem:unsupported-language")
             assertThat(version.status).isEqualTo(422)
             assertThat(version.type).isEqualTo("urn:snippets:problem:unsupported-version")
+            assertThat(printScript.received).isEmpty()
             assertThat(metadata.findCreation(UUID.fromString(key), ACTOR)).isEqualTo(CreationLookup.Missing)
         }
 
