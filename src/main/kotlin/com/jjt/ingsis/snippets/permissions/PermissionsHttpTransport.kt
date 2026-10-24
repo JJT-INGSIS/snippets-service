@@ -11,6 +11,10 @@ data class RegisterOwnershipRequest(
     val ownerId: String,
 )
 
+internal data class RegisterShareRequest(
+    val actorId: String,
+)
+
 internal data class PermissionsResponse(
     val status: Int,
     val contentType: String?,
@@ -52,6 +56,21 @@ class PermissionsHttpTransport(
         )
 
     internal fun find(path: String): PermissionsExchange = exchange(client.get().uri(path))
+
+    internal fun share(
+        path: String,
+        recipientId: String,
+        actorId: String,
+    ): PermissionsExchange =
+        exchange(
+            client
+                .put()
+                .uri(
+                    path,
+                    recipientId,
+                ).contentType(MediaType.APPLICATION_JSON)
+                .body(RegisterShareRequest(actorId)),
+        )
 
     internal fun modification(
         path: String,

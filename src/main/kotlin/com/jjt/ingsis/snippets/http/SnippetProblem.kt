@@ -25,6 +25,16 @@ enum class SnippetProblem(
         "modification-denied",
         "Only the owner can modify this snippet.",
     ),
+    SHARE_DENIED(
+        HttpStatus.FORBIDDEN,
+        "share-denied",
+        "Only the owner can share this snippet.",
+    ),
+    INVALID_RECIPIENT(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "invalid-recipient",
+        "The recipient is not a known user other than the requester.",
+    ),
     SNIPPET_NOT_FOUND(
         HttpStatus.NOT_FOUND,
         "snippet-not-found",
