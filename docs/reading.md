@@ -1,4 +1,4 @@
-# Consultas de snippets — SNI-26 y SNI-30
+# Consultas de snippets — SNI-26, SNI-30 y SNI-54
 
 Contrato para listar snippets (US5), ver su detalle (US6) y consultar los
 lenguajes disponibles (US1 y US3), acordado en SNI-26.
@@ -7,7 +7,7 @@ lenguajes disponibles (US1 y US3), acordado en SNI-26.
 | --- | --- |
 | `GET /snippets` | **Implementado en SNI-30.** Sus ejemplos son tests: `ListingHttpTest` envía cada pedido y compara la respuesta completa. |
 | `GET /snippets/{id}` | Propuesto, no implementado (SNI-31). Sus ejemplos todavía no se ejecutan. |
-| `GET /languages` | Propuesto, no implementado. Sus ejemplos todavía no se ejecutan. |
+| `GET /languages` | **Implementado en SNI-54.** `LanguageWiringTest` verifica la respuesta HTTP pública sin perfil dev y con PrintScript inaccesible. |
 
 La representación del snippet, el lint, las capacidades, la identidad y la
 política de errores comunes están en [ui-integration.md](ui-integration.md).
@@ -355,6 +355,87 @@ GET /languages
 
 Si falla, responde `500 technical-failure`. No hay versión por defecto: la UI la
 elige de `versions`.
+
+### Implementación y decisiones de SNI-54
+
+El catálogo describe soporte **configurado**, no disponibilidad del proveedor.
+No consulta PrintScript, PostgreSQL, Permissions ni storage por pedido. El
+arranque normal de la aplicación conserva sus dependencias de infraestructura.
+Los lenguajes y versiones se ordenan por su identificador para producir una
+respuesta determinista. La extensión `prs` significa archivo `.prs`.
+
+Decisiones aprobadas por Juan Francisco el 2026-10-24, al indicar
+«perfecto ahi entendi, bueno volviendo al plan, podes implementarlo»:
+
+| Decisión | Alternativa considerada | Motivo y costo aceptado |
+| --- | --- | --- |
+| Agregar `supportedVersions` al validador existente | Reemplazar sus propiedades por otro objeto de capacidades | Cambio pequeño, conserva `extensionOf` del listado. Los validadores de test también declaran versiones. |
+| Rechazar versiones no anunciadas antes de llamar al proveedor | Delegar siempre el rechazo al proveedor | Catálogo y despacho comparten las versiones. Agregar soporte requiere actualizar el adaptador y comprobar compatibilidad; una versión desconocida se rechaza aunque PrintScript esté caído. El adaptador sigue traduciendo un 422 remoto. |
+| Rechazar al arrancar validadores duplicados o capacidades inválidas | Fusionar capacidades y agregar selección por versión | Evita ambigüedad sin otro registro. Una mala configuración impide arrancar; no se publica un catálogo parcial. |
+
+Son decisiones internas reversibles; cambiar versiones anunciadas afecta a los
+consumidores y exige revisar compatibilidad. El contrato HTTP no requiere otra
+API de descubrimiento en PrintScript. Las versiones `1.0` y `1.1` corresponden a
+su `LanguageVersion`; el test optativo `PrintScriptServiceLiveTest` comprueba la
+validación real. Cambios del proveedor que alteren ese soporte requieren revisar
+esta declaración. No se agregan dependencias ni almacenamiento del catálogo.
+
+### Verificación local del consumidor
+
+Evidencia local del 2026-10-24:
+
+- `gradlew.bat build --offline` con `PRINTSCRIPT_SERVICE_URL=http://127.0.0.1:8082`:
+  **246 tests, 0 fallos, 6 omitidos** (pruebas optativas de Permissions sin su URL).
+  Incluye los tres tests de PrintScript real, ktlint y detekt.
+- Respuesta real `200` y catálogo exacto tanto en `127.0.0.1:18080/languages`
+  como a través de `127.0.0.1:5173/api/languages`. El puerto 18080 se usó solo
+  para esta verificación; no cambia la configuración del servicio.
+- **Prueba de navegador completada:** Cypress 13.8.1 / Electron 118,
+  **1 test aprobado, 0 fallos**, contra Vite y backend reales, sin respuestas
+  simuladas. Verificó el catálogo, reconocimiento de `.prs`, selección obligatoria
+  de versión y creación `201` con PrintScript `1.1`. Metadatos confirmados en
+  PostgreSQL: `2161cf41-290c-4de9-b7a9-30c6629a876b`, nombre
+  `SNI-54-1792868069246`, estado `CONFIRMED`. La UI quedó sin cambios temporales.
+  Los fallos anteriores de red y suspensión no se reprodujeron en esta ejecución.
+- Diagnóstico del listado, 2026-10-24: el contenedor local de Permissions usaba
+  una imagen del 2026-10-12 (`9b2ab6c2905e…`) sin `GET /access`: respondía `404`
+  y Snippets lo traducía correctamente a `502 dependency-failure`. Se reemplazó
+  únicamente ese contenedor por la imagen publicada del `dev` de Permissions,
+  commit `949885ce61229fa65639e4a2e51a9e6fff8d9324`, digest
+  `sha256:fd1866315481c2432ace65b734af95c77a6956d737fa8fc464cf988fd36b3dd6`.
+  Su migración existente V2 agregó la tabla de shares a la base local; se
+  conservaron los datos y volúmenes. `/access` y `GET /snippets` pasaron a `200`.
+  Otra prueba Cypress sin respuestas simuladas verificó que la UI renderizaba
+  el snippet `2161cf41-290c-4de9-b7a9-30c6629a876b`: **1 aprobado, 0 fallos**.
+  No hubo que corregir código de SNI-54 ni de Permissions.
+- Para reconstruir localmente, actualizar antes el checkout de Permissions a
+  un commit que incluya SNI-28; reconstruir desde la rama local antigua vuelve
+  a producir una imagen sin `/access`. La prueba usó un override local ignorado
+  en `build/sni-54-permissions.yaml`, sin cambiar el Compose oficial. Esto no
+  certifica detalle, sharing ni aceptación completa de US5–7.
+
+`src/test/ui/languages.cy.ts` es una prueba optativa del navegador contra servicios
+reales. Requiere la UI de SNI-34 con `UI_DEV_ACTOR=dev-juanfran`, Vite en
+`127.0.0.1:5173` y `API_PROXY_TARGET` apuntando al Snippets recién compilado;
+PrintScript, Permissions y PostgreSQL deben estar disponibles. No simula
+respuestas. Comprueba catálogo, selección explícita de versión, reconocimiento
+de `.prs` y creación. Deja un snippet local identificado como `SNI-54-<timestamp>`.
+No certifica detalle, sharing, infraestructura remota ni aceptación completa de US5–7.
+
+Cypress en Windows no empaqueta bien specs fuera del proyecto UI. Desde la raíz
+de `snippet-searcher-ui`, con sus dependencias instaladas, usar una copia temporal:
+
+```powershell
+$spec = Join-Path $PWD 'cypress/e2e/sni-54-local.cy.ts'
+if (Test-Path -LiteralPath $spec) { throw 'El archivo temporal ya existe' }
+Copy-Item -LiteralPath '../snippets-service/src/test/ui/languages.cy.ts' -Destination $spec
+try {
+    npm.cmd exec -- cypress run --config 'baseUrl=http://127.0.0.1:5173,specPattern=cypress/e2e/sni-54-local.cy.ts' --spec 'cypress/e2e/sni-54-local.cy.ts'
+    if ($LASTEXITCODE -ne 0) { throw 'Falló la prueba de UI' }
+} finally {
+    Remove-Item -LiteralPath $spec
+}
+```
 
 ## Fuera de alcance
 

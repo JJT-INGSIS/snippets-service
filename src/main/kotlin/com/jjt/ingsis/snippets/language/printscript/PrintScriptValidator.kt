@@ -22,6 +22,8 @@ class PrintScriptValidator(
 
     override val extension: String = "prs"
 
+    override val supportedVersions: Set<String> = setOf("1.0", "1.1")
+
     override fun validate(
         version: String,
         code: String,

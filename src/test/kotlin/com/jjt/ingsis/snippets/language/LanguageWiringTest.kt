@@ -4,10 +4,16 @@ import com.jjt.ingsis.snippets.language.printscript.PrintScriptProperties
 import org.assertj.core.api.Assertions
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.test.context.SpringBootTest
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 import java.time.Duration
 
 @SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = [
         "spring.datasource.url=jdbc:h2:mem:language;DB_CLOSE_ON_EXIT=FALSE",
         "spring.datasource.username=sa",
@@ -21,7 +27,23 @@ import java.time.Duration
 class LanguageWiringTest(
     @Autowired private val language: Language,
     @Autowired private val properties: PrintScriptProperties,
+    @Value("\${local.server.port}") private val port: Int,
 ) {
+    @Test
+    fun `public catalog works outside dev without identity or a reachable PrintScript service`() {
+        val response =
+            HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port/languages")).GET().build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+
+        Assertions.assertThat(response.statusCode()).isEqualTo(200)
+        Assertions.assertThat(response.headers().firstValue("content-type").orElse("")).startsWith("application/json")
+        Assertions
+            .assertThat(response.body())
+            .isEqualTo("""[{"language":"printscript","extension":"prs","versions":["1.0","1.1"]}]""")
+    }
+
     @Test
     fun `reads the address and the time limits of the PrintScript service from the configuration`() {
         Assertions.assertThat(properties.baseUrl).isEqualTo("http://127.0.0.1:1")
