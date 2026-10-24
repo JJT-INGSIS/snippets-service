@@ -172,11 +172,30 @@ X-Dev-Actor-Id: dev-juan
 | 2 | Valida que `{id}` sea un UUID canónico. | `400` |
 | 3 | Busca los metadatos. | Inexistente o pendiente: `404`. Base caída: `503 metadata-unavailable`. |
 | 4 | Pregunta a Permissions la relación del actor con el snippet. | Sin acceso: `404`. Permissions caído: `502`. |
-| 5 | Lee el código desde el storage con la referencia guardada. | `503 storage-unavailable` |
+| 5 | Lee el código desde el storage con la referencia guardada. | Contenido ausente: ver [Lectura durante una actualización](#lectura-durante-una-actualización). Storage caído: `503 storage-unavailable`. |
 | 6 | Responde el snippet con `code` y `capabilities`. | — |
 
 El código se lee solo después de comprobar el acceso. Un actor sin acceso nunca
 provoca una lectura del storage.
+
+### Lectura durante una actualización
+
+La actualización guarda el código nuevo, cambia datos y referencia en una sola
+sentencia SQL y recién después borra el código anterior ([update.md](update.md)).
+Un detalle que leyó los metadatos y la referencia vieja justo antes de esa
+sentencia puede encontrar el archivo viejo ya borrado.
+
+| Situación al leer el código | Qué hace el detalle |
+| --- | --- |
+| El contenido existe | Responde metadatos y código de la misma lectura. |
+| Falta y, al releer los metadatos, la referencia cambió | Hubo una actualización en el medio: repite la lectura **una vez** con los metadatos y la referencia nuevos. |
+| Falta y la referencia no cambió, o falta otra vez después de repetir | `503 storage-unavailable`. Repetir el pedido es seguro. |
+
+Metadatos y código siempre salen de la misma referencia: nunca se responden
+datos nuevos con código viejo ni al revés. No hace falta historial de versiones:
+alcanza con releer la referencia, que cambia en una sola sentencia junto con los
+datos. El reintento es uno solo para que una edición continua no deje el pedido
+en un ciclo.
 
 ### Respuesta
 
@@ -237,10 +256,10 @@ X-Dev-Actor-Id: dev-juan
 | `400` | `urn:snippets:problem:invalid-request` | `{id}` no es un UUID canónico. |
 | `401` | `urn:snippets:problem:identity-unavailable` | Identidad ausente, inválida o deshabilitada. |
 | `404` | `urn:snippets:problem:snippet-not-found` | No existe, sigue pendiente o el actor no tiene acceso. |
-| `500` | `urn:snippets:problem:technical-failure` | Error inesperado, incluido un snippet confirmado sin código. |
+| `500` | `urn:snippets:problem:technical-failure` | Error inesperado, incluido un snippet confirmado sin referencia de contenido. |
 | `502` | `urn:snippets:problem:dependency-failure` | Permissions no respondió según su contrato o tardó más que el límite. |
 | `503` | `urn:snippets:problem:metadata-unavailable` | Falló la base de Snippets. |
-| `503` | `urn:snippets:problem:storage-unavailable` | Falló el storage al leer el código. |
+| `503` | `urn:snippets:problem:storage-unavailable` | Falló el storage o el código no se pudo leer de forma coherente con una actualización simultánea. |
 
 Los textos de `detail` son los del catálogo `SnippetProblem` y pueden cambiar.
 Hoy `metadata-unavailable` y `storage-unavailable` dicen que los datos «could not be
