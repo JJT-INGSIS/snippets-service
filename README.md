@@ -245,9 +245,9 @@ inexistente y fallas técnicas; nunca convierte un timeout en permiso denegado.
 
 ## Contrato con la UI — SNI-26
 
-Contrato acordado para conectar la UI de la cátedra con US1–7. El listado está
-implementado (SNI-30); detalle, lenguajes, destinatarios y sharing son
-**contratos propuestos, todavía no implementados**.
+Contrato acordado para conectar la UI de la cátedra con US1–7. El listado
+(SNI-30) y la búsqueda de destinatarios (SNI-29) están implementados; detalle,
+lenguajes y sharing son **contratos propuestos, todavía no implementados**.
 
 | Documento | Contenido |
 | --- | --- |
@@ -276,6 +276,25 @@ curl -i 'http://localhost:8080/snippets?relation=all&name=hello&page=0&page_size
 los IDs accesibles y busca solo esos en PostgreSQL. Si Permissions falla responde
 `502` y si falla la base `503`: nunca una lista vacía. No lee código del storage.
 No cierra US5: el filtro por lint sigue en SNI-37.
+
+## Destinatarios de desarrollo — SNI-29
+
+`GET /users` busca destinatarios para compartir por parte del nombre, sin
+distinguir mayúsculas, sin incluir a quien pregunta y con paginación desde `0`.
+El [contrato](docs/sharing.md) documenta parámetros, errores, el directorio y sus
+decisiones, con ejemplos que `UsersHttpTest` ejecuta.
+
+```bash
+curl -i 'http://localhost:8080/users?name=an&page=0&page_size=5' \
+  -H 'X-Dev-Actor-Id: dev-juan'
+```
+
+Todavía no hay usuarios reales. Los destinatarios salen de
+`src/main/resources/application-dev.properties`, que Spring carga solo con el perfil
+`dev`: `dev-juan`, `dev-juanfran`, `dev-thiago`, `dev-ana` y `dev-bruno`. Son los
+mismos `id` que se usan en `X-Dev-Actor-Id`. Sin ese perfil el catálogo queda vacío
+y la identidad de desarrollo está deshabilitada. Auth0 reemplazará la fuente
+implementando `UserDirectory`, sin cambiar el contrato.
 
 ## CI/CD y branches — SNI-23 / SNI-25
 
