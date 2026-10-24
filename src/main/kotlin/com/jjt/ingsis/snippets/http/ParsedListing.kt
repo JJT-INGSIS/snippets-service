@@ -13,13 +13,8 @@ private const val NAME = "name"
 private const val LANGUAGE = "language"
 private const val SORT = "sort"
 private const val DIRECTION = "direction"
-private const val PAGE = "page"
-private const val PAGE_SIZE = "page_size"
-private const val DEFAULT_PAGE_SIZE = 10
-private const val MAX_PAGE_SIZE = 100
 
 private val known = setOf(RELATION, NAME, LANGUAGE, SORT, DIRECTION, PAGE, PAGE_SIZE)
-private val digits = Regex("\\d{1,9}")
 
 sealed interface ParsedListing {
     data class Valid(
@@ -32,8 +27,7 @@ sealed interface ParsedListing {
 }
 
 fun listingQueryOf(parameters: Map<String, List<String>>): ParsedListing {
-    val malformed =
-        parameters.keys.firstOrNull { it !in known } ?: parameters.entries.firstOrNull { it.value.size != 1 }?.key
+    val malformed = malformedParameter(parameters, known)
     if (malformed != null) return ParsedListing.Invalid(malformed)
 
     val values = parameters.mapValues { it.value.single() }
@@ -77,15 +71,3 @@ fun listingQueryOf(parameters: Map<String, List<String>>): ParsedListing {
         }
     }
 }
-
-private fun <E : Enum<E>> choice(
-    value: String?,
-    options: List<E>,
-    default: E,
-): E? = if (value == null) default else options.find { it.name.lowercase() == value }
-
-private fun number(
-    value: String?,
-    default: Int,
-    range: IntRange,
-): Int? = if (value == null) default else value.takeIf { digits.matches(it) }?.toInt()?.takeIf { it in range }
