@@ -63,6 +63,21 @@ class PermissionsHttpTransport(
             },
         )
 
+    internal fun access(
+        path: String,
+        actorId: String,
+        relation: String,
+    ): PermissionsExchange =
+        exchange(
+            client.get().uri { builder ->
+                builder
+                    .path(path)
+                    .queryParam("actorId", "{actorId}")
+                    .queryParam("relation", "{relation}")
+                    .build(actorId, relation)
+            },
+        )
+
     private fun exchange(request: RestClient.RequestHeadersSpec<*>): PermissionsExchange =
         try {
             request.exchange { _, response ->
