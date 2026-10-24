@@ -304,7 +304,7 @@ X-Dev-Actor-Id: dev-juan
 ```
 
 ```json
-{"type":"urn:snippets:problem:storage-unavailable","title":"Service Unavailable","status":503,"detail":"The snippet code is not available. Repeating the same request is safe.","instance":"/snippets/0f8b3c1e-4a2d-4d3b-9b7a-2c6e5f1a9d40"}
+{"type":"urn:snippets:problem:storage-unavailable","title":"Service Unavailable","status":503,"detail":"The snippet code is not available right now. Repeating the same request is safe.","instance":"/snippets/0f8b3c1e-4a2d-4d3b-9b7a-2c6e5f1a9d40"}
 ```
 
 ### Errores

@@ -83,7 +83,7 @@ enum class SnippetProblem(
     STORAGE_UNAVAILABLE(
         HttpStatus.SERVICE_UNAVAILABLE,
         "storage-unavailable",
-        "The snippet code could not be saved. Repeating the same request is safe.",
+        "The snippet code is not available right now. Repeating the same request is safe.",
     ),
     ;
 
