@@ -1,9 +1,13 @@
-# Consultas de snippets — SNI-26
+# Consultas de snippets — SNI-26 y SNI-30
 
-Contrato propuesto para listar snippets (US5), ver su detalle (US6) y consultar
-los lenguajes disponibles (US1 y US3). **No está implementado.** Los ejemplos
-todavía no se ejecutan como tests; cuando exista cada endpoint, deben pasar a
-verificarse como los de [creation.md](creation.md).
+Contrato para listar snippets (US5), ver su detalle (US6) y consultar los
+lenguajes disponibles (US1 y US3), acordado en SNI-26.
+
+| Operación | Estado |
+| --- | --- |
+| `GET /snippets` | **Implementado en SNI-30.** Sus ejemplos son tests: `ListingHttpTest` envía cada pedido y compara la respuesta completa. |
+| `GET /snippets/{id}` | Propuesto, no implementado (SNI-31). Sus ejemplos todavía no se ejecutan. |
+| `GET /languages` | Propuesto, no implementado. Sus ejemplos todavía no se ejecutan. |
 
 La representación del snippet, el lint, las capacidades, la identidad y la
 política de errores comunes están en [ui-integration.md](ui-integration.md).
@@ -44,6 +48,10 @@ lista ni en el detalle, aunque Permissions ya tenga su owner.
 - Un parámetro desconocido responde `400`. En particular, filtrar u ordenar por
   lint (`lint`, `compliance`, `sort=lint`) responde `400` mientras no exista el
   lint: no se ignora para no aparentar un filtro aplicado.
+- Los números se escriben solo con dígitos: `+1`, `1.5` o `-1` responden `400`.
+- Los parámetros se validan antes que la identidad, como el body en
+  [creation.md](creation.md): un pedido con parámetros inválidos y sin identidad
+  responde `400`.
 
 ### Orden y página
 
@@ -78,6 +86,14 @@ Listar no lee el código del storage. Cada elemento trae solo metadatos.
 | `snippets` | lista | Snippets de esta página, sin `code` ni `capabilities`. |
 
 ### Ejemplos
+
+Los ejemplos parten de tres snippets que `dev-juan` puede ver:
+
+| Snippet | `id` | Relación de `dev-juan` |
+| --- | --- | --- |
+| Hello | `0f8b3c1e-4a2d-4d3b-9b7a-2c6e5f1a9d40` | `owned` |
+| Sum | `7d2e9a4f-1b3c-4e5d-8f6a-0b1c2d3e4f50` | `shared` por `dev-thiago` |
+| Welcome | `9c1d2e3f-4a5b-4c6d-8e7f-a0b1c2d3e4f5` | `owned` |
 
 #### `200` Primera página, propios y compartidos
 
@@ -154,6 +170,48 @@ X-Dev-Actor-Id: dev-juan
 | `500` | `urn:snippets:problem:technical-failure` | Error inesperado. |
 | `502` | `urn:snippets:problem:dependency-failure` | Permissions no respondió según su contrato o tardó más que el límite. |
 | `503` | `urn:snippets:problem:metadata-unavailable` | Falló la base de Snippets. |
+
+### Implementación — SNI-30
+
+| Paso | Clase | Qué hace |
+| --- | --- | --- |
+| 1 | `listingQueryOf` (`ParsedListing.kt`) | Valida los parámetros. Desconocido, repetido o inválido: `400` con `parameter`. |
+| 2 | `ListSnippets` | Resuelve la identidad con el mismo `ActorIdentityResolver` que POST y PUT. |
+| 3 | `HttpAccessLister` | Pide `GET /access` a Permissions con el actor y la relación. Una respuesta que no cumple el contrato es una falla, nunca una lista parcial. |
+| 4 | `JdbcSnippetSearch` | Una consulta sobre esos IDs: confirmados, filtros, orden y página, más el `count`. |
+| 5 | `ListingOutcomeTranslator` | Arma la respuesta con `ownerId` y `relation` de Permissions y `extension` de `Language`. |
+
+Detalles que garantizan el contrato:
+
+- Los IDs autorizados viajan como un único array (`id = ANY(?)`): el SQL es el
+  mismo con cero o con cientos de IDs.
+- El filtro de nombre usa `strpos(lower(name), lower(?))`: un `%` o un `_` del
+  usuario se busca literal, no como comodín.
+- El `ORDER BY` sale de fragmentos fijos (`lower(name)` o `lower(language)`, `ASC`
+  o `DESC`) y siempre termina en `id ASC`. Nada del pedido entra al SQL como texto.
+- La página y el `count` se leen en una transacción `REPEATABLE READ` de solo
+  lectura: ven la misma foto de la base aunque alguien cree un snippet en el medio.
+- `extension` sale del validador del lenguaje (`LanguageValidator.extension`,
+  `prs` para PrintScript). Es `null` solo si un lenguaje dejara de tener validador.
+- El owner nunca sale de `creation_actor_id`: siempre de Permissions.
+
+### Decisiones — SNI-30
+
+Propuestas en el plan de SNI-30 y aprobadas por Juan el 24/10/2026 («dale
+buenisimo armemoslo»). Estado: implementadas y verificadas por los tests.
+
+| Decisión | Alternativa descartada | Beneficio | Costo aceptado |
+| --- | --- | --- | --- |
+| Permissions filtra la relación; Snippets filtra metadatos | Pedir todo y filtrar la relación en Snippets | Una sola fuente de acceso | Ninguno relevante |
+| IDs como array `id = ANY(?)` | `IN (?, ?, …)` | SQL fijo, funciona con lista vacía | Depende de los arrays de PostgreSQL |
+| `strpos` sobre minúsculas | `LIKE '%texto%'` | Sin comodines accidentales ni escapes | No usa índices; alcanza para el volumen del TP |
+| Página y `count` en una transacción `REPEATABLE READ` | Dos consultas sueltas | Total y página coherentes | Una transacción de lectura por pedido |
+| `extension` en `LanguageValidator` | Tabla fija aparte | Una sola fuente por lenguaje; la reusará `GET /languages` | Cada validador, incluidos los de test, la declara |
+| Parámetros antes que identidad | Identidad primero | Validación de transporte en la capa HTTP, igual que POST y PUT | Un pedido inválido sin identidad responde `400`, no `401` |
+| Ejemplos de esta sección como tests | Ejemplos sin verificar | El documento no puede quedar desactualizado | `ContractDocument` acepta bloques `http` |
+
+Limitaciones que siguen: Permissions devuelve todos los IDs accesibles en cada
+pedido (sin paginar), y el filtro y el orden por lint esperan a SNI-37.
 
 ## Ver el detalle
 
@@ -262,9 +320,10 @@ X-Dev-Actor-Id: dev-juan
 | `503` | `urn:snippets:problem:storage-unavailable` | Falló el storage o el código no se pudo leer de forma coherente con una actualización simultánea. |
 
 Los textos de `detail` son los del catálogo `SnippetProblem` y pueden cambiar.
-Hoy `metadata-unavailable` y `storage-unavailable` dicen que los datos «could not be
-saved». Al implementar las lecturas, sus textos deben pasar a ser neutros, como el
-del ejemplo, porque el mismo `type` sirve para guardar y para leer.
+Desde SNI-30, `metadata-unavailable` dice que los datos no están disponibles, porque
+el mismo `type` sirve para guardar y para leer. `storage-unavailable` todavía dice
+«could not be saved»; al implementar el detalle su texto debe pasar a ser neutro,
+como el del ejemplo.
 
 ## Lenguajes disponibles
 

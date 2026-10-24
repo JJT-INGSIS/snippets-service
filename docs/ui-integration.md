@@ -4,16 +4,16 @@ Contrato acordado entre el backend y la UI provista por la cátedra para US1–7
 Define una sola representación del snippet, cómo se traducen los tipos de la UI,
 qué operaciones se conectan y cuáles quedan deshabilitadas.
 
-**Estado:** creación (`POST /snippets`) y actualización (`PUT /snippets/{id}`)
-están implementadas. Listado, detalle, lenguajes, destinatarios y sharing son
-**contratos propuestos, todavía no implementados**: sus ejemplos no se ejecutan
-como tests hasta que exista cada endpoint.
+**Estado:** creación (`POST /snippets`), actualización (`PUT /snippets/{id}`) y
+listado (`GET /snippets`, SNI-30) están implementados. Detalle, lenguajes,
+destinatarios y sharing son **contratos propuestos, todavía no implementados**:
+sus ejemplos no se ejecutan como tests hasta que exista cada endpoint.
 
 | Documento | Contenido |
 | --- | --- |
 | [creation.md](creation.md) | `POST /snippets` (implementado) |
 | [update.md](update.md) | `PUT /snippets/{id}` (implementado) |
-| [reading.md](reading.md) | `GET /snippets`, `GET /snippets/{id}`, `GET /languages` |
+| [reading.md](reading.md) | `GET /snippets` (implementado), `GET /snippets/{id}`, `GET /languages` |
 | [sharing.md](sharing.md) | `GET /users`, `PUT /snippets/{id}/shares/{userId}` |
 | [access.md de Permissions](https://github.com/JJT-INGSIS/permissions-service/blob/dev/docs/access.md) | API interna de acceso y shares que usa Snippets |
 
@@ -189,7 +189,7 @@ Reintentar una lectura o un share es seguro: no modifica nada o es idempotente.
 | `createSnippet` | US1, US3 | `POST /snippets` | Implementado |
 | `updateSnippetById` | US2, US4 | `PUT /snippets/{id}` | Implementado |
 | `getFileTypes` | US1, US3 | `GET /languages` | Contrato |
-| `listSnippetDescriptors` | US5 | `GET /snippets` | Contrato |
+| `listSnippetDescriptors` | US5 | `GET /snippets` | Implementado (SNI-30), sin lint |
 | `getSnippetById` | US6 | `GET /snippets/{id}` | Contrato |
 | `getUserFriends` | US7 | `GET /users` | Contrato |
 | `shareSnippet` | US7 | `PUT /snippets/{id}/shares/{userId}` | Contrato |
