@@ -19,4 +19,6 @@ class Language(
 
         return ValidationResult.UnsupportedLanguage(language)
     }
+
+    fun extensionOf(language: String): String? = validators.find { it.language == language }?.extension
 }
