@@ -404,3 +404,10 @@ con la versión anterior. Una VM apagada produce fallo, sin encendido automátic
 Ver [operación y recuperación SNI-25](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-25-cd.md).
 La integración por tag, resolución de environment secrets y el recorrido real
 dev → prod quedan pendientes de la configuración y pruebas con VMs encendidas.
+
+## Acceso desde navegador y CORS
+
+La UI utiliza `/api` en el mismo origen mediante Vite o NGINX. Para autorizar
+acceso desde otros orígenes, configurar `SNIPPETS_CORS_ALLOWED_ORIGINS` en el backend.
+El valor por defecto es vacío; Spring administra la política y NGINX no debe duplicarla.
+Ver [configuración, pruebas y límites de autenticación de CORS](docs/cors.md).
