@@ -4,17 +4,18 @@ Contrato acordado entre el backend y la UI provista por la cátedra para US1–7
 Define una sola representación del snippet, cómo se traducen los tipos de la UI,
 qué operaciones se conectan y cuáles quedan deshabilitadas.
 
-**Estado:** creación (`POST /snippets`) y actualización (`PUT /snippets/{id}`)
-están implementadas. Listado, detalle, lenguajes, destinatarios y sharing son
-**contratos propuestos, todavía no implementados**: sus ejemplos no se ejecutan
-como tests hasta que exista cada endpoint.
+**Estado:** creación (`POST /snippets`), actualización (`PUT /snippets/{id}`),
+listado (`GET /snippets`, SNI-30), detalle (`GET /snippets/{id}`, SNI-31), catálogo
+(`GET /languages`, SNI-54) y búsqueda de destinatarios (`GET /users`, SNI-29) están
+implementados. Sharing (`PUT /snippets/{id}/shares/{userId}`, SNI-32) también está
+implementado; sus ejemplos se verifican con `SharingHttpTest`.
 
 | Documento | Contenido |
 | --- | --- |
 | [creation.md](creation.md) | `POST /snippets` (implementado) |
 | [update.md](update.md) | `PUT /snippets/{id}` (implementado) |
-| [reading.md](reading.md) | `GET /snippets`, `GET /snippets/{id}`, `GET /languages` |
-| [sharing.md](sharing.md) | `GET /users`, `PUT /snippets/{id}/shares/{userId}` |
+| [reading.md](reading.md) | `GET /snippets`, `GET /snippets/{id}` y `GET /languages` (implementados) |
+| [sharing.md](sharing.md) | `GET /users` y `PUT /snippets/{id}/shares/{userId}` (implementados) |
 | [access.md de Permissions](https://github.com/JJT-INGSIS/permissions-service/blob/dev/docs/access.md) | API interna de acceso y shares que usa Snippets |
 
 ## Fuente revisada
@@ -68,7 +69,7 @@ contradicen un contrato ya implementado.
 | `PaginatedSnippets` | `{page, page_size, count, snippets}` | Mismos nombres que `Pagination` de la UI. Los elementos no traen `code`. |
 | `PaginatedUsers` | `{page, page_size, count, users}` | Mismos nombres que la UI. |
 | `FileType[]` | `GET /languages` | Cada lenguaje trae además sus versiones. |
-| `shareSnippet(...)` devuelve `Snippet` | Devuelve el share | El adaptador devuelve el snippet ya cargado o vuelve a pedir el detalle. |
+| El mock original devolvía `Snippet` desde `shareSnippet(...)` | Devuelve `{snippetId,userId}` | El adaptador confirma el share y los hooks refrescan las consultas por separado; no fabrican un Snippet ni condicionan el éxito a un GET posterior. |
 
 Los parámetros y campos de paginación usan `page_size` como la UI
 (`paginationParams`). El resto del contrato usa camelCase, como POST y PUT.
@@ -145,6 +146,9 @@ Sirve para elegir el actor en la UI y para buscar destinatarios de un share.
 - Solo se puede compartir con un usuario del directorio.
 - Con Auth0, el directorio y el `id` se reemplazan por los usuarios reales. El
   contrato de destinatarios (`{id, name}`) no cambia.
+- Implementado en SNI-29: el catálogo vive en `application-dev.properties` y se
+  puede reemplazar con variables de entorno. Ver
+  [sharing.md](sharing.md#directorio-de-desarrollo--sni-29).
 
 ## Errores
 
@@ -188,11 +192,11 @@ Reintentar una lectura o un share es seguro: no modifica nada o es idempotente.
 | --- | --- | --- | --- |
 | `createSnippet` | US1, US3 | `POST /snippets` | Implementado |
 | `updateSnippetById` | US2, US4 | `PUT /snippets/{id}` | Implementado |
-| `getFileTypes` | US1, US3 | `GET /languages` | Contrato |
-| `listSnippetDescriptors` | US5 | `GET /snippets` | Contrato |
-| `getSnippetById` | US6 | `GET /snippets/{id}` | Contrato |
-| `getUserFriends` | US7 | `GET /users` | Contrato |
-| `shareSnippet` | US7 | `PUT /snippets/{id}/shares/{userId}` | Contrato |
+| `getFileTypes` | US1, US3 | `GET /languages` | Implementado (SNI-54), público y sin versión por defecto |
+| `listSnippetDescriptors` | US5 | `GET /snippets` | Implementado (SNI-30), sin lint |
+| `getSnippetById` | US6 | `GET /snippets/{id}` | Implementado (SNI-31), sin lint ni tests |
+| `getUserFriends` | US7 | `GET /users` | Implementado (SNI-29) |
+| `shareSnippet` | US7 | `PUT /snippets/{id}/shares/{userId}` | Implementado (SNI-32), lectura sin edición ni resharing |
 
 ### Funciones que quedan deshabilitadas
 

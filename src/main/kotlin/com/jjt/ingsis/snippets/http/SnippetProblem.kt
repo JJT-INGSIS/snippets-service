@@ -25,6 +25,16 @@ enum class SnippetProblem(
         "modification-denied",
         "Only the owner can modify this snippet.",
     ),
+    SHARE_DENIED(
+        HttpStatus.FORBIDDEN,
+        "share-denied",
+        "Only the owner can share this snippet.",
+    ),
+    INVALID_RECIPIENT(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "invalid-recipient",
+        "The recipient is not a known user other than the requester.",
+    ),
     SNIPPET_NOT_FOUND(
         HttpStatus.NOT_FOUND,
         "snippet-not-found",
@@ -78,12 +88,12 @@ enum class SnippetProblem(
     METADATA_UNAVAILABLE(
         HttpStatus.SERVICE_UNAVAILABLE,
         "metadata-unavailable",
-        "The snippet data could not be saved. Repeating the same request is safe.",
+        "The snippet data is not available right now. Repeating the same request is safe.",
     ),
     STORAGE_UNAVAILABLE(
         HttpStatus.SERVICE_UNAVAILABLE,
         "storage-unavailable",
-        "The snippet code could not be saved. Repeating the same request is safe.",
+        "The snippet code is not available right now. Repeating the same request is safe.",
     ),
     ;
 

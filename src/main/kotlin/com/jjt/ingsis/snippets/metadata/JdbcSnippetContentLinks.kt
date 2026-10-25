@@ -11,6 +11,8 @@ class JdbcSnippetContentLinks(
 ) : SnippetContentLinks {
     override fun findContent(id: UUID): ContentReference? = transaction.read { rows.findReference(id) }
 
+    override fun findLinked(id: UUID): LinkedSnippet? = transaction.read { rows.findLinked(id) }
+
     override fun linkContent(
         id: UUID,
         reference: ContentReference,

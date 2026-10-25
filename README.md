@@ -17,6 +17,35 @@ desde local debe envolver el código y verificarlo al leer, no copiar bytes crud
 
 Servicio HTTP de Snippet Searcher con Kotlin y Spring Boot. Expone la creación de snippets en `POST /snippets` y su actualización en `PUT /snippets/{id}`: valida el código mediante HTTP, guarda los metadatos en PostgreSQL y el código en un storage local provisional, y usa Permissions para registrar al owner y comprobar que solo él modifique.
 
+## Catálogo de lenguajes — SNI-54
+
+`GET /languages` es público, también fuera del perfil `dev`. Devuelve directamente
+`[{"language":"printscript","extension":"prs","versions":["1.0","1.1"]}]`.
+No requiere identidad ni consulta servicios externos. Describe capacidades
+configuradas; no es un healthcheck. `Language` usa las mismas versiones para
+rechazar pedidos no soportados antes de validar el código con PrintScript.
+
+La UI local accede mediante `/api/languages`: el proxy de Vite elimina `/api`.
+Esto no depende del futuro NGINX. No se agregan CORS ni rutas con `/api` al backend.
+Ver contrato, decisiones aprobadas y costos en [docs/reading.md](docs/reading.md#lenguajes-disponibles).
+
+La verificación completa usa `.\gradlew.bat build` con Docker disponible. Para
+comprobar además compatibilidad con PrintScript real, definir
+`PRINTSCRIPT_SERVICE_URL=http://127.0.0.1:8082` antes del build. Sin esa variable,
+los tests optativos de integración con ese proveedor se omiten explícitamente.
+
+## Compartir snippets — SNI-32
+
+`PUT /snippets/{id}/shares/{userId}` permite al owner conceder lectura a un usuario
+conocido. No lleva body ni `Idempotency-Key`: el primer registro responde `201` y
+repetirlo responde `200` con `{snippetId,userId}`, sin duplicar accesos. La identidad
+proviene del contexto del request; Permissions comprueba el ownership al registrar.
+
+El destinatario ve el mismo contenido mediante listado/detalle y no puede editar
+ni volver a compartir. Un timeout se informa como falta de confirmación: se puede
+repetir explícitamente el PUT; no hay reintentos automáticos ni borrado compensatorio.
+Ver [contrato, decisiones y pruebas reales](docs/sharing.md).
+
 ## Requisitos
 
 - JDK 21 para ejecutar Gradle y la aplicación.
@@ -245,9 +274,9 @@ inexistente y fallas técnicas; nunca convierte un timeout en permiso denegado.
 
 ## Contrato con la UI — SNI-26
 
-Contrato acordado para conectar la UI de la cátedra con US1–7. Listado, detalle,
-lenguajes, destinatarios y sharing son **contratos propuestos, todavía no
-implementados**.
+Contrato acordado para conectar la UI de la cátedra con US1–7. El listado
+(SNI-30), el detalle (SNI-31) y la búsqueda de destinatarios (SNI-29) están
+implementados, al igual que el catálogo de lenguajes (SNI-54) y sharing (SNI-32).
 
 | Documento | Contenido |
 | --- | --- |
@@ -259,6 +288,59 @@ El listado obtiene de Permissions los IDs accesibles y después filtra, ordena y
 pagina en la base de Snippets, sin leer código. El detalle lee un solo contenido,
 después de comprobar el acceso. El lint se informa como `not-implemented`: US5 y
 US6 no están completas hasta que existan lint y tests.
+
+## Listado de snippets — SNI-30
+
+`GET /snippets` lista los snippets que el actor puede leer, propios, compartidos o
+ambos, con filtros por nombre y lenguaje, orden estable y paginación desde `0`.
+El [contrato](docs/reading.md) documenta parámetros, respuestas, errores y
+decisiones, con ejemplos que `ListingHttpTest` ejecuta.
+
+```bash
+curl -i 'http://localhost:8080/snippets?relation=all&name=hello&page=0&page_size=10' \
+  -H 'X-Dev-Actor-Id: dev-juan'
+```
+
+`ListSnippets` resuelve la identidad, pide a Permissions (`GET /access`, SNI-28)
+los IDs accesibles y busca solo esos en PostgreSQL. Si Permissions falla responde
+`502` y si falla la base `503`: nunca una lista vacía. No lee código del storage.
+No cierra US5: el filtro por lint sigue en SNI-37.
+
+## Detalle de un snippet — SNI-31
+
+`GET /snippets/{id}` devuelve un snippet que el actor puede leer, con su código y
+sus capacidades: el owner puede modificar y compartir; un destinatario, solo leer.
+El [contrato](docs/reading.md) documenta la secuencia, los errores, la lectura
+durante una actualización y las decisiones, con ejemplos que `DetailHttpTest` ejecuta.
+
+```bash
+curl -i 'http://localhost:8080/snippets/<id>' -H 'X-Dev-Actor-Id: dev-juan'
+```
+
+`ReadSnippet` comprueba la existencia, pregunta a Permissions la relación y recién
+entonces lee el código, así un actor sin acceso nunca llega al storage. Metadatos y
+referencia salen de una misma fila; si una actualización borró el código leído, se
+relee una vez y se responde la versión nueva completa, o `503` reintentable. No
+cierra US6: las infracciones de lint y los tests siguen en SNI-37.
+
+## Destinatarios de desarrollo — SNI-29
+
+`GET /users` busca destinatarios para compartir por parte del nombre, sin
+distinguir mayúsculas, sin incluir a quien pregunta y con paginación desde `0`.
+El [contrato](docs/sharing.md) documenta parámetros, errores, el directorio y sus
+decisiones, con ejemplos que `UsersHttpTest` ejecuta.
+
+```bash
+curl -i 'http://localhost:8080/users?name=an&page=0&page_size=5' \
+  -H 'X-Dev-Actor-Id: dev-juan'
+```
+
+Todavía no hay usuarios reales. Los destinatarios salen de
+`src/main/resources/application-dev.properties`, que Spring carga solo con el perfil
+`dev`: `dev-juan`, `dev-juanfran`, `dev-thiago`, `dev-ana` y `dev-bruno`. Son los
+mismos `id` que se usan en `X-Dev-Actor-Id`. Sin ese perfil el catálogo queda vacío
+y la identidad de desarrollo está deshabilitada. Auth0 reemplazará la fuente
+implementando `UserDirectory`, sin cambiar el contrato.
 
 ## CI/CD y branches — SNI-23 / SNI-25
 
@@ -322,3 +404,19 @@ con la versión anterior. Una VM apagada produce fallo, sin encendido automátic
 Ver [operación y recuperación SNI-25](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-25-cd.md).
 La integración por tag, resolución de environment secrets y el recorrido real
 dev → prod quedan pendientes de la configuración y pruebas con VMs encendidas.
+
+## Acceso desde navegador y CORS
+
+La UI utiliza `/api` en el mismo origen mediante Vite o NGINX. Para autorizar
+acceso desde otros orígenes, configurar `SNIPPETS_CORS_ALLOWED_ORIGINS` en el backend.
+El valor por defecto es vacío; Spring administra la política y NGINX no debe duplicarla.
+Ver [configuración, pruebas y límites de autenticación de CORS](docs/cors.md).
+
+## SNI-43 — actualización de herramientas de CD
+
+El caller preparado usa `github-workflows@v0.6.0`. Integrar únicamente después de
+publicar y verificar esa versión central con el SHA definitivo de infra. La versión
+nueva admite el stack anterior; actualizar los tres callers del ambiente antes de
+incorporar NGINX/Asset/UI. No reejecutar versiones antiguas para operar el stack ampliado.
+El procedimiento y la protección del registro están en
+[rollout SNI-43](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-43-cd.md).

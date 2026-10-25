@@ -3,8 +3,15 @@ package com.jjt.ingsis.snippets.metadata
 import com.jjt.ingsis.snippets.storage.ContentReference
 import java.util.UUID
 
+data class LinkedSnippet(
+    val metadata: SnippetMetadata,
+    val reference: ContentReference?,
+)
+
 interface SnippetContentLinks {
     fun findContent(id: UUID): ContentReference?
+
+    fun findLinked(id: UUID): LinkedSnippet?
 
     fun linkContent(
         id: UUID,

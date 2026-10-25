@@ -62,6 +62,34 @@ internal class SnippetsApi(
         return send(request.PUT(HttpRequest.BodyPublishers.ofString(body)))
     }
 
+    fun list(
+        query: String,
+        actors: List<String> = listOf(ACTOR),
+    ): HttpAnswer = send(request("/snippets$query", "application/json", actors).GET())
+
+    fun detail(
+        snippetId: String,
+        actors: List<String> = listOf(ACTOR),
+    ): HttpAnswer = send(request("/snippets/$snippetId", "application/json", actors).GET())
+
+    fun share(
+        snippetId: String,
+        recipientId: String,
+        actors: List<String> = listOf(ACTOR),
+    ): HttpAnswer =
+        send(
+            request(
+                "/snippets/$snippetId/shares/$recipientId",
+                "application/json",
+                actors,
+            ).PUT(HttpRequest.BodyPublishers.noBody()),
+        )
+
+    fun users(
+        query: String,
+        actors: List<String> = listOf(ACTOR),
+    ): HttpAnswer = send(request("/users$query", "application/json", actors).GET())
+
     private fun request(
         path: String,
         contentType: String,

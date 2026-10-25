@@ -1,9 +1,13 @@
-# Consultas de snippets — SNI-26
+# Consultas de snippets — SNI-26, SNI-30, SNI-31 y SNI-54
 
-Contrato propuesto para listar snippets (US5), ver su detalle (US6) y consultar
-los lenguajes disponibles (US1 y US3). **No está implementado.** Los ejemplos
-todavía no se ejecutan como tests; cuando exista cada endpoint, deben pasar a
-verificarse como los de [creation.md](creation.md).
+Contrato para listar snippets (US5), ver su detalle (US6) y consultar los
+lenguajes disponibles (US1 y US3), acordado en SNI-26.
+
+| Operación | Estado |
+| --- | --- |
+| `GET /snippets` | **Implementado en SNI-30.** Sus ejemplos son tests: `ListingHttpTest` envía cada pedido y compara la respuesta completa. |
+| `GET /snippets/{id}` | **Implementado en SNI-31.** Sus ejemplos son tests: `DetailHttpTest` envía cada pedido y compara la respuesta completa. |
+| `GET /languages` | **Implementado en SNI-54.** `LanguageWiringTest` verifica la respuesta HTTP pública sin perfil dev y con PrintScript inaccesible. |
 
 La representación del snippet, el lint, las capacidades, la identidad y la
 política de errores comunes están en [ui-integration.md](ui-integration.md).
@@ -44,6 +48,10 @@ lista ni en el detalle, aunque Permissions ya tenga su owner.
 - Un parámetro desconocido responde `400`. En particular, filtrar u ordenar por
   lint (`lint`, `compliance`, `sort=lint`) responde `400` mientras no exista el
   lint: no se ignora para no aparentar un filtro aplicado.
+- Los números se escriben solo con dígitos: `+1`, `1.5` o `-1` responden `400`.
+- Los parámetros se validan antes que la identidad, como el body en
+  [creation.md](creation.md): un pedido con parámetros inválidos y sin identidad
+  responde `400`.
 
 ### Orden y página
 
@@ -78,6 +86,14 @@ Listar no lee el código del storage. Cada elemento trae solo metadatos.
 | `snippets` | lista | Snippets de esta página, sin `code` ni `capabilities`. |
 
 ### Ejemplos
+
+Los ejemplos parten de tres snippets que `dev-juan` puede ver:
+
+| Snippet | `id` | Relación de `dev-juan` |
+| --- | --- | --- |
+| Hello | `0f8b3c1e-4a2d-4d3b-9b7a-2c6e5f1a9d40` | `owned` |
+| Sum | `7d2e9a4f-1b3c-4e5d-8f6a-0b1c2d3e4f50` | `shared` por `dev-thiago` |
+| Welcome | `9c1d2e3f-4a5b-4c6d-8e7f-a0b1c2d3e4f5` | `owned` |
 
 #### `200` Primera página, propios y compartidos
 
@@ -155,6 +171,48 @@ X-Dev-Actor-Id: dev-juan
 | `502` | `urn:snippets:problem:dependency-failure` | Permissions no respondió según su contrato o tardó más que el límite. |
 | `503` | `urn:snippets:problem:metadata-unavailable` | Falló la base de Snippets. |
 
+### Implementación — SNI-30
+
+| Paso | Clase | Qué hace |
+| --- | --- | --- |
+| 1 | `listingQueryOf` (`ParsedListing.kt`) | Valida los parámetros. Desconocido, repetido o inválido: `400` con `parameter`. |
+| 2 | `ListSnippets` | Resuelve la identidad con el mismo `ActorIdentityResolver` que POST y PUT. |
+| 3 | `HttpAccessLister` | Pide `GET /access` a Permissions con el actor y la relación. Una respuesta que no cumple el contrato es una falla, nunca una lista parcial. |
+| 4 | `JdbcSnippetSearch` | Una consulta sobre esos IDs: confirmados, filtros, orden y página, más el `count`. |
+| 5 | `ListingOutcomeTranslator` | Arma la respuesta con `ownerId` y `relation` de Permissions y `extension` de `Language`. |
+
+Detalles que garantizan el contrato:
+
+- Los IDs autorizados viajan como un único array (`id = ANY(?)`): el SQL es el
+  mismo con cero o con cientos de IDs.
+- El filtro de nombre usa `strpos(lower(name), lower(?))`: un `%` o un `_` del
+  usuario se busca literal, no como comodín.
+- El `ORDER BY` sale de fragmentos fijos (`lower(name)` o `lower(language)`, `ASC`
+  o `DESC`) y siempre termina en `id ASC`. Nada del pedido entra al SQL como texto.
+- La página y el `count` se leen en una transacción `REPEATABLE READ` de solo
+  lectura: ven la misma foto de la base aunque alguien cree un snippet en el medio.
+- `extension` sale del validador del lenguaje (`LanguageValidator.extension`,
+  `prs` para PrintScript). Es `null` solo si un lenguaje dejara de tener validador.
+- El owner nunca sale de `creation_actor_id`: siempre de Permissions.
+
+### Decisiones — SNI-30
+
+Propuestas en el plan de SNI-30 y aprobadas por Juan el 24/10/2026 («dale
+buenisimo armemoslo»). Estado: implementadas y verificadas por los tests.
+
+| Decisión | Alternativa descartada | Beneficio | Costo aceptado |
+| --- | --- | --- | --- |
+| Permissions filtra la relación; Snippets filtra metadatos | Pedir todo y filtrar la relación en Snippets | Una sola fuente de acceso | Ninguno relevante |
+| IDs como array `id = ANY(?)` | `IN (?, ?, …)` | SQL fijo, funciona con lista vacía | Depende de los arrays de PostgreSQL |
+| `strpos` sobre minúsculas | `LIKE '%texto%'` | Sin comodines accidentales ni escapes | No usa índices; alcanza para el volumen del TP |
+| Página y `count` en una transacción `REPEATABLE READ` | Dos consultas sueltas | Total y página coherentes | Una transacción de lectura por pedido |
+| `extension` en `LanguageValidator` | Tabla fija aparte | Una sola fuente por lenguaje; la reusará `GET /languages` | Cada validador, incluidos los de test, la declara |
+| Parámetros antes que identidad | Identidad primero | Validación de transporte en la capa HTTP, igual que POST y PUT | Un pedido inválido sin identidad responde `400`, no `401` |
+| Ejemplos de esta sección como tests | Ejemplos sin verificar | El documento no puede quedar desactualizado | `ContractDocument` acepta bloques `http` |
+
+Limitaciones que siguen: Permissions devuelve todos los IDs accesibles en cada
+pedido (sin paginar), y el filtro y el orden por lint esperan a SNI-37.
+
 ## Ver el detalle
 
 `GET /snippets/{id}`
@@ -172,11 +230,30 @@ X-Dev-Actor-Id: dev-juan
 | 2 | Valida que `{id}` sea un UUID canónico. | `400` |
 | 3 | Busca los metadatos. | Inexistente o pendiente: `404`. Base caída: `503 metadata-unavailable`. |
 | 4 | Pregunta a Permissions la relación del actor con el snippet. | Sin acceso: `404`. Permissions caído: `502`. |
-| 5 | Lee el código desde el storage con la referencia guardada. | `503 storage-unavailable` |
+| 5 | Lee el código desde el storage con la referencia guardada. | Contenido ausente: ver [Lectura durante una actualización](#lectura-durante-una-actualización). Storage caído: `503 storage-unavailable`. |
 | 6 | Responde el snippet con `code` y `capabilities`. | — |
 
 El código se lee solo después de comprobar el acceso. Un actor sin acceso nunca
 provoca una lectura del storage.
+
+### Lectura durante una actualización
+
+La actualización guarda el código nuevo, cambia datos y referencia en una sola
+sentencia SQL y recién después borra el código anterior ([update.md](update.md)).
+Un detalle que leyó los metadatos y la referencia vieja justo antes de esa
+sentencia puede encontrar el archivo viejo ya borrado.
+
+| Situación al leer el código | Qué hace el detalle |
+| --- | --- |
+| El contenido existe | Responde metadatos y código de la misma lectura. |
+| Falta y, al releer los metadatos, la referencia cambió | Hubo una actualización en el medio: repite la lectura **una vez** con los metadatos y la referencia nuevos. |
+| Falta y la referencia no cambió, o falta otra vez después de repetir | `503 storage-unavailable`. Repetir el pedido es seguro. |
+
+Metadatos y código siempre salen de la misma referencia: nunca se responden
+datos nuevos con código viejo ni al revés. No hace falta historial de versiones:
+alcanza con releer la referencia, que cambia en una sola sentencia junto con los
+datos. El reintento es uno solo para que una edición continua no deje el pedido
+en un ciclo.
 
 ### Respuesta
 
@@ -227,25 +304,64 @@ X-Dev-Actor-Id: dev-juan
 ```
 
 ```json
-{"type":"urn:snippets:problem:storage-unavailable","title":"Service Unavailable","status":503,"detail":"The snippet code is not available. Repeating the same request is safe.","instance":"/snippets/0f8b3c1e-4a2d-4d3b-9b7a-2c6e5f1a9d40"}
+{"type":"urn:snippets:problem:storage-unavailable","title":"Service Unavailable","status":503,"detail":"The snippet code is not available right now. Repeating the same request is safe.","instance":"/snippets/0f8b3c1e-4a2d-4d3b-9b7a-2c6e5f1a9d40"}
 ```
 
 ### Errores
 
 | Status | `type` | Significado |
 | --- | --- | --- |
-| `400` | `urn:snippets:problem:invalid-request` | `{id}` no es un UUID canónico. |
+| `400` | `urn:snippets:problem:invalid-request` | `{id}` no es un UUID canónico. `field` vale `snippetId`, igual que en el `PUT`. |
 | `401` | `urn:snippets:problem:identity-unavailable` | Identidad ausente, inválida o deshabilitada. |
 | `404` | `urn:snippets:problem:snippet-not-found` | No existe, sigue pendiente o el actor no tiene acceso. |
-| `500` | `urn:snippets:problem:technical-failure` | Error inesperado, incluido un snippet confirmado sin código. |
+| `500` | `urn:snippets:problem:technical-failure` | Error inesperado, incluido un snippet confirmado sin referencia de contenido. |
 | `502` | `urn:snippets:problem:dependency-failure` | Permissions no respondió según su contrato o tardó más que el límite. |
 | `503` | `urn:snippets:problem:metadata-unavailable` | Falló la base de Snippets. |
-| `503` | `urn:snippets:problem:storage-unavailable` | Falló el storage al leer el código. |
+| `503` | `urn:snippets:problem:storage-unavailable` | Falló el storage o el código no se pudo leer de forma coherente con una actualización simultánea. |
 
 Los textos de `detail` son los del catálogo `SnippetProblem` y pueden cambiar.
-Hoy `metadata-unavailable` y `storage-unavailable` dicen que los datos «could not be
-saved». Al implementar las lecturas, sus textos deben pasar a ser neutros, como el
-del ejemplo, porque el mismo `type` sirve para guardar y para leer.
+`metadata-unavailable` (desde SNI-30) y `storage-unavailable` (desde SNI-31) dicen
+que los datos o el código no están disponibles, porque el mismo `type` sirve para
+guardar y para leer.
+
+Si el snippet existe pero Permissions no tiene owner registrado, el detalle
+responde `404`: sin owner nadie tiene acceso. Es distinto del `PUT`, que responde
+`409 ownership-missing`, porque una lectura no revela estados internos.
+
+### Implementación — SNI-31
+
+| Paso | Clase | Qué hace |
+| --- | --- | --- |
+| 1 | `ReadSnippet` | Resuelve la identidad y valida `{id}` con el mismo `canonicalUuid` del `PUT`. |
+| 2 | `SnippetContentLinks.findLinked` | Un solo `SELECT` trae metadatos y referencia de la misma fila. |
+| 3 | `HttpAccessChecker` | `GET /ownership/{id}/access` de Permissions (SNI-28): `owned`, `shared`, `none` o sin owner. |
+| 4 | `ContentReading` | Lee el código solo después del paso 3 y aplica la regla de lectura durante una actualización. |
+| 5 | `DetailOutcomeTranslator` | Responde la representación de la lista (`@JsonUnwrapped`) más `code` y `capabilities`. |
+
+- `capabilities` se calcula desde la relación (`Capabilities.of`): no se guarda.
+- Un actor sin acceso nunca provoca una lectura del storage.
+- `ListingHttpTest` y el listado no cambian: `GET /snippets` y `GET /snippets/{id}`
+  viven en `SnippetQueriesController`; `POST` y `PUT` siguen en `SnippetsController`.
+- `DetailConcurrencyTest` ejecuta 150 actualizaciones reales mientras lee el detalle
+  sin parar, con PostgreSQL y archivos reales: cada lectura empareja un nombre con
+  su propio código, o es un `503` reintentable.
+
+### Decisiones — SNI-31
+
+Propuestas en el plan de SNI-31 y aprobadas por Juan el 24/10/2026 («todas las
+recomendadas, dale armalo»). Estado: implementadas y verificadas por los tests.
+
+| Decisión | Alternativa descartada | Beneficio | Costo aceptado |
+| --- | --- | --- | --- |
+| `findLinked`: metadatos y referencia en un `SELECT` | `findMetadata` y `findContent` por separado; o las dos en `REPEATABLE READ` | Nunca mezcla versiones, con la consulta más simple | Un método más en `SnippetContentLinks` |
+| Sin owner en Permissions: `404` | `409 ownership-missing` como el `PUT` | No revela estados internos en una lectura | Un owner ausente no se distingue desde la API |
+| Lecturas en `SnippetQueriesController`, escrituras en `SnippetsController` | Un controller solo para el detalle; suprimir detekt | Ningún controller supera el límite de dependencias | `GET /snippets` cambió de archivo, sin cambiar comportamiento |
+| Detalle con `@JsonUnwrapped` sobre la representación de la lista | Un DTO plano nuevo | Lista y detalle no pueden divergir | Depende de una anotación de Jackson |
+| Test unitario de la regla y test concurrente real | Solo el unitario | Prueba la regla y el comportamiento con base y archivos reales | El test concurrente tarda unos segundos |
+
+Limitaciones que siguen: el detalle no trae infracciones de lint ni tests del
+snippet (SNI-37), y la integración con el Permissions y el storage reales se
+verifica en SNI-36.
 
 ## Lenguajes disponibles
 
@@ -277,6 +393,87 @@ GET /languages
 
 Si falla, responde `500 technical-failure`. No hay versión por defecto: la UI la
 elige de `versions`.
+
+### Implementación y decisiones de SNI-54
+
+El catálogo describe soporte **configurado**, no disponibilidad del proveedor.
+No consulta PrintScript, PostgreSQL, Permissions ni storage por pedido. El
+arranque normal de la aplicación conserva sus dependencias de infraestructura.
+Los lenguajes y versiones se ordenan por su identificador para producir una
+respuesta determinista. La extensión `prs` significa archivo `.prs`.
+
+Decisiones aprobadas por Juan Francisco el 2026-10-24, al indicar
+«perfecto ahi entendi, bueno volviendo al plan, podes implementarlo»:
+
+| Decisión | Alternativa considerada | Motivo y costo aceptado |
+| --- | --- | --- |
+| Agregar `supportedVersions` al validador existente | Reemplazar sus propiedades por otro objeto de capacidades | Cambio pequeño, conserva `extensionOf` del listado. Los validadores de test también declaran versiones. |
+| Rechazar versiones no anunciadas antes de llamar al proveedor | Delegar siempre el rechazo al proveedor | Catálogo y despacho comparten las versiones. Agregar soporte requiere actualizar el adaptador y comprobar compatibilidad; una versión desconocida se rechaza aunque PrintScript esté caído. El adaptador sigue traduciendo un 422 remoto. |
+| Rechazar al arrancar validadores duplicados o capacidades inválidas | Fusionar capacidades y agregar selección por versión | Evita ambigüedad sin otro registro. Una mala configuración impide arrancar; no se publica un catálogo parcial. |
+
+Son decisiones internas reversibles; cambiar versiones anunciadas afecta a los
+consumidores y exige revisar compatibilidad. El contrato HTTP no requiere otra
+API de descubrimiento en PrintScript. Las versiones `1.0` y `1.1` corresponden a
+su `LanguageVersion`; el test optativo `PrintScriptServiceLiveTest` comprueba la
+validación real. Cambios del proveedor que alteren ese soporte requieren revisar
+esta declaración. No se agregan dependencias ni almacenamiento del catálogo.
+
+### Verificación local del consumidor
+
+Evidencia local del 2026-10-24:
+
+- `gradlew.bat build --offline` con `PRINTSCRIPT_SERVICE_URL=http://127.0.0.1:8082`:
+  **246 tests, 0 fallos, 6 omitidos** (pruebas optativas de Permissions sin su URL).
+  Incluye los tres tests de PrintScript real, ktlint y detekt.
+- Respuesta real `200` y catálogo exacto tanto en `127.0.0.1:18080/languages`
+  como a través de `127.0.0.1:5173/api/languages`. El puerto 18080 se usó solo
+  para esta verificación; no cambia la configuración del servicio.
+- **Prueba de navegador completada:** Cypress 13.8.1 / Electron 118,
+  **1 test aprobado, 0 fallos**, contra Vite y backend reales, sin respuestas
+  simuladas. Verificó el catálogo, reconocimiento de `.prs`, selección obligatoria
+  de versión y creación `201` con PrintScript `1.1`. Metadatos confirmados en
+  PostgreSQL: `2161cf41-290c-4de9-b7a9-30c6629a876b`, nombre
+  `SNI-54-1792868069246`, estado `CONFIRMED`. La UI quedó sin cambios temporales.
+  Los fallos anteriores de red y suspensión no se reprodujeron en esta ejecución.
+- Diagnóstico del listado, 2026-10-24: el contenedor local de Permissions usaba
+  una imagen del 2026-10-12 (`9b2ab6c2905e…`) sin `GET /access`: respondía `404`
+  y Snippets lo traducía correctamente a `502 dependency-failure`. Se reemplazó
+  únicamente ese contenedor por la imagen publicada del `dev` de Permissions,
+  commit `949885ce61229fa65639e4a2e51a9e6fff8d9324`, digest
+  `sha256:fd1866315481c2432ace65b734af95c77a6956d737fa8fc464cf988fd36b3dd6`.
+  Su migración existente V2 agregó la tabla de shares a la base local; se
+  conservaron los datos y volúmenes. `/access` y `GET /snippets` pasaron a `200`.
+  Otra prueba Cypress sin respuestas simuladas verificó que la UI renderizaba
+  el snippet `2161cf41-290c-4de9-b7a9-30c6629a876b`: **1 aprobado, 0 fallos**.
+  No hubo que corregir código de SNI-54 ni de Permissions.
+- Para reconstruir localmente, actualizar antes el checkout de Permissions a
+  un commit que incluya SNI-28; reconstruir desde la rama local antigua vuelve
+  a producir una imagen sin `/access`. La prueba usó un override local ignorado
+  en `build/sni-54-permissions.yaml`, sin cambiar el Compose oficial. Esto no
+  certifica detalle, sharing ni aceptación completa de US5–7.
+
+`src/test/ui/languages.cy.ts` es una prueba optativa del navegador contra servicios
+reales. Requiere la UI de SNI-34 con `UI_DEV_ACTOR=dev-juanfran`, Vite en
+`127.0.0.1:5173` y `API_PROXY_TARGET` apuntando al Snippets recién compilado;
+PrintScript, Permissions y PostgreSQL deben estar disponibles. No simula
+respuestas. Comprueba catálogo, selección explícita de versión, reconocimiento
+de `.prs` y creación. Deja un snippet local identificado como `SNI-54-<timestamp>`.
+No certifica detalle, sharing, infraestructura remota ni aceptación completa de US5–7.
+
+Cypress en Windows no empaqueta bien specs fuera del proyecto UI. Desde la raíz
+de `snippet-searcher-ui`, con sus dependencias instaladas, usar una copia temporal:
+
+```powershell
+$spec = Join-Path $PWD 'cypress/e2e/sni-54-local.cy.ts'
+if (Test-Path -LiteralPath $spec) { throw 'El archivo temporal ya existe' }
+Copy-Item -LiteralPath '../snippets-service/src/test/ui/languages.cy.ts' -Destination $spec
+try {
+    npm.cmd exec -- cypress run --config 'baseUrl=http://127.0.0.1:5173,specPattern=cypress/e2e/sni-54-local.cy.ts' --spec 'cypress/e2e/sni-54-local.cy.ts'
+    if ($LASTEXITCODE -ne 0) { throw 'Falló la prueba de UI' }
+} finally {
+    Remove-Item -LiteralPath $spec
+}
+```
 
 ## Fuera de alcance
 

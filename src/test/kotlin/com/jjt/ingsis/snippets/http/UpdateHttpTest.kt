@@ -160,18 +160,16 @@ class UpdateHttpTest
         }
 
         @Test
-        fun `a new language or version is validated with the new code and unsupported ones change nothing`() {
+        fun `unsupported languages and versions change nothing and never reach PrintScript`() {
             val created = created()
-            printScript.answerWith {
-                StubResponse(422, """{"status":422,"supportedVersions":["1.0","1.1"]}""", "application/problem+json")
-            }
+            val validationRequests = printScript.received.toList()
 
             val language = api.update(created.id.toString(), requestBody(language = "python"))
             val version = api.update(created.id.toString(), requestBody(version = "9.9", code = "println(9);"))
 
             assertThat(language.type).isEqualTo("urn:snippets:problem:unsupported-language")
             assertThat(version.type).isEqualTo("urn:snippets:problem:unsupported-version")
-            assertThat(printScript.received.last().body).contains("9.9", "println(9);")
+            assertThat(printScript.received).isEqualTo(validationRequests)
             assertUnchanged(created)
         }
 
