@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publicar una imagen de bootstrap despuÃ©s de CI; solo desde dev.
+        description: Publicar una imagen de bootstrap despuÃƒÂ©s de CI; solo desde dev.
         required: false
         default: false
         type: boolean
@@ -25,7 +25,7 @@ jobs:
       actions: read
       pull-requests: read
       deployments: write
-    uses: JJT-INGSIS/github-workflows/.github/workflows/kotlin-service-pipeline.yml@6f520b81c7774a844c4c522cc96eb93c60ccfec9
+    uses: JJT-INGSIS/github-workflows/.github/workflows/kotlin-service-pipeline.yml@v0.6.0
     with:
       publish: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
       deploy: ${{ vars.CD_ENABLED == 'true' }}
