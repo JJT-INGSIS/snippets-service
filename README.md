@@ -411,3 +411,12 @@ La UI utiliza `/api` en el mismo origen mediante Vite o NGINX. Para autorizar
 acceso desde otros orígenes, configurar `SNIPPETS_CORS_ALLOWED_ORIGINS` en el backend.
 El valor por defecto es vacío; Spring administra la política y NGINX no debe duplicarla.
 Ver [configuración, pruebas y límites de autenticación de CORS](docs/cors.md).
+
+## SNI-43 — actualización de herramientas de CD
+
+El caller preparado usa `github-workflows@v0.6.0`. Integrar únicamente después de
+publicar y verificar esa versión central con el SHA definitivo de infra. La versión
+nueva admite el stack anterior; actualizar los tres callers del ambiente antes de
+incorporar NGINX/Asset/UI. No reejecutar versiones antiguas para operar el stack ampliado.
+El procedimiento y la protección del registro están en
+[rollout SNI-43](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-43-cd.md).
