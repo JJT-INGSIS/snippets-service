@@ -1,5 +1,6 @@
 package com.jjt.ingsis.snippets.detail
 
+import com.jjt.ingsis.snippets.access.ConfirmedSnippetGate
 import com.jjt.ingsis.snippets.identity.ActorContext
 import com.jjt.ingsis.snippets.identity.ActorIdentity
 import com.jjt.ingsis.snippets.identity.ActorIdentityResolver
@@ -105,9 +106,7 @@ private fun reader(
     identity: ActorIdentityResolver = identified,
 ): ReadSnippet =
     ReadSnippet(
-        identityResolver = identity,
-        links = links,
-        accessChecker = access,
+        gate = ConfirmedSnippetGate(identity, links, access),
         content = ContentReading(links, storage),
         language = printScript,
     )
