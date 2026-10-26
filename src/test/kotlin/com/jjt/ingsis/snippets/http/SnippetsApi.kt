@@ -85,6 +85,21 @@ internal class SnippetsApi(
             ).PUT(HttpRequest.BodyPublishers.noBody()),
         )
 
+    fun createTestCase(
+        snippetId: String,
+        body: String,
+        actors: List<String> = listOf(ACTOR),
+    ): HttpAnswer {
+        val request = request("/snippets/$snippetId/tests", "application/json", actors)
+
+        return send(request.POST(HttpRequest.BodyPublishers.ofString(body)))
+    }
+
+    fun testCases(
+        snippetId: String,
+        actors: List<String> = listOf(ACTOR),
+    ): HttpAnswer = send(request("/snippets/$snippetId/tests", "application/json", actors).GET())
+
     fun users(
         query: String,
         actors: List<String> = listOf(ACTOR),

@@ -30,6 +30,11 @@ enum class SnippetProblem(
         "share-denied",
         "Only the owner can share this snippet.",
     ),
+    ACCESS_DENIED(
+        HttpStatus.FORBIDDEN,
+        "access-denied",
+        "Only the owner of this snippet can do this.",
+    ),
     INVALID_RECIPIENT(
         HttpStatus.UNPROCESSABLE_CONTENT,
         "invalid-recipient",
@@ -39,6 +44,11 @@ enum class SnippetProblem(
         HttpStatus.NOT_FOUND,
         "snippet-not-found",
         "There is no snippet with that id.",
+    ),
+    PAYLOAD_TOO_LARGE(
+        HttpStatus.CONTENT_TOO_LARGE,
+        "payload-too-large",
+        "The request exceeds a size limit. The limit property names which one.",
     ),
     CREATION_CONFLICT(
         HttpStatus.CONFLICT,
