@@ -55,6 +55,63 @@ class CorsHttpTest
         }
 
         @Test
+        fun `public execution preflights follow exactly the SNI-45 route and method table`() {
+            executionCorsRoutes.forEach { (path, methods) ->
+                methods.forEach { method ->
+                    val response = api.preflight(path, method, "content-type,x-dev-actor-id")
+                    assertThat(response.statusCode()).describedAs("$method $path").isEqualTo(200)
+                    assertThat(
+                        response.headers().allValues("Access-Control-Allow-Origin"),
+                    ).containsExactly(LOCAL_ORIGIN)
+                    assertThat(
+                        response
+                            .headers()
+                            .firstValue(
+                                "Access-Control-Allow-Methods",
+                            ).orElse("")
+                            .split(',')
+                            .map(String::trim),
+                    ).containsExactlyElementsOf(methods)
+                    assertThat(response.headers().firstValue("Access-Control-Allow-Credentials")).isEmpty()
+                }
+            }
+        }
+
+        @Test
+        fun `execution policy rejects other methods internal routes and speculative headers`() {
+            executionCorsRoutes.forEach { (path, methods) ->
+                (listOf("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD") - methods.toSet()).forEach { method ->
+                    assertThat(api.preflight(path, method, "").statusCode()).describedAs("$method $path").isEqualTo(403)
+                }
+                assertThat(api.preflight(path, methods.first(), "authorization").statusCode()).isEqualTo(403)
+            }
+            listOf("/executions", "/executions/id/events/extra", "/internal/executions", "/api/executions/id/events")
+                .forEach { path ->
+                    listOf("GET", "POST").forEach { method ->
+                        assertThat(
+                            api
+                                .preflight(
+                                    path,
+                                    method,
+                                    "content-type",
+                                ).headers()
+                                .firstValue("Access-Control-Allow-Origin"),
+                        ).describedAs("$method $path grants no CORS permission")
+                            .isEmpty()
+                    }
+                }
+            val rejected =
+                api.preflight(
+                    path = "/executions/id/events?after=3",
+                    method = "GET",
+                    headers = "x-dev-actor-id",
+                    origin = "https://untrusted.example",
+                )
+            assertThat(rejected.statusCode()).isEqualTo(403)
+            assertThat(rejected.headers().firstValue("Access-Control-Allow-Origin")).isEmpty()
+        }
+
+        @Test
         fun `disallowed origins methods headers and routes are rejected`() {
             listOf(
                 api.preflight(
@@ -103,6 +160,18 @@ class CorsHttpTest
     }
 
 private const val LOCAL_ORIGIN = "http://localhost:5173"
+
+// Expected public contract, not derived from the configuration under test.
+private val executionCorsRoutes =
+    mapOf(
+        "/snippets/id/tests" to listOf("GET", "POST"),
+        "/snippets/id/tests/test/executions" to listOf("POST"),
+        "/snippets/id/executions" to listOf("POST"),
+        "/executions/id" to listOf("GET"),
+        "/executions/id/events?after=3" to listOf("GET"),
+        "/executions/id/inputs" to listOf("POST"),
+        "/executions/id/cancel" to listOf("POST"),
+    )
 
 internal class CorsRequests(
     port: Int,

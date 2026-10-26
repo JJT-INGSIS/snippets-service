@@ -54,6 +54,10 @@ Wildcards, `null`, credentials, query strings and fragments fail application sta
 | `/snippets` | GET, POST |
 | `/snippets/*` | GET, PUT |
 | `/snippets/*/shares/*` | PUT |
+| `/snippets/*/tests` | GET, POST |
+| `/snippets/*/tests/*/executions`, `/snippets/*/executions` | POST |
+| `/executions/*`, `/executions/*/events` | GET |
+| `/executions/*/inputs`, `/executions/*/cancel` | POST |
 | `/users`, `/languages` | GET |
 
 OPTIONS preflight is handled by Spring before application operations and does not
@@ -150,6 +154,26 @@ arbitrary forwarded headers or changing the frontend configuration.
 Per-route methods follow existing endpoints. New routes must update this table and
 the policy. The cost of an explicit list is configuration maintenance when consumers
 change. Revisit credentials/exposed headers when an actual consumer requires them.
+
+## SNI-52 — execution transport
+
+The additions above follow exactly the eight public operations in
+[SNI-45](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/architecture/execution-contract.md).
+POST `/executions` is internal to PrintScript and has no public CORS grant.
+The replay cursor is the `after` query parameter; requestId is JSON in the input
+body. No Last-Event-ID, speculative Authorization or new exposed headers are needed.
+Methods/headers outside the table retain no grants. A successful OPTIONS does not
+implement execution endpoints or relax actor/session authorization.
+
+`CorsHttpTest` checks every public method and rejects other methods, paths, origins
+and speculative headers; `ProductionCorsTest` also rejects dev headers on execution
+routes. Spring alone emits the policy, including errors, with credentials disabled.
+Tests against missing endpoints check readable errors, not fictitious execution.
+
+NGINX and browser transport verification are documented in
+[SNI-52](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-52-streaming.md).
+Local gated upstreams prove incremental HTTP/HTTPS delivery, not real interpreter
+behavior. Integration with the real interpreter and deployed TLS is recorded later.
 
 Reference: course presentation `06-https`, pages 28–40, and
 [Spring MVC CORS](https://docs.spring.io/spring-framework/reference/web/webmvc-cors.html).
