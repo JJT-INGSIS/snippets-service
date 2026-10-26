@@ -7,7 +7,8 @@ import java.net.URI
 class SnippetProblemTest {
     @Test
     fun `the documented error tables list exactly the problems the service answers`() {
-        val documented = creationContract.problems + updateContract.problems + sharingContract.problems
+        val documented =
+            creationContract.problems + updateContract.problems + sharingContract.problems + testsContract.problems
         val answered =
             SnippetProblem.entries.map { problem ->
                 DocumentedProblem(problem.status.value(), "urn:snippets:problem:${problem.category}")

@@ -17,6 +17,8 @@ internal val readingContract = ContractDocument("docs/reading.md")
 
 internal val sharingContract = ContractDocument("docs/sharing.md")
 
+internal val testsContract = ContractDocument("docs/tests.md")
+
 internal data class ContractExample(
     val title: String,
     val status: Int,

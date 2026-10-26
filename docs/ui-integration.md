@@ -112,7 +112,7 @@ El detalle informa qué acciones puede hacer el actor que consulta.
 
 La UI usa estas capacidades para ocultar o deshabilitar acciones. **El backend
 vuelve a verificar cada permiso**: ocultar un botón no autoriza ni impide nada.
-Compartir concede lectura del snippet y, cuando existan, de sus tests. No concede
+Compartir concede lectura del snippet y de sus tests ([tests.md](tests.md)). No concede
 edición ni volver a compartir.
 
 ## Identidad en desarrollo
@@ -210,7 +210,7 @@ falsos** de `FakeSnippetStore`.
 | `formatSnippet`, botón Format | Formatear | US11–13, tanda posterior |
 | `getFormatRules`, `modifyFormatRule` | Reglas de formato | US11–12, tanda posterior |
 | `getLintingRules`, `modifyLintingRule` | Reglas de lint | US14–15, tanda posterior |
-| `getTestCases`, `postTestCase`, `removeTestCase`, `testSnippet`, botón Test | Tests | US8–9, tanda posterior |
+| `getTestCases`, `postTestCase`, `removeTestCase`, `testSnippet`, botón Test | Tests | El backend de crear y listar ya existe ([SNI-46](tests.md)); falta conectar la UI. Borrar y ejecutar (US9) quedan para después |
 | Panel Output (`SnippetExecution`) | Ejecutar | US10, tanda posterior |
 
 ## Conexión de la UI con el backend
