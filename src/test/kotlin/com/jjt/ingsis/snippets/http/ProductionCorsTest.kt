@@ -30,6 +30,10 @@ class ProductionCorsTest
             val preflight = api.preflight("/users", "GET", "x-dev-actor-id")
             assertThat(preflight.statusCode()).isEqualTo(403)
             assertThat(preflight.headers().firstValue("Access-Control-Allow-Origin")).isEmpty()
+            listOf("/executions/id/events" to "GET", "/executions/id/inputs" to "POST").forEach { (path, method) ->
+                assertThat(api.preflight(path, method, "x-dev-actor-id").statusCode()).isEqualTo(403)
+                assertThat(api.preflight(path, method, "content-type").statusCode()).isEqualTo(200)
+            }
             val actual = api.get("/users", "http://localhost:5173", "dev-thiago")
             assertThat(actual.statusCode()).isEqualTo(401)
             assertThat(
