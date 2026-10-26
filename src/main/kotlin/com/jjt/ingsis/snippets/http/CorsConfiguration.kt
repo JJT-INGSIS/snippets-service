@@ -31,6 +31,14 @@ class CorsConfiguration {
             "/snippets" to listOf("GET", "POST"),
             "/snippets/*" to listOf("GET", "PUT"),
             "/snippets/*/shares/*" to listOf("PUT"),
+            // Public SNI-45 contract; /executions POST belongs only to PrintScript.
+            "/snippets/*/tests" to listOf("GET", "POST"),
+            "/snippets/*/tests/*/executions" to listOf("POST"),
+            "/snippets/*/executions" to listOf("POST"),
+            "/executions/*" to listOf("GET"),
+            "/executions/*/events" to listOf("GET"),
+            "/executions/*/inputs" to listOf("POST"),
+            "/executions/*/cancel" to listOf("POST"),
             "/users" to listOf("GET"),
             "/languages" to listOf("GET"),
         ).forEach { (path, methods) ->

@@ -411,6 +411,9 @@ La UI utiliza `/api` en el mismo origen mediante Vite o NGINX. Para autorizar
 acceso desde otros orígenes, configurar `SNIPPETS_CORS_ALLOWED_ORIGINS` en el backend.
 El valor por defecto es vacío; Spring administra la política y NGINX no debe duplicarla.
 Ver [configuración, pruebas y límites de autenticación de CORS](docs/cors.md).
+SNI-52 amplía esa política exactamente a las rutas/métodos públicos de tests y
+ejecución de SNI-45. La aceptación local del transporte NGINX/NDJSON usa un upstream
+controlado; la ejecución funcional con el intérprete se verifica posteriormente.
 
 ## SNI-43 — actualización de herramientas de CD
 
