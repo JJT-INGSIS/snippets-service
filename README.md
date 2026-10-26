@@ -435,6 +435,11 @@ dev → prod quedan pendientes de la configuración y pruebas con VMs encendidas
 
 ## Acceso desde navegador y CORS
 
+SNI-47 agrega la capacidad de ejecución y el cliente HTTP incremental en Language.
+Ver [decisiones, configuración y prueba con PrintScript real](docs/execution-language.md).
+No habilita endpoints públicos de ejecución ni compara tests; esa coordinación
+corresponde a SNI-48/SNI-49.
+
 La UI utiliza `/api` en el mismo origen mediante Vite o NGINX. Para autorizar
 acceso desde otros orígenes, configurar `SNIPPETS_CORS_ALLOWED_ORIGINS` en el backend.
 El valor por defecto es vacío; Spring administra la política y NGINX no debe duplicarla.
