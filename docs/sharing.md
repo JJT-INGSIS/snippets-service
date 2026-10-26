@@ -15,7 +15,9 @@ política 403/404 están en [ui-integration.md](ui-integration.md).
 | Puede | El owner | Un usuario compartido |
 | --- | --- | --- |
 | Ver el snippet en la lista y su detalle | Sí | Sí |
-| Ver y ejecutar sus tests (US8–9, futuro) | Sí | Sí |
+| Ver sus tests ([SNI-46](tests.md)) | Sí | Sí |
+| Crear tests ([SNI-46](tests.md)) | Sí | No |
+| Ejecutar sus tests (US9, futuro) | Sí | Sí |
 | Modificarlo | Sí | No |
 | Compartirlo | Sí | No |
 

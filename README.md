@@ -283,6 +283,7 @@ implementados, al igual que el catálogo de lenguajes (SNI-54) y sharing (SNI-32
 | [docs/ui-integration.md](docs/ui-integration.md) | Representación común, traducción de los tipos de la UI, lint, capacidades, identidad y usuarios de dev, 403/404, operaciones conectadas y deshabilitadas |
 | [docs/reading.md](docs/reading.md) | `GET /snippets`, `GET /snippets/{id}` y `GET /languages` |
 | [docs/sharing.md](docs/sharing.md) | `GET /users` y `PUT /snippets/{id}/shares/{userId}` |
+| [docs/tests.md](docs/tests.md) | `POST` y `GET /snippets/{id}/tests` (SNI-46) |
 
 El listado obtiene de Permissions los IDs accesibles y después filtra, ordena y
 pagina en la base de Snippets, sin leer código. El detalle lee un solo contenido,
@@ -341,6 +342,33 @@ Todavía no hay usuarios reales. Los destinatarios salen de
 mismos `id` que se usan en `X-Dev-Actor-Id`. Sin ese perfil el catálogo queda vacío
 y la identidad de desarrollo está deshabilitada. Auth0 reemplazará la fuente
 implementando `UserDirectory`, sin cambiar el contrato.
+
+## Tests de un snippet — SNI-46
+
+`POST /snippets/{id}/tests` guarda un test (`inputs` y `expectedOutputs`) y
+`GET /snippets/{id}/tests` lista los del snippet en orden de creación. Solo el owner
+crea; owner y usuarios compartidos listan; cualquier otro, o un snippet pendiente,
+recibe `404`. Crear un test **no lo ejecuta** ni llama a PrintScript (eso es US9).
+El [contrato](docs/tests.md) documenta body, límites, secuencia, errores y
+decisiones, con ejemplos que `TestCasesHttpTest` ejecuta.
+
+```bash
+curl -i -X POST 'http://localhost:8080/snippets/<id>/tests' \
+  -H 'X-Dev-Actor-Id: dev-juan' -H 'Content-Type: application/json' \
+  -d '{"inputs":["Ana"],"expectedOutputs":["Hola, Ana"]}'
+```
+
+```bash
+curl -i 'http://localhost:8080/snippets/<id>/tests' -H 'X-Dev-Actor-Id: dev-juan'
+```
+
+Los tests viven en PostgreSQL (`snippet_test_cases`, migración V3) como arrays JSONB:
+se conservan exactos el orden, los duplicados, los strings vacíos y el Unicode, y
+sobreviven a un reinicio. El acceso lo decide `ReadGate`, el mismo chequeo que usa
+el detalle. Un compartido que intenta crear recibe `403 access-denied`; superar un
+límite (100 items, 8 KiB por string, 50 tests por snippet) responde
+`413 payload-too-large`. Si Permissions o la base fallan responde `502`/`503`,
+nunca un test creado ni `{"items":[]}`.
 
 ## CI/CD y branches — SNI-23 / SNI-25
 
