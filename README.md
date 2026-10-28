@@ -351,7 +351,7 @@ a administradores y no admitir bypass de pushes directos. El merge de esa PR es
 la autorización humana; no se agrega otro approval en GitHub Environments.
 
 El caller `.github/workflows/pipeline.yml` prepara
-`kotlin-service-pipeline.yml@v0.5.1` de [github-workflows](https://github.com/JJT-INGSIS/github-workflows).
+`kotlin-service-pipeline.yml@v0.6.2` de [github-workflows](https://github.com/JJT-INGSIS/github-workflows).
 Esta versión espera la convergencia de un rollback al digest esperado antes de
 declarar la recuperación; una candidata fallida mantiene la Action en rojo.
 **Esta versión debe integrarse, publicarse y comprobarse antes de integrar el caller.**
@@ -423,3 +423,7 @@ nueva admite el stack anterior; actualizar los tres callers del ambiente antes d
 incorporar NGINX/Asset/UI. No reejecutar versiones antiguas para operar el stack ampliado.
 El procedimiento y la protección del registro están en
 [rollout SNI-43](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-43-cd.md).
+
+## Herramientas de CD — SNI-44
+
+El caller usa workflows centrales `v0.6.2`, con la revisión fija de infra que corrige el doble escape de healthchecks. Este mantenimiento cambia sólo herramientas y documentación: no promueve funcionalidades nuevas de dev ni cambia la imagen en producción. Antes de reaplicar infraestructura, actualizar los cuatro callers del ambiente y esperar ejecuciones activas; no reejecutar herramientas antiguas sobre el stack ampliado.
