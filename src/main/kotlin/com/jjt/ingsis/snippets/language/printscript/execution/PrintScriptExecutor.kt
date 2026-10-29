@@ -1,11 +1,11 @@
 package com.jjt.ingsis.snippets.language.printscript.execution
 
 import com.jjt.ingsis.snippets.language.execution.ExecutionDescriptor
-import com.jjt.ingsis.snippets.language.execution.ExecutionEvent
 import com.jjt.ingsis.snippets.language.execution.ExecutionMode
 import com.jjt.ingsis.snippets.language.execution.ExecutionRequest
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
 import com.jjt.ingsis.snippets.language.execution.ExecutionState
+import com.jjt.ingsis.snippets.language.execution.LanguageEventStream
 import com.jjt.ingsis.snippets.language.execution.LanguageExecutor
 import com.jjt.ingsis.snippets.language.printscript.PrintScriptProperties
 import org.springframework.http.HttpStatus
@@ -51,11 +51,10 @@ class PrintScriptExecutor(
             ExecutionProtocol.descriptor(it, id)
         }
 
-    override fun events(
+    override fun openEvents(
         id: UUID,
         after: Long,
-        consume: (ExecutionEvent) -> Unit,
-    ): ExecutionResult<Unit> = stream.read(id, after, consume)
+    ): ExecutionResult<LanguageEventStream> = stream.open(id, after)
 
     override fun input(
         id: UUID,
