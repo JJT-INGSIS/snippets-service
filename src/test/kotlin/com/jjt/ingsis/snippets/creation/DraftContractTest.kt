@@ -29,28 +29,44 @@ class DraftContractTest {
 
     @Test
     fun `required fields must be strings and description is nullable`() {
-        val json = """{"name":"Example","language":"printscript","version":"1.0","code":""}"""
+        val json = """{"name":"Example","language":"printscript","version":"1.0","code":"println(1);"}"""
         val accepted = assertInstanceOf(DraftInput.Accepted::class.java, decoder.decode(json))
-        assertEquals("", accepted.draft.code)
+        assertEquals("println(1);", accepted.draft.code)
         assertNull(accepted.draft.description)
         listOf("null", "1", "true", "[]", "{}").forEach { value ->
-            assertEquals(DraftInput.Rejected, decoder.decode(json.replace("\"code\":\"\"", "\"code\":$value")))
+            assertEquals(
+                DraftInput.Rejected(),
+                decoder.decode(json.replace("\"code\":\"println(1);\"", "\"code\":$value")),
+            )
         }
-        assertEquals(DraftInput.Rejected, decoder.decode("{}"))
-        assertEquals(DraftInput.Rejected, decoder.decode("[]"))
-        assertEquals(DraftInput.Rejected, decoder.decode("not json"))
-        assertEquals(DraftInput.Rejected, decoder.decode("$json {}"))
+        assertEquals(DraftInput.Rejected(), decoder.decode("{}"))
+        assertEquals(DraftInput.Rejected(), decoder.decode("[]"))
+        assertEquals(DraftInput.Rejected(), decoder.decode("not json"))
+        assertEquals(DraftInput.Rejected(), decoder.decode("$json {}"))
     }
 
     @Test
     fun `rejects fields that claim ownership identity or fingerprint`() {
         val json = """{"name":"Example","language":"printscript","version":"1.0","code":"println(1);"}"""
         listOf("ownerId", "actorId", "fingerprint").forEach { field ->
-            assertEquals(DraftInput.Rejected, decoder.decode(json.dropLast(1) + ",\"$field\":\"attacker\"}"))
+            assertEquals(DraftInput.Rejected(), decoder.decode(json.dropLast(1) + ",\"$field\":\"attacker\"}"))
         }
-        assertEquals(DraftInput.Rejected, decoder.decode(json.replace("Example", " ")))
-        assertEquals(DraftInput.Rejected, decoder.decode(json.replace("printscript", " ")))
-        assertEquals(DraftInput.Rejected, decoder.decode(json.replace("1.0", " ")))
+        assertEquals(DraftInput.Rejected(), decoder.decode(json.replace("Example", " ")))
+        assertEquals(DraftInput.Rejected(), decoder.decode(json.replace("printscript", " ")))
+        assertEquals(DraftInput.Rejected(), decoder.decode(json.replace("1.0", " ")))
+    }
+
+    @Test
+    fun `blank code is a typed field rejection while admitted code retains every character`() {
+        val empty = """{"name":"Example","language":"printscript","version":"1.0","code":""}"""
+        assertEquals(DraftInput.Rejected(field = "code"), decoder.decode(empty))
+        listOf("", " ", "\t", "\r\n", " \t\r\n", "\u00A0", "\u2003").forEach { code ->
+            assertEquals("code", draft().copy(code = code).invalidField())
+        }
+        assertNull(draft().copy(code = "// comentario").invalidField())
+        val original = "\uFEFF  println(1);\r\n\t"
+        assertEquals(null, draft().copy(code = original).invalidField())
+        assertEquals(original, draft().copy(code = original).code)
     }
 
     @Test
@@ -67,7 +83,7 @@ class DraftContractTest {
         )
         val empty = decoder.decode(json.dropLast(1) + ",\"description\":\"\"}")
         assertEquals("", assertInstanceOf(DraftInput.Accepted::class.java, empty).draft.description)
-        assertEquals(DraftInput.Rejected, decoder.decode(json.dropLast(1) + ",\"description\":4}"))
+        assertEquals(DraftInput.Rejected(), decoder.decode(json.dropLast(1) + ",\"description\":4}"))
     }
 
     @Test
