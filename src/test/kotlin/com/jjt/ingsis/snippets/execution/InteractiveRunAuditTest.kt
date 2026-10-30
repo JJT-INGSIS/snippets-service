@@ -3,6 +3,7 @@ package com.jjt.ingsis.snippets.execution
 import com.jjt.ingsis.snippets.language.Language
 import com.jjt.ingsis.snippets.language.execution.ExecutionMode
 import com.jjt.ingsis.snippets.language.execution.ExecutionRequest
+import com.jjt.ingsis.snippets.language.execution.ExecutionResult
 import com.jjt.ingsis.snippets.metadata.MetadataTestConfiguration
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -93,6 +94,20 @@ class InteractiveRunAuditTest
             assertThat(launcher(executor).launch(active.actorId, interactive))
                 .isEqualTo(RunResult.Refused(RunFailure.ACTIVE))
             assertThat(executor.requests).isEmpty()
+        }
+
+        @Test
+        fun `a start that never reached the interpreter frees the actor`() {
+            val executor = ControlledExecutor()
+            val snapshot = interactiveSnapshot()
+            val owner = "actor-${UUID.randomUUID()}"
+            saveSnippet("public", snapshot)
+            executor.startFailure.set(ExecutionResult.Failed("execution-service-unavailable", uncertain = false))
+
+            assertThat(launcher(executor).launch(owner, snapshot))
+                .isEqualTo(RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE))
+            executor.startFailure.set(null)
+            assertThat(launcher(executor).launch(owner, snapshot)).isInstanceOf(RunResult.Success::class.java)
         }
 
         @Test
