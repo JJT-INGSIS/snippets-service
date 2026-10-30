@@ -198,6 +198,10 @@ Reintentar una lectura o un share es seguro: no modifica nada o es idempotente.
 | `getUserFriends` | US7 | `GET /users` | Implementado (SNI-29) |
 | `shareSnippet` | US7 | `PUT /snippets/{id}/shares/{userId}` | Implementado (SNI-32), lectura sin edición ni resharing |
 
+El panel Output (`SnippetExecution`, US10) no pasa por `SnippetOperations`: usa
+las rutas de ejecución de [SNI-49](interactive-execution.md) y de
+[SNI-48](test-execution.md).
+
 ### Funciones que quedan deshabilitadas
 
 No tienen backend en esta tanda. La UI deshabilita el botón o el adaptador
@@ -210,8 +214,7 @@ falsos** de `FakeSnippetStore`.
 | `formatSnippet`, botón Format | Formatear | US11–13, tanda posterior |
 | `getFormatRules`, `modifyFormatRule` | Reglas de formato | US11–12, tanda posterior |
 | `getLintingRules`, `modifyLintingRule` | Reglas de lint | US14–15, tanda posterior |
-| `getTestCases`, `postTestCase`, `removeTestCase`, `testSnippet`, botón Test | Tests | El backend de crear y listar ya existe ([SNI-46](tests.md)); falta conectar la UI. Borrar y ejecutar (US9) quedan para después |
-| Panel Output (`SnippetExecution`) | Ejecutar | US10, tanda posterior |
+| `getTestCases`, `postTestCase`, `removeTestCase`, `testSnippet`, botón Test | Tests | El backend de crear y listar ([SNI-46](tests.md)) y el de ejecutar ([SNI-48](test-execution.md)) ya existen; falta conectar la UI. Borrar queda para después |
 
 ## Conexión de la UI con el backend
 

@@ -439,7 +439,8 @@ SNI-47 agrega la capacidad de ejecución y el cliente HTTP incremental en Langua
 Ver [decisiones, configuración y prueba con PrintScript real](docs/execution-language.md).
 SNI-48 agrega ejecución de un test guardado, comparación exacta y auditoría durable.
 Ver [contrato, decisiones, recuperación y verificación](docs/test-execution.md).
-La coordinación interactiva corresponde a SNI-49.
+SNI-49 agrega la ejecución interactiva: arrancar sin test y mandar inputs mientras corre.
+Ver [contrato, decisiones y verificación](docs/interactive-execution.md).
 
 La UI utiliza `/api` en el mismo origen mediante Vite o NGINX. Para autorizar
 acceso desde otros orígenes, configurar `SNIPPETS_CORS_ALLOWED_ORIGINS` en el backend.
