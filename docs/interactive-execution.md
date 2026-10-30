@@ -218,6 +218,14 @@ Para correr los live tests, levantar PrintScript como indica
 PRINTSCRIPT_EXECUTION_URL=http://127.0.0.1:18080 ./gradlew test --tests '*LiveTest'
 ```
 
-El 30/10/2026 pasaron `InteractiveExecutionLiveTest` y `TestExecutionLiveTest`
-contra PrintScript de `dev` (`2fb2928`) levantado localmente. La prueba con
-Compose y la UI queda para el paso de verificación integrada.
+### Evidencia — 30/10/2026
+
+| Prueba | Resultado |
+| --- | --- |
+| PrintScript de `dev` (`2fb2928`) levantado con `java -jar` | `InteractiveExecutionLiveTest` y `TestExecutionLiveTest` pasaron |
+| Compose local con perfiles `ui` e `ingress` (http://localhost:8088): Snippets de esta rama, PrintScript `dev` (`2fb2928`) y UI `dev` (`3ce356d`) | Snippet PrintScript 1.1 con `readInput`: la UI mostró el pedido `Nombre?`, se envió `Ana`, salió `Hola, Ana` y terminó `COMPLETED` (`program-completed`) |
+| Auditoría de esa ejecución (`7ef02438-ff70-4a3a-9d1a-d62f26519a30`) en la base de Compose | `INTERACTIVE`, sin test, `COMPLETED`, **0 outputs guardados**, reserva liberada |
+| Live tests contra el PrintScript del contenedor (`127.0.0.1:8082`) | `InteractiveExecutionLiveTest` 1/1, `TestExecutionLiveTest` 2/2 y `PrintScriptExecutionLiveTest` 2/2, sin fallos |
+
+No se desplegó ni se tocaron las VMs. La aceptación integrada completa (UI,
+Permissions y Asset) sigue en SNI-53.
