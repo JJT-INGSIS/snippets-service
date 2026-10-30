@@ -97,6 +97,13 @@ tras reemplazar y verificar el proceso de PrintScript) y liberar esa reserva
 específica en la auditoría. No hay endpoint para reiniciar o liberar a ciegas.
 Esta es una limitación deliberada del contrato sin inicio idempotente.
 
+Esto vale solo si el pedido pudo haber llegado. Si la conexión con PrintScript ni
+se abrió (PrintScript caído o arrancando: conexión rechazada o timeout de
+conexión), el pedido no llegó: la falla es segura, la reserva se libera y el
+actor puede volver a ejecutar. Antes también quedaba bloqueado; lo encontró la
+aceptación de SNI-53 y se corrigió con la opción B1, aprobada por Juan el
+30/10/2026. Un timeout **después** de enviar el inicio sigue siendo incierto.
+
 `remote.state` en la auditoría es el estado observado al asociar la sesión, no un
 indicador actual de trabajo corriendo. `result IS NULL` significa que no hay
 resultado final confirmado. `failure` conserva el motivo conocido; `reserved`

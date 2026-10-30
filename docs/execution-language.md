@@ -39,7 +39,9 @@ con «dale hacelo apruebo todo». Los detalles siguientes aplican esas garantía
   El lector acota cada línea a 320 KiB y JSON de control a 64 KiB. Si se aumentan
   los límites de eventos en PrintScript, revisar estos límites de transporte.
 - **Sin reintentos automáticos:** perder la respuesta de un POST produce Failed
-  con uncertain=true; no implica que no se ejecutó. Reenviar input solo es seguro
+  con uncertain=true; no implica que no se ejecutó. En cambio, si la conexión ni
+  se abrió (conexión rechazada o timeout de conexión), el pedido no llegó y la falla
+  es segura (uncertain=false); ver el bug B de SNI-53. Reenviar input solo es seguro
   con el mismo requestId y valor según el protocolo. Una desconexión no es éxito:
   se conservan eventos ya entregados y se devuelve interrupción/incertidumbre.
 - **Timeout de cuerpo explícito:** JDK HttpClient no limita la lectura completa

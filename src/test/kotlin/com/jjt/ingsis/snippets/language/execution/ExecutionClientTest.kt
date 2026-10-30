@@ -10,6 +10,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
 import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
@@ -134,6 +135,19 @@ class ExecutionClientTest {
             assertThat(result).isEqualTo(ExecutionResult.Failed("execution-service-unavailable", true))
             assertThat(calls.get()).isEqualTo(1)
         }
+    }
+
+    @Test
+    fun `a start that cannot even connect is a certain failure`() {
+        val port = ServerSocket(0).use { it.localPort }
+        val closed =
+            PrintScriptExecutor(
+                PrintScriptProperties(baseUrl = "http://127.0.0.1:$port", readTimeout = Duration.ofMillis(500)),
+                ExecutionClientProperties(Duration.ofMillis(250)),
+                mapper,
+            )
+        val result = closed.start(ExecutionRequest("", "1.0", ExecutionMode.TEST))
+        assertThat(result).isEqualTo(ExecutionResult.Failed("execution-service-unavailable", false))
     }
 
     @Test

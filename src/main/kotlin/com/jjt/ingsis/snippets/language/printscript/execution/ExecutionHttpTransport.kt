@@ -7,8 +7,10 @@ import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import java.io.IOException
+import java.net.ConnectException
 import java.net.URI
 import java.net.http.HttpClient
+import java.net.http.HttpConnectTimeoutException
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
@@ -115,6 +117,10 @@ internal class ExecutionHttpTransport(
     ): ExecutionResult<T> =
         try {
             action()
+        } catch (_: ConnectException) {
+            ExecutionResult.Failed("execution-service-unavailable")
+        } catch (_: HttpConnectTimeoutException) {
+            ExecutionResult.Failed("execution-service-unavailable")
         } catch (_: IOException) {
             ExecutionResult.Failed("execution-service-unavailable", uncertain)
         } catch (_: InterruptedException) {
