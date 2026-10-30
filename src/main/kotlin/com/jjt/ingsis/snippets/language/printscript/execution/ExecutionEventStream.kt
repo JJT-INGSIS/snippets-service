@@ -3,6 +3,7 @@ package com.jjt.ingsis.snippets.language.printscript.execution
 import com.jjt.ingsis.snippets.language.execution.ExecutionEvent
 import com.jjt.ingsis.snippets.language.execution.ExecutionPayload
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
+import com.jjt.ingsis.snippets.language.execution.LanguageEventStream
 import org.springframework.http.HttpStatus
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
@@ -15,28 +16,29 @@ internal class ExecutionEventStream(
     private val transport: ExecutionHttpTransport,
     private val properties: ExecutionClientProperties,
 ) {
-    fun read(
+    fun open(
         id: UUID,
         after: Long,
-        consume: (ExecutionEvent) -> Unit,
-    ): ExecutionResult<Unit> {
+    ): ExecutionResult<LanguageEventStream> {
         if (after < 0 || after == Long.MAX_VALUE) return ExecutionResult.Rejected("invalid-cursor")
         return transport.attempt(uncertain = true) {
             val response = transport.send("GET", "/executions/$id/events?after=$after", null)
-            timedExecutionBody(response.body(), properties.streamTimeout) { input ->
-                val contentType = response.headers().firstValue("Content-Type").orElse("")
-                if (response.statusCode() != HttpStatus.OK.value()) {
+            val contentType = response.headers().firstValue("Content-Type").orElse("")
+            if (response.statusCode() != HttpStatus.OK.value()) {
+                timedExecutionBody(response.body(), properties.streamTimeout) { input ->
                     val bytes = input.readNBytes(ExecutionHttpTransport.MAX_JSON_BYTES + 1)
                     if (bytes.size > ExecutionHttpTransport.MAX_JSON_BYTES) throw ExecutionProtocolFailure()
                     transport.rejection(response.statusCode(), contentType, transport.mapper.readTree(bytes))
-                } else {
-                    if (contentType.substringBefore(';').trim() !=
-                        "application/x-ndjson"
-                    ) {
-                        throw ExecutionProtocolFailure()
-                    }
-                    decode(input = input, id = id, after = after, consume = consume)
                 }
+            } else if (contentType.substringBefore(';').trim() != "application/x-ndjson") {
+                response.body().close()
+                throw ExecutionProtocolFailure()
+            } else {
+                ExecutionResult.Success(
+                    OpenedExecutionEvents(response.body(), properties.streamTimeout, transport) { input, consume ->
+                        decode(input = input, id = id, after = after, consume = consume)
+                    },
+                )
             }
         }
     }

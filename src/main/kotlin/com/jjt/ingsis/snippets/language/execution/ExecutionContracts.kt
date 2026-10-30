@@ -91,11 +91,21 @@ interface LanguageExecutor {
 
     fun describe(id: UUID): ExecutionResult<ExecutionDescriptor>
 
+    fun openEvents(
+        id: UUID,
+        after: Long,
+    ): ExecutionResult<LanguageEventStream>
+
     fun events(
         id: UUID,
         after: Long,
         consume: (ExecutionEvent) -> Unit,
-    ): ExecutionResult<Unit>
+    ): ExecutionResult<Unit> =
+        when (val opened = openEvents(id, after)) {
+            is ExecutionResult.Success -> opened.value.use { it.read(consume) }
+            is ExecutionResult.Rejected -> opened
+            is ExecutionResult.Failed -> opened
+        }
 
     fun input(
         id: UUID,
@@ -104,4 +114,8 @@ interface LanguageExecutor {
     ): ExecutionResult<Unit>
 
     fun cancel(id: UUID): ExecutionResult<ExecutionState>
+}
+
+interface LanguageEventStream : AutoCloseable {
+    fun read(consume: (ExecutionEvent) -> Unit): ExecutionResult<Unit>
 }

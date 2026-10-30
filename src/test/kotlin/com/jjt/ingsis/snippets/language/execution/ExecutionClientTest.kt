@@ -171,6 +171,50 @@ class ExecutionClientTest {
         }
     }
 
+    @Test
+    fun `opening preserves a cursor rejection before exposing a readable channel`() {
+        server {
+            reply(
+                exchange = it,
+                status = 409,
+                body = """{"type":"urn:printscript:problem:event-history-unavailable","status":409}""",
+                contentType = "application/problem+json",
+            )
+        }.use { server ->
+            assertThat(client(server).openEvents(id, 0))
+                .isEqualTo(ExecutionResult.Rejected("event-history-unavailable"))
+        }
+    }
+
+    @Test
+    fun `an opened channel has a deadline even when its caller never begins consuming`() {
+        val release = java.util.concurrent.CountDownLatch(1)
+        val providerStillOpen =
+            java.util.concurrent.atomic
+                .AtomicBoolean(true)
+        server { exchange ->
+            exchange.responseHeaders.add("Content-Type", "application/x-ndjson")
+            exchange.sendResponseHeaders(200, 0)
+            exchange.responseBody.write(' '.code)
+            exchange.responseBody.flush()
+            release.await(2, java.util.concurrent.TimeUnit.SECONDS)
+            providerStillOpen.set(false)
+            exchange.close()
+        }.use { server ->
+            val channel = (client(server).openEvents(id, 0) as ExecutionResult.Success).value
+            try {
+                Thread.sleep(350)
+                assertThat(release.count).isEqualTo(1)
+                assertThat(channel.read {}).isInstanceOf(ExecutionResult.Failed::class.java)
+                assertThat(providerStillOpen.get()).isTrue()
+                assertThat(channel.read {}).isEqualTo(ExecutionResult.Rejected("execution-consumer-conflict"))
+            } finally {
+                channel.close()
+                release.countDown()
+            }
+        }
+    }
+
     private fun client(server: TestExecutionServer): PrintScriptExecutor =
         PrintScriptExecutor(
             PrintScriptProperties(baseUrl = server.url, readTimeout = Duration.ofMillis(500)),
