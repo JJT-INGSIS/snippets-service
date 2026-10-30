@@ -20,7 +20,7 @@ class RunChannel(
     private val progress =
         AtomicReference(
             run.completed?.let {
-                TestRunProgress(
+                RunProgress(
                     lastSeq = it.lastSeq,
                     outputs = it.outputs,
                     outputBytes = it.outputs.sumOf { text -> text.toByteArray(Charsets.UTF_8).size.toLong() },
@@ -28,14 +28,14 @@ class RunChannel(
                     completed = it,
                 )
             }
-                ?: TestRunProgress(),
+                ?: RunProgress(),
         )
     private val consumer = AtomicBoolean()
     private val opened = AtomicReference<RunEventStream?>()
     private val connectedAt = AtomicReference<Instant?>()
     private val finishedAt = AtomicReference(run.finishedAt)
 
-    fun progress(): TestRunProgress = progress.get()
+    fun progress(): RunProgress = progress.get()
 
     fun connected(): Boolean = consumer.get()
 

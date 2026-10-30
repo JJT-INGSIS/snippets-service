@@ -136,7 +136,7 @@ class ExecutionAuditPersistenceTest
         @Test
         fun `periodic recovery finishes a retained terminal using the persisted association`() {
             val (run, executor) = boundRun()
-            RecoverTestRuns(audit, sessions(run, executor)).recover()
+            RecoverRuns(audit, sessions(run, executor)).recover()
             assertThat(audit.find(run.id)?.completed?.comparison).isEqualTo(Comparison.PASSED)
             assertThat(audit.find(run.id)?.reserved).isFalse()
             assertThat(executor.requests).hasSize(1)
@@ -146,7 +146,7 @@ class ExecutionAuditPersistenceTest
         fun `lost event history and expired sessions preserve unknown results instead of inventing assertions`() {
             val (run, executor) = boundRun()
             executor.openFailure.set("event-history-unavailable")
-            RecoverTestRuns(audit, sessions(run, executor)).recover()
+            RecoverRuns(audit, sessions(run, executor)).recover()
             val unknown = checkNotNull(audit.find(run.id))
             assertThat(unknown.completed).isNull()
             assertThat(unknown.failure).isEqualTo("execution-event-history-unavailable")
@@ -154,7 +154,7 @@ class ExecutionAuditPersistenceTest
             assertThat(unknown.snapshot.code).isEqualTo(run.snapshot.code)
             val (expired, unavailable) = boundRun()
             unavailable.runs.clear()
-            RecoverTestRuns(audit, sessions(expired, unavailable)).recover()
+            RecoverRuns(audit, sessions(expired, unavailable)).recover()
             assertThat(audit.find(expired.id)?.completed).isNull()
             assertThat(audit.find(expired.id)?.failure).contains("restart-or-expiry")
             assertThat(audit.find(expired.id)?.reserved).isFalse()
@@ -164,7 +164,7 @@ class ExecutionAuditPersistenceTest
         fun `a transport failure is not evidence to free a worker and a later recovery can succeed`() {
             val (run, executor) = boundRun()
             executor.describeFailure.set(ExecutionResult.Failed("execution-service-unavailable", true))
-            val recovery = RecoverTestRuns(audit, sessions(run, executor))
+            val recovery = RecoverRuns(audit, sessions(run, executor))
             recovery.recover()
             assertThat(audit.find(run.id)?.reserved).isTrue()
             assertThat(audit.find(run.id)?.completed).isNull()

@@ -10,7 +10,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.util.UUID
 
-class TestRunProgressTest {
+class RunProgressTest {
     private val id = UUID.randomUUID()
 
     @Test
@@ -18,7 +18,7 @@ class TestRunProgressTest {
         val definition = snapshot()
         val started =
             advance(
-                previous = TestRunProgress(),
+                previous = RunProgress(),
                 seq = 1,
                 payload = ExecutionPayload.Started(ExecutionMode.TEST),
                 definition = definition,
@@ -50,7 +50,7 @@ class TestRunProgressTest {
             val definition = snapshot(expected)
             val started =
                 advance(
-                    previous = TestRunProgress(),
+                    previous = RunProgress(),
                     seq = 1,
                     payload = ExecutionPayload.Started(ExecutionMode.TEST),
                     definition = definition,
@@ -74,7 +74,7 @@ class TestRunProgressTest {
         val empty = snapshot(emptyList())
         val started =
             advance(
-                previous = TestRunProgress(),
+                previous = RunProgress(),
                 seq = 1,
                 payload = ExecutionPayload.Started(ExecutionMode.TEST),
                 definition = empty,
@@ -95,7 +95,7 @@ class TestRunProgressTest {
             val definition = snapshot()
             val started =
                 advance(
-                    previous = TestRunProgress(),
+                    previous = RunProgress(),
                     seq = 1,
                     payload = ExecutionPayload.Started(ExecutionMode.TEST),
                     definition = definition,
@@ -116,7 +116,7 @@ class TestRunProgressTest {
         val definition = snapshot()
         val started =
             advance(
-                previous = TestRunProgress(),
+                previous = RunProgress(),
                 seq = 1,
                 payload = ExecutionPayload.Started(ExecutionMode.TEST),
                 definition = definition,
@@ -144,7 +144,7 @@ class TestRunProgressTest {
         val request = UUID.randomUUID()
         val started =
             advance(
-                previous = TestRunProgress(),
+                previous = RunProgress(),
                 seq = 1,
                 payload = ExecutionPayload.Started(ExecutionMode.INTERACTIVE),
                 definition = interactive,
@@ -193,7 +193,7 @@ class TestRunProgressTest {
         val interactive = interactiveSnapshot()
         val started =
             advance(
-                previous = TestRunProgress(),
+                previous = RunProgress(),
                 seq = 1,
                 payload = ExecutionPayload.Started(ExecutionMode.INTERACTIVE),
                 definition = interactive,
@@ -206,9 +206,9 @@ class TestRunProgressTest {
                 definition = interactive,
             )
 
-        assertThat(TestRunProgress().attempt(1, ExecutionPayload.Started(ExecutionMode.TEST), interactive))
+        assertThat(RunProgress().attempt(1, ExecutionPayload.Started(ExecutionMode.TEST), interactive))
             .isInstanceOf(RunResult.Refused::class.java)
-        assertThat(TestRunProgress().attempt(1, ExecutionPayload.Started(ExecutionMode.INTERACTIVE), snapshot()))
+        assertThat(RunProgress().attempt(1, ExecutionPayload.Started(ExecutionMode.INTERACTIVE), snapshot()))
             .isInstanceOf(RunResult.Refused::class.java)
         assertThat(started.attempt(2, ExecutionPayload.InputAccepted(UUID.randomUUID()), interactive))
             .isInstanceOf(RunResult.Refused::class.java)
@@ -240,16 +240,16 @@ class TestRunProgressTest {
         )
 
     private fun advance(
-        previous: TestRunProgress,
+        previous: RunProgress,
         seq: Long,
         payload: ExecutionPayload,
         definition: ExecutionSnapshot,
-    ): TestRunProgress =
+    ): RunProgress =
         (previous.advance(ExecutionEvent(id, seq, payload), definition, 1048576) as RunResult.Success).value
 
-    private fun TestRunProgress.attempt(
+    private fun RunProgress.attempt(
         seq: Long,
         payload: ExecutionPayload,
         snapshot: ExecutionSnapshot,
-    ): RunResult<TestRunProgress> = advance(ExecutionEvent(id, seq, payload), snapshot, 1048576)
+    ): RunResult<RunProgress> = advance(ExecutionEvent(id, seq, payload), snapshot, 1048576)
 }

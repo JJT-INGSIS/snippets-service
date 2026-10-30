@@ -58,7 +58,7 @@ antes de implementar ese modo. No se modificaron infraestructura ni CD.
    evento/error. `events` sigue como operación de conveniencia sobre apertura,
    consumo y cierre. La conexión abierta tiene deadline incluso si no se consume.
 4. `RunChannel` transmite y hace flush de cada evento; conserva outputs en memoria.
-   `TestRunProgress` devuelve estados nuevos y errores tipados. La comparación es
+   `RunProgress` devuelve estados nuevos y errores tipados. La comparación es
    igualdad exacta de listas, con orden, duplicados, vacíos, espacios y Unicode.
 5. Sólo COMPLETED genera PASSED/FAILED. Los otros outcomes conservan su categoría,
    diagnósticos e inputs sobrantes. El resultado se guarda antes de emitir el
@@ -74,7 +74,7 @@ Una nueva instancia de Snippets recupera la asociación desde la base y reconstr
 los outputs desde eventos retenidos si se perdió su memoria. Sólo entrega al
 navegador los posteriores a su cursor, sin volver a iniciar el programa.
 
-`RecoverTestRuns` revisa reservas sin consumidor cada 5 s (configurable por
+`RecoverRuns` revisa reservas sin consumidor cada 5 s (configurable por
 `execution.recovery.delay-ms`). Recupera resultados terminales aunque se haya
 cerrado el navegador. No abre un consumidor para prolongar un programa abandonado:
 PrintScript mantiene su política de desconexión. Una caída de comunicación conserva

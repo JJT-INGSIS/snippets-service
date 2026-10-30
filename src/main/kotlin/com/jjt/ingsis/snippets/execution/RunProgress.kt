@@ -16,7 +16,7 @@ internal val terminalStates =
         ExecutionState.INTERRUPTED,
     )
 
-data class TestRunProgress(
+data class RunProgress(
     val lastSeq: Long = 0,
     val outputs: List<String> = emptyList(),
     val outputBytes: Long = 0,
@@ -28,7 +28,7 @@ data class TestRunProgress(
         event: ExecutionEvent,
         snapshot: ExecutionSnapshot,
         maximumOutputBytes: Long,
-    ): RunResult<TestRunProgress> {
+    ): RunResult<RunProgress> {
         if (event.seq <= lastSeq) return RunResult.Success(this)
         if (!validNext(event)) return invalid()
         val next = copy(lastSeq = event.seq)
@@ -67,7 +67,7 @@ data class TestRunProgress(
         text: String,
         snapshot: ExecutionSnapshot,
         maximum: Long,
-    ): RunResult<TestRunProgress> {
+    ): RunResult<RunProgress> {
         val bytes = outputBytes + text.toByteArray(Charsets.UTF_8).size
         val retained = if (snapshot.test == null) outputs else outputs + text
         return if (bytes > maximum) invalid() else RunResult.Success(copy(outputs = retained, outputBytes = bytes))
@@ -76,14 +76,14 @@ data class TestRunProgress(
     private fun awaitInput(
         requestId: UUID,
         snapshot: ExecutionSnapshot,
-    ): RunResult<TestRunProgress> =
+    ): RunResult<RunProgress> =
         if (snapshot.test == null && pendingInput == null) {
             RunResult.Success(copy(state = ExecutionState.WAITING_INPUT, pendingInput = requestId))
         } else {
             invalid()
         }
 
-    private fun acceptInput(requestId: UUID): RunResult<TestRunProgress> =
+    private fun acceptInput(requestId: UUID): RunResult<RunProgress> =
         if (pendingInput == requestId) {
             RunResult.Success(copy(state = ExecutionState.RUNNING, pendingInput = null))
         } else {
@@ -93,7 +93,7 @@ data class TestRunProgress(
     private fun finish(
         terminal: ExecutionPayload.Terminal,
         snapshot: ExecutionSnapshot,
-    ): RunResult<TestRunProgress> {
+    ): RunResult<RunProgress> {
         if (terminal.outcome !in terminalStates) return invalid()
         val test = snapshot.test
         val comparison = if (test != null && terminal.outcome == ExecutionState.COMPLETED) compare(test) else null
