@@ -131,6 +131,23 @@ class PrepareCreationTest {
         )
     }
 
+    @Test
+    fun `empty code is rejected before Language fingerprint reservation or ownership work`() {
+        val unused = mock(Language::class.java)
+        val prepare =
+            PrepareCreation(
+                identityResolver = identified,
+                language = unused,
+                metadata = store,
+                fingerprint = CreationFingerprint(),
+            )
+        assertEquals(
+            PreparationResult.Rejected(PreparationRejection.InvalidRequest("code")),
+            prepare.prepare(draft().copy(code = ""), key, context),
+        )
+        verifyNoInteractions(unused, store)
+    }
+
     private fun preparation(result: ValidationResult = ValidationResult.Valid): PrepareCreation =
         PrepareCreation(
             identityResolver = identified,

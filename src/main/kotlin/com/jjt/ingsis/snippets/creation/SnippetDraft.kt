@@ -13,7 +13,7 @@ data class SnippetDraft(
     fun invalidField(): String? =
         listOf("name" to name, "language" to language, "version" to version)
             .firstOrNull { (_, value) -> value.isBlank() }
-            ?.first
+            ?.first ?: "code".takeIf { code.isBlank() }
 
     fun details(): SnippetDetails =
         SnippetDetails(name = name, description = description, language = language, version = version)
