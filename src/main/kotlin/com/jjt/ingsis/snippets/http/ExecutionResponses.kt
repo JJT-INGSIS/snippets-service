@@ -53,23 +53,25 @@ internal class ExecutionHttpFailure(
 internal fun executionDescriptor(
     run: AuditedRun,
     remote: ExecutionDescriptor,
-): Map<String, Any> =
-    mapOf(
+): Map<String, Any> {
+    val snapshot = run.snapshot
+    return listOfNotNull(
         "executionId" to run.id,
-        "snippetId" to run.snapshot.snippetId,
-        "testId" to run.snapshot.testId,
+        "snippetId" to snapshot.snippetId,
+        snapshot.test?.let { "testId" to it.id },
         "mode" to remote.mode,
         "state" to remote.state,
         "lastSeq" to remote.lastSeq,
         "limits" to remote.limits,
         "snapshot" to
-            mapOf(
-                "language" to run.snapshot.language,
-                "version" to run.snapshot.version,
-                "codeHash" to run.snapshot.codeHash,
-                "testHash" to run.snapshot.testHash,
-            ),
-    )
+            listOfNotNull(
+                "language" to snapshot.language,
+                "version" to snapshot.version,
+                "codeHash" to snapshot.codeHash,
+                snapshot.test?.let { "testHash" to it.hash },
+            ).toMap(),
+    ).toMap()
+}
 
 @Component
 class PublicExecutionEventCodec(

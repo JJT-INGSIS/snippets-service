@@ -236,7 +236,7 @@ class ExecutionAuditPersistenceTest
                             code = run.snapshot.code,
                             version = "1.1",
                             mode = ExecutionMode.TEST,
-                            inputs = run.snapshot.definition.inputs,
+                            inputs = checkNotNull(run.snapshot.test).definition.inputs,
                         ),
                     ) as ExecutionResult.Success
                 ).value
@@ -288,7 +288,7 @@ class ExecutionAuditPersistenceTest
             )
             jdbc.update(
                 "INSERT INTO snippet_test_cases (id, snippet_id, inputs, expected_outputs) VALUES (?, ?, '[]', '[]')",
-                snapshot.testId,
+                checkNotNull(snapshot.test).id,
                 snapshot.snippetId,
             )
             return AuditedRun(

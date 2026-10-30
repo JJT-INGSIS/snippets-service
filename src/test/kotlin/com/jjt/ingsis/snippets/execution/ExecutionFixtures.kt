@@ -13,19 +13,20 @@ internal fun snapshot(
     testId: UUID = UUID.randomUUID(),
 ): ExecutionSnapshot {
     val definition = TestCaseDefinition(listOf("", "ñ", "ñ"), expected)
-    val hash = JsonSnapshotFingerprint()
-    return ExecutionSnapshot(
+    val test = TestSnapshot(id = testId, definition = definition, hash = JsonSnapshotFingerprint().test(definition))
+    return interactiveSnapshot(snippetId).copy(test = test)
+}
+
+internal fun interactiveSnapshot(snippetId: UUID = UUID.randomUUID()): ExecutionSnapshot =
+    ExecutionSnapshot(
         snippetId = snippetId,
-        testId = testId,
         language = "printscript",
         version = "1.1",
         code = "println(\"ñ\");",
         contentReference = "stored-reference",
-        definition = definition,
-        codeHash = hash.code("printscript", "1.1", "println(\"ñ\");"),
-        testHash = hash.test(definition),
+        codeHash = JsonSnapshotFingerprint().code("printscript", "1.1", "println(\"ñ\");"),
+        test = null,
     )
-}
 
 internal fun remote(
     id: UUID = UUID.randomUUID(),

@@ -5,8 +5,6 @@ import com.jjt.ingsis.snippets.identity.ActorIdentity
 import com.jjt.ingsis.snippets.identity.ActorIdentityResolver
 import com.jjt.ingsis.snippets.language.Language
 import com.jjt.ingsis.snippets.language.execution.ExecutionDescriptor
-import com.jjt.ingsis.snippets.language.execution.ExecutionMode
-import com.jjt.ingsis.snippets.language.execution.ExecutionRequest
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
 import com.jjt.ingsis.snippets.language.execution.LanguageExecutor
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
@@ -70,17 +68,7 @@ class StartTestRun(
             if (!audit.reserve(run)) {
                 RunResult.Refused(RunFailure.ACTIVE)
             } else {
-                when (
-                    val started =
-                        executor.start(
-                            ExecutionRequest(
-                                code = snapshot.code,
-                                version = snapshot.version,
-                                mode = ExecutionMode.TEST,
-                                inputs = snapshot.definition.inputs,
-                            ),
-                        )
-                ) {
+                when (val started = executor.start(snapshot.request())) {
                     is ExecutionResult.Success -> {
                         bind(run, executor, started.value)
                     }

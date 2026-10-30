@@ -24,7 +24,7 @@ class TestRunProgressTest {
                 definition = definition,
             )
         val output =
-            definition.definition.expectedOutputs.fold(started) { previous, text ->
+            checkNotNull(definition.test).definition.expectedOutputs.fold(started) { previous, text ->
                 advance(
                     previous = previous,
                     seq = previous.lastSeq + 1,

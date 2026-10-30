@@ -57,14 +57,17 @@ class ReadExecutionSnapshot(
                         RunResult.Success(
                             ExecutionSnapshot(
                                 snippetId = metadata.id,
-                                testId = test.id,
                                 language = metadata.language,
                                 version = metadata.version,
                                 code = read.code,
                                 contentReference = checkNotNull(read.snippet.reference).value,
-                                definition = definition,
                                 codeHash = fingerprints.code(metadata.language, metadata.version, read.code),
-                                testHash = fingerprints.test(definition),
+                                test =
+                                    TestSnapshot(
+                                        id = test.id,
+                                        definition = definition,
+                                        hash = fingerprints.test(definition),
+                                    ),
                             ),
                         )
                     }

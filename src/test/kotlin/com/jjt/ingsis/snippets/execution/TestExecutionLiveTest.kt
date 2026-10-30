@@ -146,7 +146,7 @@ class TestExecutionLiveTest
             }
             val saved = checkNotNull(audit.find(id))
             assertThat(saved.snapshot.code).isEqualTo(case.code)
-            assertThat(saved.snapshot.definition).isEqualTo(definition)
+            assertThat(saved.snapshot.test?.definition).isEqualTo(definition)
             assertThat(
                 saved.completed
                     ?.terminal

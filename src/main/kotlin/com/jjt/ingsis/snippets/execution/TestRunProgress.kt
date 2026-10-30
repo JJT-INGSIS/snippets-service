@@ -89,7 +89,7 @@ data class TestRunProgress(
     }
 
     private fun compare(snapshot: ExecutionSnapshot): Comparison =
-        if (outputs == snapshot.definition.expectedOutputs) Comparison.PASSED else Comparison.FAILED
+        if (outputs == snapshot.test?.definition?.expectedOutputs) Comparison.PASSED else Comparison.FAILED
 
     private fun invalid(): RunResult.Refused = RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE)
 }
