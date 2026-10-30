@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody
-import java.net.URI
 
 @RestController
 class TestExecutionController(
@@ -41,9 +40,7 @@ class TestExecutionController(
             }
 
             is RunResult.Success -> {
-                ResponseEntity
-                    .created(URI.create("/executions/${result.value.id}"))
-                    .body(executionDescriptor(result.value, checkNotNull(result.value.remote)))
+                executionCreated(result.value)
             }
         }
     }

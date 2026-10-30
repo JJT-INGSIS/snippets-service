@@ -26,7 +26,7 @@ internal fun executionProblem(failure: RunFailure): ResponseEntity<ProblemDetail
             RunFailure.ACTOR_MISMATCH -> HttpStatus.FORBIDDEN
 
             RunFailure.ACTIVE, RunFailure.SNAPSHOT_CONFLICT, RunFailure.HISTORY_UNAVAILABLE,
-            RunFailure.CONSUMER_CONFLICT,
+            RunFailure.CONSUMER_CONFLICT, RunFailure.INPUT_CONFLICT,
             -> HttpStatus.CONFLICT
 
             RunFailure.CAPACITY_EXHAUSTED -> HttpStatus.TOO_MANY_REQUESTS
@@ -46,6 +46,11 @@ internal fun executionProblem(failure: RunFailure): ResponseEntity<ProblemDetail
     return ResponseEntity.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON).body(problem)
 }
 
+internal fun executionCreated(run: AuditedRun): ResponseEntity<Map<String, Any>> =
+    ResponseEntity
+        .created(URI.create("/executions/${run.id}"))
+        .body(executionDescriptor(run, checkNotNull(run.remote)))
+
 internal class ExecutionHttpFailure(
     val failure: RunFailure,
 ) : RuntimeException()
@@ -53,23 +58,25 @@ internal class ExecutionHttpFailure(
 internal fun executionDescriptor(
     run: AuditedRun,
     remote: ExecutionDescriptor,
-): Map<String, Any> =
-    mapOf(
+): Map<String, Any> {
+    val snapshot = run.snapshot
+    return listOfNotNull(
         "executionId" to run.id,
-        "snippetId" to run.snapshot.snippetId,
-        "testId" to run.snapshot.testId,
+        "snippetId" to snapshot.snippetId,
+        snapshot.test?.let { "testId" to it.id },
         "mode" to remote.mode,
         "state" to remote.state,
         "lastSeq" to remote.lastSeq,
         "limits" to remote.limits,
         "snapshot" to
-            mapOf(
-                "language" to run.snapshot.language,
-                "version" to run.snapshot.version,
-                "codeHash" to run.snapshot.codeHash,
-                "testHash" to run.snapshot.testHash,
-            ),
-    )
+            listOfNotNull(
+                "language" to snapshot.language,
+                "version" to snapshot.version,
+                "codeHash" to snapshot.codeHash,
+                snapshot.test?.let { "testHash" to it.hash },
+            ).toMap(),
+    ).toMap()
+}
 
 @Component
 class PublicExecutionEventCodec(

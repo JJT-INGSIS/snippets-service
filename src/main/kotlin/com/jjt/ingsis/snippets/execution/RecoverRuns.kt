@@ -14,11 +14,11 @@ import java.time.Instant
 class ExecutionRecoveryConfiguration
 
 @Component
-class RecoverTestRuns(
+class RecoverRuns(
     private val audit: ExecutionAudit,
     private val sessions: RunSessions,
 ) {
-    private val logger = LoggerFactory.getLogger(RecoverTestRuns::class.java)
+    private val logger = LoggerFactory.getLogger(RecoverRuns::class.java)
 
     @Scheduled(
         fixedDelayString = "\${execution.recovery.delay-ms:5000}",

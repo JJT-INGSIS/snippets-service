@@ -35,10 +35,10 @@ Cada operación verifica actor de sesión y acceso actual. El test debe pertenec
 al snippet autorizado antes de leer storage o llamar a Language. El descriptor y
 los eventos ocultan el ID interno, código, referencias privadas y actor.
 
-No implementa inicio ni inputs de sesiones INTERACTIVE: corresponden a SNI-49.
-El índice de reserva por actor debe compartirse con ese modo; no agregar otro
-contador independiente. Su modelo de auditoría deberá admitir la ausencia de test
-antes de implementar ese modo. No se modificaron infraestructura ni CD.
+El inicio y los inputs de sesiones INTERACTIVE los agrega
+[SNI-49](interactive-execution.md). Comparten la reserva por actor, la auditoría
+(V5 admite filas sin test) y las rutas de sesión de esta tabla. No se modificaron
+infraestructura ni CD.
 
 ## Recorrido y garantías
 
@@ -47,9 +47,10 @@ antes de implementar ese modo. No se modificaron infraestructura ni CD.
    reintenta hasta tres veces; luego devuelve snapshot-conflict. Un fallo técnico
    no se presenta como una edición concurrente. No mantiene una transacción
    mientras consulta storage o ejecuta código.
-2. `StartTestRun` reserva y guarda el inicio/snapshot en PostgreSQL antes de llamar
-   al intérprete. Un índice único parcial impide dos reservas del mismo actor,
-   incluyendo arranque, espera de resultado y cancelación. PrintScript conserva
+2. `StartTestRun` delega en `RunLauncher` (compartido con SNI-49), que reserva y
+   guarda el inicio/snapshot en PostgreSQL antes de llamar al intérprete. Un índice
+   único parcial impide dos reservas del mismo actor, incluyendo arranque, espera
+   de resultado y cancelación. PrintScript conserva
    el límite global de intérpretes del contrato. Continúa la restricción de una
    instancia de cada coordinador, también durante actualizaciones.
 3. Language abre y valida HTTP antes de entregar el canal. Este ajuste interno,
@@ -58,7 +59,7 @@ antes de implementar ese modo. No se modificaron infraestructura ni CD.
    evento/error. `events` sigue como operación de conveniencia sobre apertura,
    consumo y cierre. La conexión abierta tiene deadline incluso si no se consume.
 4. `RunChannel` transmite y hace flush de cada evento; conserva outputs en memoria.
-   `TestRunProgress` devuelve estados nuevos y errores tipados. La comparación es
+   `RunProgress` devuelve estados nuevos y errores tipados. La comparación es
    igualdad exacta de listas, con orden, duplicados, vacíos, espacios y Unicode.
 5. Sólo COMPLETED genera PASSED/FAILED. Los otros outcomes conservan su categoría,
    diagnósticos e inputs sobrantes. El resultado se guarda antes de emitir el
@@ -74,7 +75,7 @@ Una nueva instancia de Snippets recupera la asociación desde la base y reconstr
 los outputs desde eventos retenidos si se perdió su memoria. Sólo entrega al
 navegador los posteriores a su cursor, sin volver a iniciar el programa.
 
-`RecoverTestRuns` revisa reservas sin consumidor cada 5 s (configurable por
+`RecoverRuns` revisa reservas sin consumidor cada 5 s (configurable por
 `execution.recovery.delay-ms`). Recupera resultados terminales aunque se haya
 cerrado el navegador. No abre un consumidor para prolongar un programa abandonado:
 PrintScript mantiene su política de desconexión. Una caída de comunicación conserva

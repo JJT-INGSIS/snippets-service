@@ -105,7 +105,7 @@ class TestExecutionHttpTest
             val stored = checkNotNull(audit.find(UUID.fromString(id)))
             assertThat(stored.snapshot.code).isEqualTo("println(1);")
             assertThat(stored.snapshot.version).isEqualTo("1.1")
-            assertThat(stored.snapshot.definition.expectedOutputs).containsExactly("early", "ñ")
+            assertThat(checkNotNull(stored.snapshot.test).definition.expectedOutputs).containsExactly("early", "ñ")
             assertThat(stored.completed?.outputs).containsExactly("early", "ñ")
             assertThat(stored.reserved).isFalse()
         }

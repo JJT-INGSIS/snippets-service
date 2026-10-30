@@ -2,7 +2,7 @@
 
 Implementa el cliente del [contrato interno de SNI-45](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/architecture/execution-contract.md).
 Esta capacidad por sí sola no habilita endpoints públicos. SNI-48 agrega la
-[coordinación de tests y auditoría](test-execution.md); SNI-49 completa el modo interactivo. Ambos coordinan
+[coordinación de tests y auditoría](test-execution.md); [SNI-49](interactive-execution.md) completa el modo interactivo. Ambos coordinan
 lectura, autorización, snapshot, cupo por actor y asociación de IDs públicos/internos.
 SNI-50 crea/lista definiciones; este transporte no las persiste ni compara outputs.
 

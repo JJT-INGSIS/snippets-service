@@ -10,7 +10,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import java.util.UUID
 
-class TestRunProgressTest {
+class RunProgressTest {
     private val id = UUID.randomUUID()
 
     @Test
@@ -18,13 +18,13 @@ class TestRunProgressTest {
         val definition = snapshot()
         val started =
             advance(
-                previous = TestRunProgress(),
+                previous = RunProgress(),
                 seq = 1,
                 payload = ExecutionPayload.Started(ExecutionMode.TEST),
                 definition = definition,
             )
         val output =
-            definition.definition.expectedOutputs.fold(started) { previous, text ->
+            checkNotNull(definition.test).definition.expectedOutputs.fold(started) { previous, text ->
                 advance(
                     previous = previous,
                     seq = previous.lastSeq + 1,
@@ -50,7 +50,7 @@ class TestRunProgressTest {
             val definition = snapshot(expected)
             val started =
                 advance(
-                    previous = TestRunProgress(),
+                    previous = RunProgress(),
                     seq = 1,
                     payload = ExecutionPayload.Started(ExecutionMode.TEST),
                     definition = definition,
@@ -74,7 +74,7 @@ class TestRunProgressTest {
         val empty = snapshot(emptyList())
         val started =
             advance(
-                previous = TestRunProgress(),
+                previous = RunProgress(),
                 seq = 1,
                 payload = ExecutionPayload.Started(ExecutionMode.TEST),
                 definition = empty,
@@ -95,7 +95,7 @@ class TestRunProgressTest {
             val definition = snapshot()
             val started =
                 advance(
-                    previous = TestRunProgress(),
+                    previous = RunProgress(),
                     seq = 1,
                     payload = ExecutionPayload.Started(ExecutionMode.TEST),
                     definition = definition,
@@ -116,7 +116,7 @@ class TestRunProgressTest {
         val definition = snapshot()
         val started =
             advance(
-                previous = TestRunProgress(),
+                previous = RunProgress(),
                 seq = 1,
                 payload = ExecutionPayload.Started(ExecutionMode.TEST),
                 definition = definition,
@@ -139,6 +139,88 @@ class TestRunProgressTest {
     }
 
     @Test
+    fun `an interactive run waits for one input at a time and relays output without keeping it`() {
+        val interactive = interactiveSnapshot()
+        val request = UUID.randomUUID()
+        val started =
+            advance(
+                previous = RunProgress(),
+                seq = 1,
+                payload = ExecutionPayload.Started(ExecutionMode.INTERACTIVE),
+                definition = interactive,
+            )
+        val asked =
+            advance(
+                previous = started,
+                seq = 2,
+                payload = ExecutionPayload.Output("¿Nombre?"),
+                definition = interactive,
+            )
+        val waiting =
+            advance(
+                previous = asked,
+                seq = 3,
+                payload = ExecutionPayload.InputRequired(request, "Nombre"),
+                definition = interactive,
+            )
+        val accepted =
+            advance(
+                previous = waiting,
+                seq = 4,
+                payload = ExecutionPayload.InputAccepted(request),
+                definition = interactive,
+            )
+        val finished =
+            advance(
+                previous = accepted,
+                seq = 5,
+                payload = terminal(),
+                definition = interactive,
+            )
+
+        assertThat(asked.outputs).isEmpty()
+        assertThat(asked.outputBytes).isEqualTo(9)
+        assertThat(waiting.state).isEqualTo(ExecutionState.WAITING_INPUT)
+        assertThat(waiting.pendingInput).isEqualTo(request)
+        assertThat(accepted.state).isEqualTo(ExecutionState.RUNNING)
+        assertThat(accepted.pendingInput).isNull()
+        assertThat(finished.completed?.outputs).isEmpty()
+        assertThat(finished.completed?.comparison).isNull()
+    }
+
+    @Test
+    fun `input events must match the mode the pending request and the output limit`() {
+        val interactive = interactiveSnapshot()
+        val started =
+            advance(
+                previous = RunProgress(),
+                seq = 1,
+                payload = ExecutionPayload.Started(ExecutionMode.INTERACTIVE),
+                definition = interactive,
+            )
+        val waiting =
+            advance(
+                previous = started,
+                seq = 2,
+                payload = ExecutionPayload.InputRequired(UUID.randomUUID(), "?"),
+                definition = interactive,
+            )
+
+        assertThat(RunProgress().attempt(1, ExecutionPayload.Started(ExecutionMode.TEST), interactive))
+            .isInstanceOf(RunResult.Refused::class.java)
+        assertThat(RunProgress().attempt(1, ExecutionPayload.Started(ExecutionMode.INTERACTIVE), snapshot()))
+            .isInstanceOf(RunResult.Refused::class.java)
+        assertThat(started.attempt(2, ExecutionPayload.InputAccepted(UUID.randomUUID()), interactive))
+            .isInstanceOf(RunResult.Refused::class.java)
+        assertThat(waiting.attempt(3, ExecutionPayload.InputAccepted(UUID.randomUUID()), interactive))
+            .isInstanceOf(RunResult.Refused::class.java)
+        assertThat(waiting.attempt(3, ExecutionPayload.InputRequired(UUID.randomUUID(), "?"), interactive))
+            .isInstanceOf(RunResult.Refused::class.java)
+        assertThat(started.advance(ExecutionEvent(id, 2, ExecutionPayload.Output("ñ")), interactive, 1))
+            .isInstanceOf(RunResult.Refused::class.java)
+    }
+
+    @Test
     fun `fingerprints match the approved canonical UTF8 JSON vectors`() {
         val fingerprint = JsonSnapshotFingerprint()
         assertThat(fingerprint.code("printscript", "1.1", "println(1);"))
@@ -158,10 +240,16 @@ class TestRunProgressTest {
         )
 
     private fun advance(
-        previous: TestRunProgress,
+        previous: RunProgress,
         seq: Long,
         payload: ExecutionPayload,
         definition: ExecutionSnapshot,
-    ): TestRunProgress =
+    ): RunProgress =
         (previous.advance(ExecutionEvent(id, seq, payload), definition, 1048576) as RunResult.Success).value
+
+    private fun RunProgress.attempt(
+        seq: Long,
+        payload: ExecutionPayload,
+        snapshot: ExecutionSnapshot,
+    ): RunResult<RunProgress> = advance(ExecutionEvent(id, seq, payload), snapshot, 1048576)
 }

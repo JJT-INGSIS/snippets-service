@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class ReadExecutionSnapshotTest {
     private val definition = snapshot()
+    private val test = checkNotNull(definition.test)
     private val linked =
         LinkedSnippet(
             SnippetMetadata(
@@ -66,13 +67,13 @@ class ReadExecutionSnapshotTest {
     @Test
     fun `refuses unauthorized actors and foreign tests before fetching any code`() {
         val denied = reader(ReadGate { _, _ -> ReadDecision.Refused(ReadFailure.SNIPPET_MISSING) })
-        assertThat(denied.read(linked.metadata.id.toString(), definition.testId.toString(), ActorContext()))
+        assertThat(denied.read(linked.metadata.id.toString(), test.id.toString(), ActorContext()))
             .isEqualTo(RunResult.Refused(RunFailure.SNIPPET_MISSING))
         verifyNoInteractions(tests, storage)
         `when`(
             tests.list(linked.metadata.id),
-        ).thenReturn(listOf(TestCase(UUID.randomUUID(), linked.metadata.id, definition.definition)))
-        assertThat(reader().read(linked.metadata.id.toString(), definition.testId.toString(), ActorContext()))
+        ).thenReturn(listOf(TestCase(UUID.randomUUID(), linked.metadata.id, test.definition)))
+        assertThat(reader().read(linked.metadata.id.toString(), test.id.toString(), ActorContext()))
             .isEqualTo(RunResult.Refused(RunFailure.TEST_MISSING))
         verifyNoInteractions(storage)
     }
@@ -86,14 +87,14 @@ class ReadExecutionSnapshotTest {
             )
         `when`(
             tests.list(linked.metadata.id),
-        ).thenReturn(listOf(TestCase(definition.testId, linked.metadata.id, definition.definition)))
+        ).thenReturn(listOf(TestCase(test.id, linked.metadata.id, test.definition)))
         `when`(storage.read(linked.reference!!)).thenReturn(ReadResult.Found("old"))
         `when`(storage.read(updated.reference!!)).thenReturn(ReadResult.Found("new"))
         `when`(links.findLinked(linked.metadata.id)).thenReturn(updated)
         val read =
             reader().read(
                 linked.metadata.id.toString(),
-                definition.testId.toString(),
+                test.id.toString(),
                 ActorContext(),
             ) as RunResult.Success
         assertThat(read.value.code).isEqualTo("new")
@@ -106,14 +107,14 @@ class ReadExecutionSnapshotTest {
         val count = AtomicInteger()
         `when`(
             tests.list(linked.metadata.id),
-        ).thenReturn(listOf(TestCase(definition.testId, linked.metadata.id, definition.definition)))
+        ).thenReturn(listOf(TestCase(test.id, linked.metadata.id, test.definition)))
         listOf("original", "changed-1", "changed-2").forEach { reference ->
             `when`(storage.read(ContentReference(reference))).thenReturn(ReadResult.Found("body"))
         }
         `when`(links.findLinked(linked.metadata.id)).thenAnswer {
             linked.copy(reference = ContentReference("changed-${count.incrementAndGet()}"))
         }
-        assertThat(reader().read(linked.metadata.id.toString(), definition.testId.toString(), ActorContext()))
+        assertThat(reader().read(linked.metadata.id.toString(), test.id.toString(), ActorContext()))
             .isEqualTo(RunResult.Refused(RunFailure.SNAPSHOT_CONFLICT))
         assertThat(count.get()).isEqualTo(3)
     }
@@ -122,9 +123,30 @@ class ReadExecutionSnapshotTest {
     fun `technical storage failures do not masquerade as concurrent edits`() {
         `when`(
             tests.list(linked.metadata.id),
-        ).thenReturn(listOf(TestCase(definition.testId, linked.metadata.id, definition.definition)))
+        ).thenReturn(listOf(TestCase(test.id, linked.metadata.id, test.definition)))
         `when`(storage.read(linked.reference!!)).thenReturn(StorageUnavailable)
-        assertThat(reader().read(linked.metadata.id.toString(), definition.testId.toString(), ActorContext()))
+        assertThat(reader().read(linked.metadata.id.toString(), test.id.toString(), ActorContext()))
             .isEqualTo(RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE))
+    }
+
+    @Test
+    fun `an interactive snapshot reads the confirmed code without looking up tests`() {
+        `when`(storage.read(ContentReference("original"))).thenReturn(ReadResult.Found("println(1);"))
+        `when`(links.findLinked(linked.metadata.id)).thenReturn(linked)
+
+        val read = reader().read(linked.metadata.id.toString(), ActorContext()) as RunResult.Success
+
+        assertThat(read.value.code).isEqualTo("println(1);")
+        assertThat(read.value.test).isNull()
+        verifyNoInteractions(tests)
+    }
+
+    @Test
+    fun `an interactive snapshot refuses actors without access before reading any code`() {
+        val denied = reader(ReadGate { _, _ -> ReadDecision.Refused(ReadFailure.SNIPPET_MISSING) })
+
+        assertThat(denied.read(linked.metadata.id.toString(), ActorContext()))
+            .isEqualTo(RunResult.Refused(RunFailure.SNIPPET_MISSING))
+        verifyNoInteractions(tests, storage)
     }
 }

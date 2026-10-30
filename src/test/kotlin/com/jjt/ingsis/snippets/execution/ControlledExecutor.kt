@@ -2,7 +2,6 @@ package com.jjt.ingsis.snippets.execution
 
 import com.jjt.ingsis.snippets.language.execution.ExecutionDescriptor
 import com.jjt.ingsis.snippets.language.execution.ExecutionEvent
-import com.jjt.ingsis.snippets.language.execution.ExecutionMode
 import com.jjt.ingsis.snippets.language.execution.ExecutionPayload
 import com.jjt.ingsis.snippets.language.execution.ExecutionRequest
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
@@ -24,6 +23,12 @@ internal data class ExecutionScript(
     val release: CountDownLatch = CountDownLatch(0),
 )
 
+internal data class ControlledInput(
+    val id: UUID,
+    val requestId: UUID,
+    val value: String,
+)
+
 internal class ControlledExecutor : LanguageExecutor {
     override val language = "printscript"
     override val supportedVersions = setOf("1.0", "1.1")
@@ -33,11 +38,13 @@ internal class ControlledExecutor : LanguageExecutor {
     val openFailure = AtomicReference<String?>()
     val describeFailure = AtomicReference<ExecutionResult<ExecutionDescriptor>?>()
     val runs = ConcurrentHashMap<UUID, ControlledRun>()
+    val inputs = CopyOnWriteArrayList<ControlledInput>()
+    val inputResult = AtomicReference<ExecutionResult<Unit>>(ExecutionResult.Rejected("input-conflict"))
 
     override fun start(request: ExecutionRequest): ExecutionResult<ExecutionDescriptor> {
         requests.add(request)
         startFailure.get()?.let { return it }
-        val run = ControlledRun(remote(), script.get())
+        val run = ControlledRun(remote().copy(mode = request.mode), script.get())
         runs[run.descriptor.id] = run
         return ExecutionResult.Success(run.descriptor)
     }
@@ -67,7 +74,10 @@ internal class ControlledExecutor : LanguageExecutor {
         id: UUID,
         requestId: UUID,
         value: String,
-    ): ExecutionResult<Unit> = ExecutionResult.Rejected("input-conflict")
+    ): ExecutionResult<Unit> {
+        inputs.add(ControlledInput(id, requestId, value))
+        return inputResult.get()
+    }
 
     override fun cancel(id: UUID): ExecutionResult<ExecutionState> {
         val run = runs[id] ?: return ExecutionResult.Rejected("execution-not-found")
@@ -86,7 +96,7 @@ internal class ControlledRun(
     fun lastSeq(): Long = if (script.release.count == 0L) script.outputs.size + 2L else script.outputs.size + 1L
 
     fun events(): List<ExecutionEvent> =
-        listOf(ExecutionEvent(descriptor.id, 1, ExecutionPayload.Started(ExecutionMode.TEST))) +
+        listOf(ExecutionEvent(descriptor.id, 1, ExecutionPayload.Started(descriptor.mode))) +
             script.outputs.mapIndexed {
                 index,
                 text,

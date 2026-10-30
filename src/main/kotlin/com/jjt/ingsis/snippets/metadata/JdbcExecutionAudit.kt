@@ -24,12 +24,13 @@ class JdbcExecutionAudit(
     override fun reserve(run: AuditedRun): Boolean =
         transaction.commit {
             jdbc.update(
-                "INSERT INTO snippet_execution_audit (id, actor_id, snippet_id, test_id, snapshot, started_at) " +
-                    "VALUES (?, ?, ?, ?, CAST(? AS jsonb), ?) ON CONFLICT DO NOTHING",
+                "INSERT INTO snippet_execution_audit (id, actor_id, snippet_id, test_id, mode, snapshot, started_at) " +
+                    "VALUES (?, ?, ?, ?, ?, CAST(? AS jsonb), ?) ON CONFLICT DO NOTHING",
                 run.id,
                 run.actorId,
                 run.snapshot.snippetId,
-                run.snapshot.testId,
+                run.snapshot.test?.id,
+                run.snapshot.mode().name,
                 json.writeValueAsString(run.snapshot),
                 Timestamp.from(run.startedAt),
             ) == 1
