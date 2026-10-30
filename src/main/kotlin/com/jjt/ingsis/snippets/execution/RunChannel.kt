@@ -1,6 +1,7 @@
 package com.jjt.ingsis.snippets.execution
 
 import com.jjt.ingsis.snippets.language.execution.ExecutionEvent
+import com.jjt.ingsis.snippets.language.execution.ExecutionMode
 import com.jjt.ingsis.snippets.language.execution.ExecutionPayload
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
 import com.jjt.ingsis.snippets.language.execution.ExecutionState
@@ -9,6 +10,7 @@ import com.jjt.ingsis.snippets.language.execution.LanguageExecutor
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
 import java.io.IOException
 import java.time.Instant
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -112,6 +114,37 @@ class RunChannel(
         }
         return result
     }
+
+    fun input(
+        requestId: UUID,
+        value: String,
+    ): RunResult<Unit> {
+        val remote = checkNotNull(run.remote)
+        return when {
+            run.snapshot.mode() != ExecutionMode.INTERACTIVE -> {
+                RunResult.Refused(RunFailure.INPUT_CONFLICT)
+            }
+
+            value.toByteArray(Charsets.UTF_8).size > remote.limits.getValue("inputBytes") -> {
+                RunResult.Refused(RunFailure.PAYLOAD_TOO_LARGE)
+            }
+
+            else -> {
+                forwardInput(remote.id, requestId, value)
+            }
+        }
+    }
+
+    private fun forwardInput(
+        id: UUID,
+        requestId: UUID,
+        value: String,
+    ): RunResult<Unit> =
+        when (val sent = executor.input(id, requestId, value)) {
+            is ExecutionResult.Success -> RunResult.Success(Unit)
+            is ExecutionResult.Rejected -> RunResult.Refused(executionFailure(sent.reason))
+            is ExecutionResult.Failed -> RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE)
+        }
 
     fun closeExpired(now: Instant) {
         val since = connectedAt.get() ?: return

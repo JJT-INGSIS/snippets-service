@@ -23,6 +23,7 @@ enum class RunFailure(
     SNAPSHOT_CONFLICT("snapshot-conflict"),
     HISTORY_UNAVAILABLE("event-history-unavailable"),
     CONSUMER_CONFLICT("execution-consumer-conflict"),
+    INPUT_CONFLICT("input-conflict"),
     INVALID_CURSOR("invalid-cursor"),
     CAPACITY_EXHAUSTED("execution-capacity-exhausted"),
     UNSUPPORTED_CAPABILITY("unsupported-capability"),

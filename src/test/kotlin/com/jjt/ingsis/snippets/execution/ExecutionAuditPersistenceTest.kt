@@ -7,9 +7,7 @@ import com.jjt.ingsis.snippets.identity.ActorIdentity
 import com.jjt.ingsis.snippets.identity.ActorIdentityResolver
 import com.jjt.ingsis.snippets.language.Language
 import com.jjt.ingsis.snippets.language.execution.ExecutionEvent
-import com.jjt.ingsis.snippets.language.execution.ExecutionMode
 import com.jjt.ingsis.snippets.language.execution.ExecutionPayload
-import com.jjt.ingsis.snippets.language.execution.ExecutionRequest
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
 import com.jjt.ingsis.snippets.language.execution.ExecutionState
 import com.jjt.ingsis.snippets.metadata.LinkedSnippet
@@ -143,6 +141,17 @@ class ExecutionAuditPersistenceTest
         }
 
         @Test
+        fun `periodic recovery finishes an interactive run without keeping its output or comparing it`() {
+            val (run, executor) = boundRun(interactiveSnapshot())
+            RecoverRuns(audit, sessions(run, executor)).recover()
+            val recovered = checkNotNull(audit.find(run.id))
+            assertThat(recovered.completed?.terminal?.outcome).isEqualTo(ExecutionState.COMPLETED)
+            assertThat(recovered.completed?.outputs).isEmpty()
+            assertThat(recovered.completed?.comparison).isNull()
+            assertThat(recovered.reserved).isFalse()
+        }
+
+        @Test
         fun `lost event history and expired sessions preserve unknown results instead of inventing assertions`() {
             val (run, executor) = boundRun()
             executor.openFailure.set("event-history-unavailable")
@@ -226,20 +235,10 @@ class ExecutionAuditPersistenceTest
             jdbc.update("DELETE FROM snippet_execution_audit WHERE id = ?", run.id)
         }
 
-        private fun boundRun(): Pair<AuditedRun, ControlledExecutor> {
-            val run = storedRun().copy(startedAt = Instant.now().minusSeconds(30))
+        private fun boundRun(snapshot: ExecutionSnapshot = snapshot()): Pair<AuditedRun, ControlledExecutor> {
+            val run = storedRun(snapshot).copy(startedAt = Instant.now().minusSeconds(30))
             val executor = ControlledExecutor()
-            val descriptor =
-                (
-                    executor.start(
-                        ExecutionRequest(
-                            code = run.snapshot.code,
-                            version = "1.1",
-                            mode = ExecutionMode.TEST,
-                            inputs = checkNotNull(run.snapshot.test).definition.inputs,
-                        ),
-                    ) as ExecutionResult.Success
-                ).value
+            val descriptor = (executor.start(run.snapshot.request()) as ExecutionResult.Success).value
             audit.reserve(run)
             audit.bind(run.id, descriptor)
             return run.copy(remote = descriptor) to executor
@@ -277,8 +276,7 @@ class ExecutionAuditPersistenceTest
             )
         }
 
-        private fun storedRun(): AuditedRun {
-            val snapshot = snapshot()
+        private fun storedRun(snapshot: ExecutionSnapshot = snapshot()): AuditedRun {
             jdbc.update(
                 "INSERT INTO snippets (id, name, language, version, state, creation_key, " +
                     "creation_actor_id, creation_fingerprint) " +
@@ -286,11 +284,14 @@ class ExecutionAuditPersistenceTest
                 snapshot.snippetId,
                 UUID.randomUUID(),
             )
-            jdbc.update(
-                "INSERT INTO snippet_test_cases (id, snippet_id, inputs, expected_outputs) VALUES (?, ?, '[]', '[]')",
-                checkNotNull(snapshot.test).id,
-                snapshot.snippetId,
-            )
+            snapshot.test?.let { test ->
+                jdbc.update(
+                    "INSERT INTO snippet_test_cases (id, snippet_id, inputs, expected_outputs) " +
+                        "VALUES (?, ?, '[]', '[]')",
+                    test.id,
+                    snapshot.snippetId,
+                )
+            }
             return AuditedRun(
                 id = UUID.randomUUID(),
                 actorId = "actor-${UUID.randomUUID()}",

@@ -26,7 +26,7 @@ internal fun executionProblem(failure: RunFailure): ResponseEntity<ProblemDetail
             RunFailure.ACTOR_MISMATCH -> HttpStatus.FORBIDDEN
 
             RunFailure.ACTIVE, RunFailure.SNAPSHOT_CONFLICT, RunFailure.HISTORY_UNAVAILABLE,
-            RunFailure.CONSUMER_CONFLICT,
+            RunFailure.CONSUMER_CONFLICT, RunFailure.INPUT_CONFLICT,
             -> HttpStatus.CONFLICT
 
             RunFailure.CAPACITY_EXHAUSTED -> HttpStatus.TOO_MANY_REQUESTS
