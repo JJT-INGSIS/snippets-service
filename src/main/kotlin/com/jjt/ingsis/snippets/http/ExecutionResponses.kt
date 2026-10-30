@@ -46,6 +46,11 @@ internal fun executionProblem(failure: RunFailure): ResponseEntity<ProblemDetail
     return ResponseEntity.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON).body(problem)
 }
 
+internal fun executionCreated(run: AuditedRun): ResponseEntity<Map<String, Any>> =
+    ResponseEntity
+        .created(URI.create("/executions/${run.id}"))
+        .body(executionDescriptor(run, checkNotNull(run.remote)))
+
 internal class ExecutionHttpFailure(
     val failure: RunFailure,
 ) : RuntimeException()
