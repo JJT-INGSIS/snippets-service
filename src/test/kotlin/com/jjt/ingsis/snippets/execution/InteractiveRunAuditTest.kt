@@ -1,5 +1,8 @@
 package com.jjt.ingsis.snippets.execution
 
+import com.jjt.ingsis.snippets.language.Language
+import com.jjt.ingsis.snippets.language.execution.ExecutionMode
+import com.jjt.ingsis.snippets.language.execution.ExecutionRequest
 import com.jjt.ingsis.snippets.metadata.MetadataTestConfiguration
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -61,6 +64,38 @@ class InteractiveRunAuditTest
         }
 
         @Test
+        fun `an interactive launch asks for an interactive run without inputs and binds it`() {
+            val executor = ControlledExecutor()
+            val snapshot = interactiveSnapshot()
+            saveSnippet("public", snapshot)
+
+            val launched = launcher(executor).launch("actor-${UUID.randomUUID()}", snapshot) as RunResult.Success
+
+            assertThat(executor.requests.single()).isEqualTo(
+                ExecutionRequest(
+                    code = snapshot.code,
+                    version = "1.1",
+                    mode = ExecutionMode.INTERACTIVE,
+                    inputs = emptyList(),
+                ),
+            )
+            assertThat(audit.find(launched.value.id)?.remote).isEqualTo(launched.value.remote)
+        }
+
+        @Test
+        fun `a second launch of the same actor is refused before calling the interpreter`() {
+            val executor = ControlledExecutor()
+            val active = savedRun(snapshot())
+            val interactive = interactiveSnapshot()
+            saveSnippet("public", interactive)
+            audit.reserve(active)
+
+            assertThat(launcher(executor).launch(active.actorId, interactive))
+                .isEqualTo(RunResult.Refused(RunFailure.ACTIVE))
+            assertThat(executor.requests).isEmpty()
+        }
+
+        @Test
         fun `the upgrade keeps the test runs saved before interactive runs existed`() {
             val schema = "audit_${UUID.randomUUID().toString().replace("-", "")}"
             val snapshot = snapshot()
@@ -97,6 +132,9 @@ class InteractiveRunAuditTest
                 startedAt = Instant.now().truncatedTo(ChronoUnit.MICROS),
             )
         }
+
+        private fun launcher(executor: ControlledExecutor): RunLauncher =
+            RunLauncher(Language(emptyList(), listOf(executor)), audit)
 
         private fun saveSnippet(
             schema: String,

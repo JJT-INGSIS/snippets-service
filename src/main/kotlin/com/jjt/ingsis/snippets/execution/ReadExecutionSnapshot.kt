@@ -9,6 +9,7 @@ import com.jjt.ingsis.snippets.detail.StableContentRead
 import com.jjt.ingsis.snippets.identity.ActorContext
 import com.jjt.ingsis.snippets.metadata.LinkedSnippet
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
+import com.jjt.ingsis.snippets.testcase.TestCase
 import com.jjt.ingsis.snippets.testcase.TestCaseStore
 import org.springframework.stereotype.Service
 import java.util.UUID
@@ -28,11 +29,20 @@ class ReadExecutionSnapshot(
         val id = canonicalUuid(testId) ?: return RunResult.Refused(RunFailure.INVALID_REQUEST)
         return when (val access = gate.open(snippetId, context)) {
             is ReadDecision.Refused -> RunResult.Refused(access.failure.toRunFailure())
-            is ReadDecision.Granted -> readAuthorized(access.snippet, id)
+            is ReadDecision.Granted -> readWithTest(access.snippet, id)
         }
     }
 
-    private fun readAuthorized(
+    fun read(
+        snippetId: String,
+        context: ActorContext,
+    ): RunResult<ExecutionSnapshot> =
+        when (val access = gate.open(snippetId, context)) {
+            is ReadDecision.Refused -> RunResult.Refused(access.failure.toRunFailure())
+            is ReadDecision.Granted -> readWithoutTest(access.snippet)
+        }
+
+    private fun readWithTest(
         snippet: LinkedSnippet,
         testId: UUID,
     ): RunResult<ExecutionSnapshot> =
@@ -43,47 +53,60 @@ class ReadExecutionSnapshot(
                     it.id == testId &&
                         it.snippetId == snippet.metadata.id
                 }
-            if (test == null) {
-                RunResult.Refused(RunFailure.TEST_MISSING)
-            } else {
-                when (val read = reading.readStable(snippet)) {
-                    is StableContentRead.Read -> {
-                        val metadata = read.snippet.metadata
-                        val definition =
-                            test.definition.copy(
-                                inputs = test.definition.inputs.toList(),
-                                expectedOutputs = test.definition.expectedOutputs.toList(),
-                            )
-                        RunResult.Success(
-                            ExecutionSnapshot(
-                                snippetId = metadata.id,
-                                language = metadata.language,
-                                version = metadata.version,
-                                code = read.code,
-                                contentReference = checkNotNull(read.snippet.reference).value,
-                                codeHash = fingerprints.code(metadata.language, metadata.version, read.code),
-                                test =
-                                    TestSnapshot(
-                                        id = test.id,
-                                        definition = definition,
-                                        hash = fingerprints.test(definition),
-                                    ),
-                            ),
-                        )
-                    }
-
-                    StableContentRead.Conflict -> {
-                        RunResult.Refused(RunFailure.SNAPSHOT_CONFLICT)
-                    }
-
-                    StableContentRead.Unavailable, StableContentRead.Broken -> {
-                        RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE)
-                    }
-                }
-            }
+            if (test == null) RunResult.Refused(RunFailure.TEST_MISSING) else capture(snippet, test)
         } catch (_: MetadataPersistenceException) {
             RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE)
         }
+
+    private fun readWithoutTest(snippet: LinkedSnippet): RunResult<ExecutionSnapshot> =
+        try {
+            capture(snippet, test = null)
+        } catch (_: MetadataPersistenceException) {
+            RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE)
+        }
+
+    private fun capture(
+        snippet: LinkedSnippet,
+        test: TestCase?,
+    ): RunResult<ExecutionSnapshot> =
+        when (val read = reading.readStable(snippet)) {
+            is StableContentRead.Read -> {
+                RunResult.Success(snapshotOf(read, test))
+            }
+
+            StableContentRead.Conflict -> {
+                RunResult.Refused(RunFailure.SNAPSHOT_CONFLICT)
+            }
+
+            StableContentRead.Unavailable, StableContentRead.Broken -> {
+                RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE)
+            }
+        }
+
+    private fun snapshotOf(
+        read: StableContentRead.Read,
+        test: TestCase?,
+    ): ExecutionSnapshot {
+        val metadata = read.snippet.metadata
+        return ExecutionSnapshot(
+            snippetId = metadata.id,
+            language = metadata.language,
+            version = metadata.version,
+            code = read.code,
+            contentReference = checkNotNull(read.snippet.reference).value,
+            codeHash = fingerprints.code(metadata.language, metadata.version, read.code),
+            test = if (test == null) null else testSnapshot(test),
+        )
+    }
+
+    private fun testSnapshot(test: TestCase): TestSnapshot {
+        val definition =
+            test.definition.copy(
+                inputs = test.definition.inputs.toList(),
+                expectedOutputs = test.definition.expectedOutputs.toList(),
+            )
+        return TestSnapshot(id = test.id, definition = definition, hash = fingerprints.test(definition))
+    }
 }
 
 internal fun ReadFailure.toRunFailure(): RunFailure =

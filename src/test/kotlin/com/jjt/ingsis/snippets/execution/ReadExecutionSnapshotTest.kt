@@ -128,4 +128,25 @@ class ReadExecutionSnapshotTest {
         assertThat(reader().read(linked.metadata.id.toString(), test.id.toString(), ActorContext()))
             .isEqualTo(RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE))
     }
+
+    @Test
+    fun `an interactive snapshot reads the confirmed code without looking up tests`() {
+        `when`(storage.read(ContentReference("original"))).thenReturn(ReadResult.Found("println(1);"))
+        `when`(links.findLinked(linked.metadata.id)).thenReturn(linked)
+
+        val read = reader().read(linked.metadata.id.toString(), ActorContext()) as RunResult.Success
+
+        assertThat(read.value.code).isEqualTo("println(1);")
+        assertThat(read.value.test).isNull()
+        verifyNoInteractions(tests)
+    }
+
+    @Test
+    fun `an interactive snapshot refuses actors without access before reading any code`() {
+        val denied = reader(ReadGate { _, _ -> ReadDecision.Refused(ReadFailure.SNIPPET_MISSING) })
+
+        assertThat(denied.read(linked.metadata.id.toString(), ActorContext()))
+            .isEqualTo(RunResult.Refused(RunFailure.SNIPPET_MISSING))
+        verifyNoInteractions(tests, storage)
+    }
 }
