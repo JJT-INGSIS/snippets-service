@@ -7,7 +7,7 @@ la versión: lee la revisión de cada respuesta.
 
 El contrato del lado de PrintScript (cálculo, header, `GET /processor`, cómo
 verificar una imagen) está en
-[printscript-service: identidad del procesador](https://github.com/JJT-INGSIS/printscript-service/blob/main/docs/processor-identity.md).
+[printscript-service: identidad del procesador](https://github.com/JJT-INGSIS/printscript-service/blob/dev/docs/processor-identity.md).
 Este documento cubre qué hace Snippets con ese dato.
 
 ## Qué lee Snippets
@@ -39,7 +39,7 @@ Para comparar con una revisión esperada, `checkAgainst` devuelve:
 | Validar | `language.validateAttributed(...)` devuelve el resultado junto con su `ProcessorIdentity`, también en `422` (versión no soportada). `language.validate(...)` sigue igual para los casos de uso que no lo necesitan. |
 | Ejecutar (inicio y consulta) | `ExecutionDescriptor.processor` con la revisión verificada, o `null` |
 | Eventos | `LanguageEventStream.processor`, la revisión de quien abrió el stream |
-| Auditoría | `snippet_execution_audit.remote` guarda el descriptor del inicio, con su revisión. Consulta: `SELECT remote->'processor' FROM snippet_execution_audit` |
+| Auditoría | `snippet_execution_audit.remote` guarda el descriptor del inicio, con su revisión. Consulta: `SELECT remote->'processor'->>'value' FROM snippet_execution_audit` |
 
 No hizo falta una migración: `remote` ya es JSONB y el campo nuevo se agrega solo.
 Las filas anteriores a SNI-76 no tienen revisión.
@@ -98,3 +98,18 @@ decisiones 1, 2, 3 y 5 son del lado de PrintScript y están en su documento.
 - `ExecutionClientTest`: inicio, consulta y eventos con su revisión; sin header queda `null`.
 - `InteractiveRunAuditTest`: la auditoría guarda la revisión del inicio.
 - `ExecutionAuditPersistenceTest`: si contesta otra revisión, la sesión se rechaza y no se guarda resultado.
+
+### Evidencia con Compose — 31/10/2026
+
+Las dos imágenes se reconstruyeron desde las ramas de SNI-76. La aceptación de
+SNI-53 dio 15/15. Las ejecuciones que creó quedaron en la auditoría con la
+revisión de ejecutar que publica PrintScript:
+
+```text
+ mode        | processor
+ INTERACTIVE | {"value": "sha256-v1:c67a84aa431cbb370f5e6b57ef817ef298c0f820d4c5700f2b820dad3177cda6"}
+```
+
+Ese valor es `capabilities.execute` de `GET /processor`, y el `artifact` coincide con
+`sha256sum /app/app.jar` de la imagen. La revisión se guarda como objeto
+(`remote->'processor'->>'value'` devuelve el texto solo).
