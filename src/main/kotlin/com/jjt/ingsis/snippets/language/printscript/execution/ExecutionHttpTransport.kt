@@ -1,5 +1,8 @@
 package com.jjt.ingsis.snippets.language.printscript.execution
 
+import com.jjt.ingsis.snippets.language.PROCESSOR_REVISION_HEADER
+import com.jjt.ingsis.snippets.language.ProcessorIdentity
+import com.jjt.ingsis.snippets.language.ProcessorRevision
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
 import com.jjt.ingsis.snippets.language.printscript.PrintScriptProperties
 import org.springframework.http.HttpStatus
@@ -31,7 +34,7 @@ internal class ExecutionHttpTransport(
         path: String,
         body: Any?,
         expected: Int,
-        decode: (JsonNode) -> T,
+        decode: (JsonNode, ProcessorRevision?) -> T,
     ): ExecutionResult<T> =
         attempt(method != "GET") {
             val response = send(method, path, body)
@@ -55,10 +58,13 @@ internal class ExecutionHttpTransport(
                     ) {
                         throw ExecutionProtocolFailure()
                     }
-                    ExecutionResult.Success(decode(node))
+                    ExecutionResult.Success(decode(node, processorOf(response)))
                 }
             }
         }
+
+    fun processorOf(response: HttpResponse<*>): ProcessorRevision? =
+        ProcessorIdentity.of(response.headers().firstValue(PROCESSOR_REVISION_HEADER).orElse(null)).verifiedOrNull()
 
     fun send(
         method: String,

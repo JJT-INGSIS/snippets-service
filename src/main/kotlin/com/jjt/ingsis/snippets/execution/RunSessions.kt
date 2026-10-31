@@ -86,7 +86,7 @@ class RunSessions(
         }
         return when (val result = channel.executor.describe(remote.id)) {
             is ExecutionResult.Success -> {
-                if (result.value.mode == remote.mode) {
+                if (result.value.mode == remote.mode && result.value.processor == remote.processor) {
                     RunResult.Success(result.value)
                 } else {
                     RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE)

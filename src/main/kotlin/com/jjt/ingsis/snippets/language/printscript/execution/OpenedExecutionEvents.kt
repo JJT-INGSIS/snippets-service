@@ -1,5 +1,6 @@
 package com.jjt.ingsis.snippets.language.printscript.execution
 
+import com.jjt.ingsis.snippets.language.ProcessorRevision
 import com.jjt.ingsis.snippets.language.execution.ExecutionEvent
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
 import com.jjt.ingsis.snippets.language.execution.LanguageEventStream
@@ -15,6 +16,7 @@ internal class OpenedExecutionEvents(
     private val input: InputStream,
     timeout: Duration,
     private val transport: ExecutionHttpTransport,
+    override val processor: ProcessorRevision?,
     private val decode: (InputStream, (ExecutionEvent) -> Unit) -> ExecutionResult<Unit>,
 ) : LanguageEventStream {
     private val consumed = AtomicBoolean()

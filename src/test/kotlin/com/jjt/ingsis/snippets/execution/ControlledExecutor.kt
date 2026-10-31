@@ -1,5 +1,6 @@
 package com.jjt.ingsis.snippets.execution
 
+import com.jjt.ingsis.snippets.language.ProcessorRevision
 import com.jjt.ingsis.snippets.language.execution.ExecutionDescriptor
 import com.jjt.ingsis.snippets.language.execution.ExecutionEvent
 import com.jjt.ingsis.snippets.language.execution.ExecutionPayload
@@ -40,11 +41,12 @@ internal class ControlledExecutor : LanguageExecutor {
     val runs = ConcurrentHashMap<UUID, ControlledRun>()
     val inputs = CopyOnWriteArrayList<ControlledInput>()
     val inputResult = AtomicReference<ExecutionResult<Unit>>(ExecutionResult.Rejected("input-conflict"))
+    val processor = AtomicReference<ProcessorRevision?>()
 
     override fun start(request: ExecutionRequest): ExecutionResult<ExecutionDescriptor> {
         requests.add(request)
         startFailure.get()?.let { return it }
-        val run = ControlledRun(remote().copy(mode = request.mode), script.get())
+        val run = ControlledRun(remote().copy(mode = request.mode, processor = processor.get()), script.get())
         runs[run.descriptor.id] = run
         return ExecutionResult.Success(run.descriptor)
     }
@@ -52,7 +54,9 @@ internal class ControlledExecutor : LanguageExecutor {
     override fun describe(id: UUID): ExecutionResult<ExecutionDescriptor> {
         describeFailure.get()?.let { return it }
         val run = runs[id] ?: return ExecutionResult.Rejected("execution-not-found")
-        return ExecutionResult.Success(run.descriptor.copy(state = run.state.get(), lastSeq = run.lastSeq()))
+        return ExecutionResult.Success(
+            run.descriptor.copy(state = run.state.get(), lastSeq = run.lastSeq(), processor = processor.get()),
+        )
     }
 
     override fun openEvents(
@@ -66,7 +70,7 @@ internal class ControlledExecutor : LanguageExecutor {
             run == null -> ExecutionResult.Rejected("execution-not-found")
             after > run.lastSeq() -> ExecutionResult.Rejected("invalid-cursor")
             !run.consumer.compareAndSet(false, true) -> ExecutionResult.Rejected("execution-consumer-conflict")
-            else -> ExecutionResult.Success(ControlledEventStream(run, after))
+            else -> ExecutionResult.Success(ControlledEventStream(run, after, processor.get()))
         }
     }
 
@@ -118,6 +122,7 @@ internal class ControlledRun(
 private class ControlledEventStream(
     private val run: ControlledRun,
     private val after: Long,
+    override val processor: ProcessorRevision?,
 ) : LanguageEventStream {
     override fun read(consume: (ExecutionEvent) -> Unit): ExecutionResult<Unit> =
         try {

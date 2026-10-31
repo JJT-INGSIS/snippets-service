@@ -1,6 +1,7 @@
 package com.jjt.ingsis.snippets.language.execution
 
 import com.jjt.ingsis.snippets.language.Diagnostic
+import com.jjt.ingsis.snippets.language.ProcessorRevision
 import java.util.UUID
 
 enum class ExecutionMode { TEST, INTERACTIVE }
@@ -32,6 +33,7 @@ data class ExecutionDescriptor(
     val state: ExecutionState,
     val limits: Map<String, Long>,
     val lastSeq: Long,
+    val processor: ProcessorRevision? = null,
 )
 
 data class ExecutionEvent(
@@ -117,5 +119,8 @@ interface LanguageExecutor {
 }
 
 interface LanguageEventStream : AutoCloseable {
+    val processor: ProcessorRevision?
+        get() = null
+
     fun read(consume: (ExecutionEvent) -> Unit): ExecutionResult<Unit>
 }

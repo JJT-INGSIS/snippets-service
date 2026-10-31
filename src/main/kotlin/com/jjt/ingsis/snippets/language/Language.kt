@@ -41,15 +41,21 @@ class Language(
         language: String,
         version: String,
         code: String,
-    ): ValidationResult {
+    ): ValidationResult = validateAttributed(language, version, code).result
+
+    fun validateAttributed(
+        language: String,
+        version: String,
+        code: String,
+    ): Attributed<ValidationResult> {
         val validator =
             validators.find { it.language == language }
-                ?: return ValidationResult.UnsupportedLanguage(language)
+                ?: return Attributed(ValidationResult.UnsupportedLanguage(language), ProcessorIdentity.Missing)
         if (version !in validator.supportedVersions) {
-            return ValidationResult.UnsupportedVersion(language, version)
+            return Attributed(ValidationResult.UnsupportedVersion(language, version), ProcessorIdentity.Missing)
         }
 
-        return validator.validate(version, code)
+        return validator.validateAttributed(version, code)
     }
 
     fun extensionOf(language: String): String? = validators.find { it.language == language }?.extension

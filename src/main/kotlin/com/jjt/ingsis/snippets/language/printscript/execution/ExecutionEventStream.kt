@@ -35,7 +35,12 @@ internal class ExecutionEventStream(
                 throw ExecutionProtocolFailure()
             } else {
                 ExecutionResult.Success(
-                    OpenedExecutionEvents(response.body(), properties.streamTimeout, transport) { input, consume ->
+                    OpenedExecutionEvents(
+                        input = response.body(),
+                        timeout = properties.streamTimeout,
+                        transport = transport,
+                        processor = transport.processorOf(response),
+                    ) { input, consume ->
                         decode(input = input, id = id, after = after, consume = consume)
                     },
                 )
