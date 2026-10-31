@@ -1,6 +1,7 @@
 package com.jjt.ingsis.snippets.execution
 
 import com.jjt.ingsis.snippets.language.Language
+import com.jjt.ingsis.snippets.language.ProcessorRevision
 import com.jjt.ingsis.snippets.language.execution.ExecutionMode
 import com.jjt.ingsis.snippets.language.execution.ExecutionRequest
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
@@ -94,6 +95,19 @@ class InteractiveRunAuditTest
             assertThat(launcher(executor).launch(active.actorId, interactive))
                 .isEqualTo(RunResult.Refused(RunFailure.ACTIVE))
             assertThat(executor.requests).isEmpty()
+        }
+
+        @Test
+        fun `the audit keeps the processor revision that started the run`() {
+            val executor = ControlledExecutor()
+            val snapshot = interactiveSnapshot()
+            val revision = ProcessorRevision("sha256-v1:" + "f".repeat(64))
+            saveSnippet("public", snapshot)
+            executor.processor.set(revision)
+
+            val launched = launcher(executor).launch("actor-${UUID.randomUUID()}", snapshot) as RunResult.Success
+
+            assertThat(audit.find(launched.value.id)?.remote?.processor).isEqualTo(revision)
         }
 
         @Test

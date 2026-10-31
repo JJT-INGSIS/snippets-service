@@ -104,6 +104,10 @@ actor puede volver a ejecutar. Antes también quedaba bloqueado; lo encontró la
 aceptación de SNI-53 y se corrigió con la opción B1, aprobada por Juan el
 30/10/2026. Un timeout **después** de enviar el inicio sigue siendo incierto.
 
+Desde SNI-76, `remote` guarda también la revisión del procesador que inició la
+sesión. Si al recuperar contesta otra revisión, la sesión no se acepta y no se
+guarda resultado. Ver [revisión del procesador](processor-revision.md).
+
 `remote.state` en la auditoría es el estado observado al asociar la sesión, no un
 indicador actual de trabajo corriendo. `result IS NULL` significa que no hay
 resultado final confirmado. `failure` conserva el motivo conocido; `reserved`

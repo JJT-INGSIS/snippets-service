@@ -79,11 +79,21 @@ class RunChannel(
             return ExecutionResult.Success(CachedTerminalStream(terminal))
         }
         val replayFrom = minOf(after, progress.get().lastSeq)
-        val opened = executor.openEvents(checkNotNull(run.remote).id, replayFrom)
-        return if (completed != null && opened is ExecutionResult.Rejected && opened.reason == "execution-not-found") {
-            ExecutionResult.Rejected("event-history-unavailable")
-        } else {
-            opened
+        val remote = checkNotNull(run.remote)
+        val opened = executor.openEvents(remote.id, replayFrom)
+        return when {
+            completed != null && opened is ExecutionResult.Rejected && opened.reason == "execution-not-found" -> {
+                ExecutionResult.Rejected("event-history-unavailable")
+            }
+
+            opened is ExecutionResult.Success && opened.value.processor != remote.processor -> {
+                opened.value.close()
+                ExecutionResult.Rejected("processor-changed")
+            }
+
+            else -> {
+                opened
+            }
         }
     }
 

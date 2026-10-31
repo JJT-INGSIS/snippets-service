@@ -1,6 +1,9 @@
 package com.jjt.ingsis.snippets.language.printscript
 
 import com.jjt.ingsis.snippets.language.Diagnostic
+import com.jjt.ingsis.snippets.language.PROCESSOR_REVISION_HEADER
+import com.jjt.ingsis.snippets.language.ProcessorIdentity
+import com.jjt.ingsis.snippets.language.ProcessorRevision
 import com.jjt.ingsis.snippets.language.ValidationResult
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -46,6 +49,36 @@ class PrintScriptValidatorTest {
             assertThat(request.path).isEqualTo("/validate")
             assertThat(request.contentType).startsWith("application/json")
             assertThat(request.body).isEqualTo("""{"code":"println(1);","version":"1.1"}""")
+        }
+    }
+
+    @Test
+    fun `each validation answer is attributed to the processor revision that produced it`() {
+        val revision = "sha256-v1:" + "a".repeat(64)
+        val stamped = mapOf(PROCESSOR_REVISION_HEADER to revision)
+
+        StubLanguageService(status = 200, body = validBody, headers = stamped).use { service ->
+            val attributed = validatorFor(service.baseUrl).validateAttributed("1.1", "println(1);")
+            assertThat(attributed.result).isEqualTo(ValidationResult.Valid)
+            assertThat(attributed.processor).isEqualTo(ProcessorIdentity.Verified(ProcessorRevision(revision)))
+        }
+        StubLanguageService(status = 422, body = unsupportedVersionBody, headers = stamped).use { service ->
+            val attributed = validatorFor(service.baseUrl).validateAttributed("2.0", "println(1);")
+            assertThat(attributed.result).isInstanceOf(ValidationResult.UnsupportedVersion::class.java)
+            assertThat(attributed.processor).isEqualTo(ProcessorIdentity.Verified(ProcessorRevision(revision)))
+        }
+    }
+
+    @Test
+    fun `a missing or malformed revision is never invented`() {
+        StubLanguageService(status = 200, body = validBody).use { service ->
+            assertThat(validatorFor(service.baseUrl).validateAttributed("1.1", "println(1);").processor)
+                .isEqualTo(ProcessorIdentity.Missing)
+        }
+        val malformed = mapOf(PROCESSOR_REVISION_HEADER to "1.1")
+        StubLanguageService(status = 200, body = validBody, headers = malformed).use { service ->
+            assertThat(validatorFor(service.baseUrl).validateAttributed("1.1", "println(1);").processor)
+                .isEqualTo(ProcessorIdentity.Malformed("1.1"))
         }
     }
 

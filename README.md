@@ -180,6 +180,8 @@ Para PrintScript, `PrintScriptValidator` llama por HTTP a `POST /validate` de [p
 
 No hay reintentos. Si `printscript-service` no está disponible, este servicio arranca igual y cada validación devuelve `Failed`.
 
+`language.validateAttributed(...)` devuelve además qué build de PrintScript contestó (header `Processor-Revision`). Ver [revisión del procesador — SNI-76](docs/processor-revision.md).
+
 Los tests usan un servidor HTTP local. Para comprobar además contra el servicio real, levantarlo y definir su dirección:
 
 ```bash
@@ -441,6 +443,8 @@ SNI-48 agrega ejecución de un test guardado, comparación exacta y auditoría d
 Ver [contrato, decisiones, recuperación y verificación](docs/test-execution.md).
 SNI-49 agrega la ejecución interactiva: arrancar sin test y mandar inputs mientras corre.
 Ver [contrato, decisiones y verificación](docs/interactive-execution.md).
+SNI-76 registra qué build de PrintScript contestó cada validación y ejecución, y no acepta una sesión que cambia de build.
+Ver [revisión del procesador](docs/processor-revision.md).
 
 La UI utiliza `/api` en el mismo origen mediante Vite o NGINX. Para autorizar
 acceso desde otros orígenes, configurar `SNIPPETS_CORS_ALLOWED_ORIGINS` en el backend.

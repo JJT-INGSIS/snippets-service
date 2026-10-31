@@ -6,6 +6,7 @@ import com.jjt.ingsis.snippets.identity.ActorContext
 import com.jjt.ingsis.snippets.identity.ActorIdentity
 import com.jjt.ingsis.snippets.identity.ActorIdentityResolver
 import com.jjt.ingsis.snippets.language.Language
+import com.jjt.ingsis.snippets.language.ProcessorRevision
 import com.jjt.ingsis.snippets.language.execution.ExecutionEvent
 import com.jjt.ingsis.snippets.language.execution.ExecutionPayload
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
@@ -149,6 +150,18 @@ class ExecutionAuditPersistenceTest
             assertThat(recovered.completed?.outputs).isEmpty()
             assertThat(recovered.completed?.comparison).isNull()
             assertThat(recovered.reserved).isFalse()
+        }
+
+        @Test
+        fun `a session answered by another processor revision is not trusted`() {
+            val (run, executor) = boundRun()
+            val sessions = sessions(run, executor)
+            val channel = (sessions.find(run.id.toString(), ActorContext()) as RunResult.Success).value
+            executor.processor.set(ProcessorRevision("sha256-v1:" + "e".repeat(64)))
+
+            assertThat(sessions.describe(channel)).isEqualTo(RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE))
+            assertThat(channel.open(0)).isEqualTo(RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE))
+            assertThat(audit.find(run.id)?.completed).isNull()
         }
 
         @Test
