@@ -132,6 +132,7 @@ que exige que TEST tenga test e INTERACTIVE no.
 | Actor, snippet, código, lenguaje, versión, `codeHash`, fechas | Sí | Sí |
 | Test (id, definición, hash) | Sí | No existe |
 | Asociación con la sesión de PrintScript | Sí | Sí |
+| Revisión del procesador que la inició (SNI-76) | Sí | Sí |
 | Resultado final (outcome, motivo, diagnósticos) | Sí | Sí |
 | Outputs | Sí, para comparar | **No** |
 | Inputs | Los del test | **No**: lo que tipea el usuario no se guarda |
