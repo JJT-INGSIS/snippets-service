@@ -2,14 +2,21 @@ package com.jjt.ingsis.snippets.language
 
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
 import com.jjt.ingsis.snippets.language.execution.LanguageExecutor
+import com.jjt.ingsis.snippets.language.formatting.FormattingCatalogResult
+import com.jjt.ingsis.snippets.language.formatting.FormattingResult
+import com.jjt.ingsis.snippets.language.formatting.LanguageFormatter
 import org.springframework.stereotype.Service
 
 @Service
 class Language(
     private val validators: List<LanguageValidator>,
     private val executors: List<LanguageExecutor> = emptyList(),
+    private val formatters: List<LanguageFormatter> = emptyList(),
 ) {
     init {
+        require(formatters.map { it.language }.distinct().size == formatters.size) {
+            "Each language must have exactly one formatter"
+        }
         require(executors.map { it.language }.distinct().size == executors.size) {
             "Each language must have exactly one execution adapter"
         }
@@ -63,4 +70,39 @@ class Language(
     fun executorFor(language: String): ExecutionResult<LanguageExecutor> =
         executors.find { it.language == language }?.let { ExecutionResult.Success(it) }
             ?: ExecutionResult.Rejected("unsupported-execution-capability")
+
+    fun formattingCatalog(
+        language: String,
+        version: String,
+    ): Attributed<FormattingCatalogResult> {
+        val formatter =
+            formatters.find { it.language == language }
+                ?: return Attributed(FormattingCatalogResult.UnsupportedLanguage(language), ProcessorIdentity.Missing)
+        if (!supports(language, version)) {
+            return Attributed(FormattingCatalogResult.UnsupportedVersion(language, version), ProcessorIdentity.Missing)
+        }
+
+        return formatter.catalog(version)
+    }
+
+    fun format(
+        language: String,
+        version: String,
+        code: String,
+        rules: Map<String, Any?>,
+    ): Attributed<FormattingResult> {
+        val formatter =
+            formatters.find { it.language == language }
+                ?: return Attributed(FormattingResult.UnsupportedLanguage(language), ProcessorIdentity.Missing)
+        if (!supports(language, version)) {
+            return Attributed(FormattingResult.UnsupportedVersion(language, version), ProcessorIdentity.Missing)
+        }
+
+        return formatter.format(version, code, rules)
+    }
+
+    private fun supports(
+        language: String,
+        version: String,
+    ): Boolean = validators.find { it.language == language }?.supportedVersions?.contains(version) == true
 }
