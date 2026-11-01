@@ -37,6 +37,7 @@ Para comparar con una revisión esperada, `checkAgainst` devuelve:
 | Operación | Qué guarda |
 | --- | --- |
 | Validar | `language.validateAttributed(...)` devuelve el resultado junto con su `ProcessorIdentity`, también en `422` (versión no soportada). `language.validate(...)` sigue igual para los casos de uso que no lo necesitan. |
+| Formatear y catálogo de formato | `language.format(...)` y `language.formattingCatalog(...)` devuelven el resultado con su `ProcessorIdentity`, también en rechazos (ver [formato](formatting-language.md)) |
 | Ejecutar (inicio y consulta) | `ExecutionDescriptor.processor` con la revisión verificada, o `null` |
 | Eventos | `LanguageEventStream.processor`, la revisión de quien abrió el stream |
 | Auditoría | `snippet_execution_audit.remote` guarda el descriptor del inicio, con su revisión. Consulta: `SELECT remote->'processor'->>'value' FROM snippet_execution_audit` |

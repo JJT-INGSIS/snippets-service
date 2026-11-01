@@ -190,6 +190,14 @@ PRINTSCRIPT_SERVICE_URL=http://localhost:8082 ./gradlew test
 
 Sin esa variable, `PrintScriptServiceLiveTest` se omite.
 
+## Language: formato — SNI-59
+
+`language.formattingCatalog(...)` devuelve las reglas de formato de una versión y
+`language.format(...)` formatea código, cada uno con la revisión del procesador
+que contestó. Para PrintScript lo resuelve `PrintScriptFormatter` contra
+`printscript-service`. Todavía no hay rutas públicas que lo usen. Ver
+[resultados, diseño y decisiones](docs/formatting-language.md).
+
 ## Responsabilidad prevista
 
 Este servicio administrará los metadatos y el ciclo de vida de los snippets, los listados y los tests, y coordinará operaciones con los servicios de permisos y de lenguaje.
