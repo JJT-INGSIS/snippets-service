@@ -83,3 +83,18 @@ Usa las mismas propiedades que la validación: `language.printscript.base-url`,
 
 - `PrintScriptFormatterTest`, contra un servidor HTTP local: forma del pedido, código formateado con su revisión, diagnóstico léxico, cada rechazo tipado, respuestas inesperadas y servicio caído como `Failed`, catálogo y versión no soportada.
 - `LanguageFormattingTest`: elección del formateador, lenguaje sin formateador, versión no anunciada sin llamar al servicio, formateadores duplicados.
+
+### Evidencia con printscript-service real — 01/11/2026
+
+Con el Compose de infra levantado desde las ramas de SNI-59, `Language` con
+`PrintScriptValidator` y `PrintScriptFormatter` apuntando a `http://127.0.0.1:8082`:
+
+| Llamada | Resultado |
+| --- | --- |
+| `format` 1.0 de `let a:number=1;println(a);` con espacios en `=` y salto por sentencia | `Formatted("let a:number = 1;\nprintln(a);")`, revisión `Verified(sha256-v1:2001166d…5289)` = `capabilities.format` |
+| `format` de un texto sin cerrar | `Unformattable` con `UNTERMINATED_STRING` en 1:9 y la misma revisión |
+| `format` 1.0 con `indent-inside-if` | `InvalidRules` con `unavailable-in-version` y la misma revisión |
+| `format` versión `2.0` | `UnsupportedVersion`, sin llamar al servicio (`Missing`) |
+| `formattingCatalog` 1.1 | `Catalog`, con la misma revisión |
+
+La aceptación SNI-53 (`scripts/verify_us8_10.py`) siguió en 15/15 con estas imágenes.
