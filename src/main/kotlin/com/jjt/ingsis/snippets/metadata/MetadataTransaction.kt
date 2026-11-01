@@ -16,7 +16,18 @@ class MetadataTransaction(
             propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW
         }
 
+    private val participating = TransactionTemplate(transactionManager)
+
+    private val mandatory =
+        TransactionTemplate(transactionManager).apply {
+            propagationBehavior = TransactionDefinition.PROPAGATION_MANDATORY
+        }
+
     fun <T : Any> commit(operation: () -> T): T = read { independent.execute { operation() } }
+
+    fun <T : Any> join(operation: () -> T): T = read { participating.execute { operation() } }
+
+    fun <T : Any> requireCommit(operation: () -> T): T = read { mandatory.execute { operation() } }
 
     fun <T> read(operation: () -> T): T =
         try {
