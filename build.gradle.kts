@@ -19,6 +19,7 @@ dependencies {
 }
 
 tasks.test {
+    inputs.property("printScriptLintUrl", providers.environmentVariable("PRINTSCRIPT_LINT_URL").orElse(""))
     inputs.property("printScriptExecutionUrl", providers.environmentVariable("PRINTSCRIPT_EXECUTION_URL").orElse(""))
     inputs.dir("docs")
     inputs.property("printScriptServiceUrl", providers.environmentVariable("PRINTSCRIPT_SERVICE_URL").orElse(""))
