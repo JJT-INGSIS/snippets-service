@@ -4,13 +4,9 @@ import com.jjt.ingsis.snippets.execution.AuditReservation
 import com.jjt.ingsis.snippets.execution.AuditedRun
 import com.jjt.ingsis.snippets.execution.CompletedRun
 import com.jjt.ingsis.snippets.execution.ExecutionAudit
-import com.jjt.ingsis.snippets.execution.ExecutionSnapshot
 import com.jjt.ingsis.snippets.language.execution.ExecutionDescriptor
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
-import tools.jackson.core.JacksonException
-import tools.jackson.databind.json.JsonMapper
-import java.sql.ResultSet
 import java.sql.Timestamp
 import java.time.Instant
 import java.util.UUID
@@ -21,8 +17,6 @@ class JdbcExecutionAudit(
     private val transaction: MetadataTransaction,
     private val capacity: JdbcExecutionCapacity,
 ) : ExecutionAudit {
-    private val json = JsonMapper.builder().findAndAddModules().build()
-
     override fun reserve(run: AuditedRun): Boolean = reserveForStart(run) == AuditReservation.RESERVED
 
     override fun reserveForStart(run: AuditedRun): AuditReservation =
@@ -47,7 +41,7 @@ class JdbcExecutionAudit(
                     run.snapshot.snippetId,
                     run.snapshot.test?.id,
                     run.snapshot.mode().name,
-                    json.writeValueAsString(run.snapshot),
+                    writeAuditJson(run.snapshot),
                     Timestamp.from(run.startedAt),
                 ) == 1
             if (!inserted) {
@@ -67,7 +61,7 @@ class JdbcExecutionAudit(
         check(
             jdbc.update(
                 "UPDATE snippet_execution_audit SET remote = CAST(? AS jsonb) WHERE id = ? AND reserved",
-                json.writeValueAsString(descriptor),
+                writeAuditJson(descriptor),
                 id,
             ) == 1,
         )
@@ -81,7 +75,7 @@ class JdbcExecutionAudit(
         jdbc.update(
             "UPDATE snippet_execution_audit SET result = CAST(? AS jsonb), finished_at = ?, " +
                 "failure = NULL, reserved = FALSE WHERE id = ? AND result IS NULL",
-            json.writeValueAsString(result),
+            writeAuditJson(result),
             Timestamp.from(Instant.now()),
             id,
         )
@@ -131,37 +125,20 @@ class JdbcExecutionAudit(
 
     override fun find(id: UUID): AuditedRun? =
         transaction.read {
-            jdbc.query("SELECT * FROM snippet_execution_audit WHERE id = ?", { row, _ -> read(row) }, id).singleOrNull()
+            jdbc
+                .query(
+                    "SELECT * FROM snippet_execution_audit WHERE id = ? AND background_permit_id IS NULL",
+                    { row, _ -> readAuditedRun(row) },
+                    id,
+                ).singleOrNull()
         }
 
     override fun reserved(): List<AuditedRun> =
         transaction.read {
             jdbc.query(
-                "SELECT * FROM snippet_execution_audit WHERE reserved ORDER BY started_at",
-                { row, _ -> read(row) },
+                "SELECT * FROM snippet_execution_audit WHERE reserved AND background_permit_id IS NULL " +
+                    "ORDER BY started_at",
+                { row, _ -> readAuditedRun(row) },
             )
-        }
-
-    private fun read(row: ResultSet): AuditedRun =
-        AuditedRun(
-            id = row.getObject("id", UUID::class.java),
-            actorId = row.getString("actor_id"),
-            snapshot = decode(row.getString("snapshot"), ExecutionSnapshot::class.java),
-            startedAt = row.getTimestamp("started_at").toInstant(),
-            remote = row.getString("remote")?.let { decode(it, ExecutionDescriptor::class.java) },
-            completed = row.getString("result")?.let { decode(it, CompletedRun::class.java) },
-            finishedAt = row.getTimestamp("finished_at")?.toInstant(),
-            failure = row.getString("failure"),
-            reserved = row.getBoolean("reserved"),
-        )
-
-    private fun <T> decode(
-        value: String,
-        type: Class<T>,
-    ): T =
-        try {
-            json.readValue(value, type)
-        } catch (failure: JacksonException) {
-            throw MetadataPersistenceException(failure)
         }
 }

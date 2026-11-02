@@ -1,5 +1,7 @@
 package com.jjt.ingsis.snippets.language.printscript.execution
 
+import com.jjt.ingsis.snippets.language.ProcessorIdentity
+import com.jjt.ingsis.snippets.language.ProcessorRevision
 import com.jjt.ingsis.snippets.language.execution.ExecutionDescriptor
 import com.jjt.ingsis.snippets.language.execution.ExecutionMode
 import com.jjt.ingsis.snippets.language.execution.ExecutionRequest
@@ -23,6 +25,12 @@ class PrintScriptExecutor(
     private val stream = ExecutionEventStream(transport, execution)
     override val language: String = "printscript"
     override val supportedVersions: Set<String> = setOf("1.0", "1.1")
+
+    override fun processorRevision(): ExecutionResult<ProcessorRevision> =
+        transport.json(method = "GET", path = "/processor", body = null, expected = HttpStatus.OK.value()) { node, _ ->
+            ProcessorIdentity.of(ExecutionProtocol.text(node.path("capabilities"), "execute")).verifiedOrNull()
+                ?: throw ExecutionProtocolFailure()
+        }
 
     override fun start(request: ExecutionRequest): ExecutionResult<ExecutionDescriptor> {
         if (request.version !in supportedVersions) return ExecutionResult.Rejected("unsupported-version")

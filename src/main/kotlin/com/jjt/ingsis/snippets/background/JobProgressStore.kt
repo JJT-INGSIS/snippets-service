@@ -55,6 +55,12 @@ interface JobProgressStore {
         reason: String,
     )
 
+    fun deferItem(
+        lease: JobLease,
+        itemId: UUID,
+        reason: String,
+    )
+
     fun progress(id: UUID): JobProgress?
 
     fun reconciliations(): List<UUID>

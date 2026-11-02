@@ -43,6 +43,11 @@ class JobWork(
         reason: String,
     ) = store.retryItem(lease, item.id, reason)
 
+    fun defer(
+        item: WorkItem,
+        reason: String,
+    ) = store.deferItem(lease, item.id, reason)
+
     fun beginRemote(item: WorkItem): RemotePermit? {
         if (started) return null
         return capacity.begin(lease, item.id)?.also { started = true }

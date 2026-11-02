@@ -89,6 +89,8 @@ interface LanguageExecutor {
     val language: String
     val supportedVersions: Set<String>
 
+    fun processorRevision(): ExecutionResult<ProcessorRevision> = ExecutionResult.Rejected("processor-unverifiable")
+
     fun start(request: ExecutionRequest): ExecutionResult<ExecutionDescriptor>
 
     fun describe(id: UUID): ExecutionResult<ExecutionDescriptor>
