@@ -480,3 +480,5 @@ El caller usa `github-workflows@v0.6.2`, con la revisión fija de infra que corr
 El procedimiento y la protección del registro están en
 [rollout SNI-43](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-43-cd.md).
 
+
+Tests automáticos tras editar: [SNI-69](docs/automatic-tests.md).

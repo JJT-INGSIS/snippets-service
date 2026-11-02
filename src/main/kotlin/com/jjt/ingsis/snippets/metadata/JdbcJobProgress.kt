@@ -284,6 +284,24 @@ class JdbcJobProgress(
         Unit
     }
 
+    override fun deferItem(
+        lease: JobLease,
+        itemId: UUID,
+        reason: String,
+    ) = owned(lease) {
+        check(
+            jdbc.update(
+                "UPDATE background_job_items SET state = 'PENDING', attempts = GREATEST(attempts - 1, 0), " +
+                    "next_attempt_at = clock_timestamp() + (? * INTERVAL '1 millisecond'), last_error = ?, " +
+                    "updated_at = clock_timestamp() WHERE id = ? AND job_id = ? AND state = 'RUNNING'",
+                settings.retries.initial.toMillis(),
+                safeJobReason(reason),
+                itemId,
+                lease.jobId,
+            ) == 1,
+        )
+    }
+
     override fun progress(id: UUID): JobProgress? =
         transaction.read {
             jdbc
