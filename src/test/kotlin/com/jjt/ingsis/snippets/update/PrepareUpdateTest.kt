@@ -144,6 +144,15 @@ class PrepareUpdateTest {
         verifyNoInteractions(checker, language)
     }
 
+    @Test
+    fun `empty replacement is rejected before lookup permissions Language or persistence`() {
+        assertEquals(
+            UpdatePreparationResult.Rejected(PreparationRejection.InvalidRequest("code")),
+            prepare().prepare(draft().copy(code = ""), existing.id.toString(), context),
+        )
+        verifyNoInteractions(store, checker, language)
+    }
+
     private fun prepare(): PrepareUpdate =
         PrepareUpdate(identityResolver = identified, metadata = store, permissions = checker, language = language)
 

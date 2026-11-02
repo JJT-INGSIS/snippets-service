@@ -75,6 +75,11 @@ enum class SnippetProblem(
         "invalid-code",
         "The code is not valid for the requested language and version.",
     ),
+    INVALID_FORMATTING_RULES(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "invalid-formatting-rules",
+        "Some formatting rules are not valid for this language version. The violations property lists them.",
+    ),
     UNSUPPORTED_LANGUAGE(
         HttpStatus.UNPROCESSABLE_CONTENT,
         "unsupported-language",

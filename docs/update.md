@@ -33,7 +33,7 @@ El body tiene los mismos campos y las mismas reglas que la creación ([creation.
 | `version` | string | Sí | `400` | `400` |
 | `code` | string | Sí | `400` | `400` |
 
-Nombre, lenguaje y versión no pueden estar en blanco. El código puede estar vacío: Language decide su validez. Una descripción vacía (`""`) se guarda como vacía y es distinta de quitarla. Los valores se conservan sin recortar ni normalizar.
+Nombre, lenguaje y versión no pueden estar en blanco. El código no puede estar vacío ni contener sólo espacios en blanco (incluidos tabs y saltos de línea): responde `400` con `field=code`, antes de consultar dependencias o modificar el snippet. Una descripción vacía (`""`) se guarda como vacía y es distinta de quitarla. Los valores se conservan sin recortar ni normalizar.
 
 Para conservar un dato hay que enviarlo de nuevo: un campo obligatorio ausente no significa «dejar el actual». No se acepta ningún otro campo: `ownerId`, identidad o huella en el body se rechazan. El owner no se puede cambiar con este pedido.
 

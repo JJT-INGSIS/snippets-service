@@ -13,6 +13,11 @@ interface LanguageFormatter {
         code: String,
         rules: Map<String, Any?>,
     ): Attributed<FormattingResult>
+
+    fun check(
+        version: String,
+        rules: Map<String, Any?>,
+    ): Attributed<FormattingCheckResult>
 }
 
 data class FormattingRule(
@@ -78,4 +83,27 @@ sealed interface FormattingResult {
     data class Failed(
         val reason: String,
     ) : FormattingResult
+}
+
+sealed interface FormattingCheckResult {
+    data class Accepted(
+        val selection: Map<String, Any>,
+    ) : FormattingCheckResult
+
+    data class InvalidRules(
+        val violations: List<FormattingRuleViolation>,
+    ) : FormattingCheckResult
+
+    data class UnsupportedLanguage(
+        val language: String,
+    ) : FormattingCheckResult
+
+    data class UnsupportedVersion(
+        val language: String,
+        val version: String,
+    ) : FormattingCheckResult
+
+    data class Failed(
+        val reason: String,
+    ) : FormattingCheckResult
 }
