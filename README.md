@@ -462,6 +462,12 @@ SNI-52 amplía esa política exactamente a las rutas/métodos públicos de tests
 ejecución de SNI-45. La aceptación local del transporte NGINX/NDJSON usa un upstream
 controlado; la ejecución funcional con el intérprete se verifica posteriormente.
 
+## Procesamiento en segundo plano
+
+La base de trabajos durables, outbox y publicación recuperable por Redis Streams
+está descrita en [SNI-57: configuración y recuperación](docs/background-outbox.md).
+El publicador está desactivado por defecto; no activa todavía las historias asíncronas.
+
 ## SNI-43 — actualización de herramientas de CD
 
 El caller usa `github-workflows@v0.6.2`, con la revisión fija de infra que corrige el doble escape de healthchecks. Antes de reaplicar infraestructura o probar reconciliación, actualizar los cuatro callers del ambiente y esperar que no haya ejecuciones activas. No reejecutar herramientas antiguas sobre el stack ampliado.
