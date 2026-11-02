@@ -20,7 +20,7 @@ defecto; activarlo en ambientes depende de Redis en infra (SNI-56).
 | `reformatting/SnippetReformatting` + `PermittedItem` | Formatea con permiso de fondo, guarda el blob y publica en la transacción del lease (E3, E5) |
 | `reformatting/ReformattingTarget`, `ReformattingFailures` | Lote del evento y clasificación de fallos (E6) |
 | `formattingrules/OwnerRulesFormatter` | Núcleo compartido con `FormatSavedSnippet` (E7) |
-| `formattingrules/FormattedVariants` + `JdbcFormattedVariants`, V10 | Derivado vigente por snippet (E2) |
+| `formattingrules/FormattedVariants` + `JdbcFormattedVariants`, V12 | Derivado vigente por snippet (E2) |
 | Base de SNI-58 | `JobStep.Superseded`, motivo opcional al completar un elemento y `retryItem` sobre elementos `UNKNOWN` (E4, E5) |
 
 ## Recorrido de un lote
@@ -67,7 +67,7 @@ sequenceDiagram
 ## Derivado y publicación (E2, E3)
 
 El derivado se guarda como **blob nuevo** en `SnippetContentStorage`; el original
-nunca se toca. La tabla `formatted_snippets` (migración V10) guarda un único
+nunca se toca. La tabla `formatted_snippets` (migración V12) guarda un único
 derivado vigente por snippet, con la base que lo produjo:
 
 | Columna | Qué guarda |
@@ -208,8 +208,13 @@ Aprobadas por Juan el 02/11/2026 («dale, aprobadas las 8»).
 | Comprobación | Resultado |
 | --- | --- |
 | `FormattingReprocessingLiveTest` con `PRINTSCRIPT_SERVICE_URL=http://127.0.0.1:8082` (printscript-service de Compose; PostgreSQL y Redis por Testcontainers) | Recorrido completo outbox → Redis → handler. `if(true){println(1);}` → derivado `if(true)⏎{⏎  println(1);⏎}` con llave abajo, salto y sangría 2; original intacto; revisión del procesador igual a `capabilities.format` de `GET /processor` (`2001166d…5289`); un texto sin cerrar queda `FAILED UNFORMATTABLE` y el lote termina `PARTIAL` |
-| Imagen de snippets-service reconstruida en Compose | Flyway aplicó V8 (SNI-68), V9 y V10 sobre la base local, después de limpiar la V8 vieja de SNI-61 registrada antes del renombre |
+| Imagen de snippets-service reconstruida en Compose | Flyway aplicó V8 (SNI-68), V9 y la migración de esta tabla (entonces V10) sobre la base local, después de limpiar la V8 vieja de SNI-61 registrada antes del renombre |
 | Aceptación SNI-53 (`scripts/verify_us8_10.py`) | 15/15. Una primera corrida dio 14/15 por una carrera del script en «recrear componentes» (lee un 502 de nginx como JSON mientras el servicio arranca); se repitió en verde y el arreglo del script quedó como tarea aparte de infra |
 
 El recorrido completo dentro de Compose, con el worker encendido, queda para cuando
 infra tenga Redis (SNI-56).
+
+La migración se renombró a `V12__create_formatted_snippets.sql` porque SNI-69 (#58)
+usa V10 y SNI-63 (#59) usa V11. Por eso el orden de merge es #58, #59 y después
+esta PR: Flyway no acepta una migración menor después de aplicar una mayor. Es
+aditiva y no llegó a ningún ambiente compartido.

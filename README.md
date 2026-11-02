@@ -216,7 +216,7 @@ lo expone SNI-66. Ver [contrato, casos, decisiones y evidencia](docs/formatting-
 `FormattingRulesChangedHandler` procesa en segundo plano el trabajo que deja
 SNI-61: recorre en páginas estables los snippets propios del owner para ese
 lenguaje y esa versión, formatea uno por turno con el permiso de fondo compartido
-y guarda un derivado separado del original (`formatted_snippets`, V10). Solo lo
+y guarda un derivado separado del original (`formatted_snippets`, V12). Solo lo
 publica si código, reglas y procesador siguen vigentes; reglas más nuevas superan
 el lote viejo. Retoma sin repetir lo terminado, y un snippet que falla no frena a
 los demás. El progreso se consulta con `GET /jobs/{id}`. Ver
