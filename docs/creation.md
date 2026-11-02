@@ -25,7 +25,7 @@ tests con los servicios reales en Compose y la persistencia entre contenedores.
 | `description` | string o `null` | No | Ausente y `null` son equivalentes. Una cadena vacía es distinta. |
 | `language` | string | Sí | No puede estar en blanco. |
 | `version` | string | Sí | No puede estar en blanco. No hay versión por defecto. |
-| `code` | string | Sí | Puede estar vacío: Language decide su validez. |
+| `code` | string | Sí | No puede estar vacío ni contener sólo espacios en blanco (incluidos tabs y saltos de línea); se rechaza con `400`, `field=code`, antes de Language o persistencia. |
 
 Los valores se conservan sin recortar ni normalizar. No se acepta ningún otro campo: un body con `ownerId`, `actorId` o `fingerprint` se rechaza. Tampoco se convierten tipos: un número donde va un string se rechaza. `DraftJsonDecoder` aplica estas reglas.
 
@@ -351,3 +351,14 @@ El caso de uso no conoce HTTP. `SnippetsController` decodifica el body y los hea
 ```bash
 PRINTSCRIPT_SERVICE_URL=http://localhost:8082 PERMISSIONS_SERVICE_URL=http://localhost:8081 ./gradlew test
 ```
+
+## Decisión SNI-55 — 28/10/2026
+
+Thiago aprobó rechazar código vacío y compuesto sólo por espacios, tabs o saltos
+de línea. Se usa `String.isBlank()`, incluidos espacios Unicode, sin recortar el
+contenido admitido. La alternativa de rechazar sólo longitud cero permitía un
+editor visualmente vacío. El costo es impedir nuevos guardados de esos programas,
+aunque el intérprete los acepte. Los comentarios siguen delegados a Language.
+No cambia AssetEnvelope ni se migran blobs históricos; las lecturas existentes y
+los inputs/outputs vacíos de tests mantienen su contrato. La UI replica la misma
+regla; el backend sigue siendo autoritativo.

@@ -160,6 +160,22 @@ class UpdateHttpTest
         }
 
         @Test
+        fun `blank replacement keeps the original snippet and never invokes dependencies`() {
+            val created = created()
+            val validation = printScript.received.toList()
+            val access = permissions.received.toList()
+            val reference = links.findContent(created.id)
+            val answer = api.update(created.id.toString(), requestBody(code = " \t\r\n"))
+            assertThat(answer.status).isEqualTo(400)
+            assertThat(answer.type).isEqualTo("urn:snippets:problem:invalid-request")
+            assertThat(answer.body.path("field").asString()).isEqualTo("code")
+            assertThat(printScript.received).isEqualTo(validation)
+            assertThat(permissions.received).isEqualTo(access)
+            assertThat(links.findContent(created.id)).isEqualTo(reference)
+            assertUnchanged(created)
+        }
+
+        @Test
         fun `unsupported languages and versions change nothing and never reach PrintScript`() {
             val created = created()
             val validationRequests = printScript.received.toList()
