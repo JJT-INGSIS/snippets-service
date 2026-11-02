@@ -41,6 +41,99 @@ class OutboxDeliveryTest(
     }
 
     @Test
+    fun `full AOF keeps PostgreSQL work and pending deliveries until the filesystem recovers`() {
+        assertBoundedAofFixture()
+        val first = recordJob()
+        assertThat(publisher().publishBatch()).isEqualTo(1)
+        redis.opsForStream<String, String>().createGroup(
+            settings.stream,
+            org.springframework.data.redis.connection.stream.ReadOffset
+                .from("0-0"),
+            "disk-test",
+        )
+        container.execInContainer(
+            "redis-cli",
+            "XREADGROUP",
+            "GROUP",
+            "disk-test",
+            "worker",
+            "COUNT",
+            "1",
+            "STREAMS",
+            settings.stream,
+            ">",
+        )
+        assertThat(redis.opsForStream<String, String>().pending(settings.stream, "disk-test")?.totalPendingMessages)
+            .isEqualTo(1)
+        val second = recordJob()
+        try {
+            container.execInContainer(
+                "sh",
+                "-c",
+                "dd if=/dev/zero of=/data/fault-fill bs=1024 count=16384 2>/dev/null || true",
+            )
+            // Exceed the partially allocated AOF block: a tiny append may still fit on a full filesystem.
+            container.execInContainer("redis-cli", "SET", "disk-test-trigger", "x".repeat(16384))
+            awaitAofStatus("err")
+            assertThat(publisher().publishBatch()).isZero()
+            assertThat(unpublished(second.eventId)).isTrue()
+            assertThat(
+                jdbc.queryForObject(
+                    "SELECT count(*) FROM background_jobs WHERE state = 'PENDING'",
+                    Int::class.java,
+                ),
+            ).isEqualTo(2)
+            assertThat(events()).containsExactly(first)
+            assertThat(redis.opsForStream<String, String>().pending(settings.stream, "disk-test")?.totalPendingMessages)
+                .isEqualTo(1)
+        } finally {
+            container.execInContainer("rm", "-f", "/data/fault-fill")
+            awaitAofStatus("ok")
+        }
+        makeDue()
+        assertThat(publisher().publishBatch()).isEqualTo(1)
+        assertThat(events()).containsExactly(first, second)
+        assertThat(unpublished(second.eventId)).isFalse()
+    }
+
+    private fun assertBoundedAofFixture() {
+        assertThat(container.execInContainer("redis-cli", "CONFIG", "GET", "dir").stdout).contains("/data")
+        assertThat(container.execInContainer("redis-cli", "CONFIG", "GET", "appendonly").stdout).contains("yes")
+        // Refuse fault injection unless /data is the bounded test-only tmpfs.
+        assertThat(
+            container
+                .execInContainer(
+                    "sh",
+                    "-ec",
+                    "test \"\$(stat -f -c %T /data)\" = tmpfs; test \"\$(stat -f -c %b /data)\" -le 2048",
+                ).exitCode,
+        ).isZero()
+    }
+
+    private fun awaitAofStatus(expected: String) {
+        val deadline =
+            System.nanoTime() +
+                java.time.Duration
+                    .ofSeconds(10)
+                    .toNanos()
+        while (System.nanoTime() < deadline) {
+            if (container
+                    .execInContainer("redis-cli", "INFO", "persistence")
+                    .stdout
+                    .contains("aof_last_write_status:$expected")
+            ) {
+                return
+            }
+            Thread.sleep(
+                java.time.Duration
+                    .ofMillis(100)
+                    .toMillis(),
+            )
+        }
+        error("AOF did not reach expected persistence status")
+    }
+
+    @Test
     fun `confirmed event is published and its job remains pending`() {
         val event = recordJob()
         assertThat(publisher().publishBatch()).isEqualTo(1)
