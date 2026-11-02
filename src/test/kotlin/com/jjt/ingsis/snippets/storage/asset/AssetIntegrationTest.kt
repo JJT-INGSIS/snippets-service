@@ -30,10 +30,10 @@ import com.jjt.ingsis.snippets.storage.SnippetContentStorage
 import com.jjt.ingsis.snippets.storage.StoreResult
 import com.jjt.ingsis.snippets.storage.local.ContentDirectory
 import com.jjt.ingsis.snippets.storage.local.LocalSnippetContentStorage
-import com.jjt.ingsis.snippets.update.SnippetReplacement
 import com.jjt.ingsis.snippets.update.UpdateCandidate
 import com.jjt.ingsis.snippets.update.UpdateFailure
 import com.jjt.ingsis.snippets.update.UpdateOutcome
+import com.jjt.ingsis.snippets.update.replacementForTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -139,10 +139,10 @@ class AssetIntegrationTest
                         throw MetadataPersistenceException(IllegalStateException("Injected commit failure"))
                 }
             val result =
-                SnippetReplacement(
+                replacementForTest(
                     storage,
                     failing,
-                ).apply(UpdateCandidate(original.snippet.id, draft().copy(code = "new")))
+                ).apply(UpdateCandidate(original.snippet.id, draft().copy(code = "new"), "dev-juan"))
             assertThat(result).isEqualTo(UpdateOutcome.Failed(UpdateFailure.METADATA_UNAVAILABLE))
             assertThat(metadata.findConfirmed(original.snippet.id)).isEqualTo(original.snippet)
             assertThat(links.findContent(original.snippet.id)).isEqualTo(before)
@@ -171,9 +171,9 @@ class AssetIntegrationTest
                         )
                     }
                 }
-            val candidate = UpdateCandidate(original.snippet.id, draft().copy(name = "new", code = "new"))
+            val candidate = UpdateCandidate(original.snippet.id, draft().copy(name = "new", code = "new"), "dev-juan")
             assertThat(
-                SnippetReplacement(storage, uncertain).apply(candidate),
+                replacementForTest(storage, uncertain).apply(candidate),
             ).isEqualTo(UpdateOutcome.Failed(UpdateFailure.METADATA_UNAVAILABLE))
             val current = checkNotNull(links.findContent(original.snippet.id))
             assertThat(current).isNotEqualTo(before)
@@ -189,7 +189,7 @@ class AssetIntegrationTest
                     UUID.randomUUID().toString(),
                     ActorContext(),
                 ) as CreationOutcome.Created
-            val replacement = SnippetReplacement(storage, links)
+            val replacement = replacementForTest(storage, links)
             val results =
                 Executors.newFixedThreadPool(4).use { executor ->
                     val futures =
@@ -200,6 +200,7 @@ class AssetIntegrationTest
                                         UpdateCandidate(
                                             original.snippet.id,
                                             draft().copy(name = "v$number", code = "code$number"),
+                                            "dev-juan",
                                         ),
                                     )
                                 },
