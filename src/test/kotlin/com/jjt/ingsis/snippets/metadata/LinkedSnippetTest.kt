@@ -58,7 +58,7 @@ class LinkedSnippetTest
             val dataSource = mock(DataSource::class.java) { throw SQLException("Database unavailable") }
             val unavailable =
                 JdbcSnippetContentLinks(
-                    SnippetContentRows(JdbcTemplate(dataSource)),
+                    SnippetContentRows(JdbcTemplate(dataSource), ContentRetention(JdbcTemplate(dataSource))),
                     MetadataTransaction(JdbcTransactionManager(dataSource)),
                 )
 

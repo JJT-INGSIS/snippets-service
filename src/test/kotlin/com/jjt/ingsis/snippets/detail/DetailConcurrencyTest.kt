@@ -74,7 +74,7 @@ class DetailConcurrencyTest
                     version = "1.0",
                     code = codeOf(name),
                 )
-            return replacement.apply(UpdateCandidate(id, draft)) is UpdateOutcome.Updated
+            return replacement.apply(UpdateCandidate(id, draft, "dev-juan")) is UpdateOutcome.Updated
         }
 
         private fun storedSnippet(name: String): UUID {

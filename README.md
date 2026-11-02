@@ -477,3 +477,5 @@ El consumidor también está desactivado por defecto y todavía no registra hand
 El caller usa `github-workflows@v0.6.2`, con la revisión fija de infra que corrige el doble escape de healthchecks. Antes de reaplicar infraestructura o probar reconciliación, actualizar los cuatro callers del ambiente y esperar que no haya ejecuciones activas. No reejecutar herramientas antiguas sobre el stack ampliado.
 El procedimiento y la protección del registro están en
 [rollout SNI-43](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-43-cd.md).
+
+Snapshots y retención por actualización (SNI-68): [contrato y recuperación](docs/automatic-update-snapshots.md).
