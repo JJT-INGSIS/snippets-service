@@ -46,6 +46,7 @@ interface JobProgressStore {
         itemId: UUID,
         result: String?,
         state: ItemState,
+        reason: String? = null,
     )
 
     fun retryItem(
