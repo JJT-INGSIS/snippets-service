@@ -26,8 +26,18 @@ data class AuditedRun(
     val reserved: Boolean = true,
 )
 
+enum class AuditReservation { RESERVED, ACTOR_BUSY, CAPACITY }
+
 interface ExecutionAudit {
     fun reserve(run: AuditedRun): Boolean
+
+    fun reserveForStart(run: AuditedRun): AuditReservation =
+        if (reserve(run)) AuditReservation.RESERVED else AuditReservation.ACTOR_BUSY
+
+    fun stopped(
+        id: UUID,
+        reason: String,
+    ) = unknown(id, reason, release = true)
 
     fun bind(
         id: UUID,

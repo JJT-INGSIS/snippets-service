@@ -6,7 +6,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
 import tools.jackson.databind.json.JsonMapper
 import java.sql.Timestamp
-import java.time.Instant
 
 private const val MAX_ENVELOPE_BYTES = 16 * 1024
 
@@ -27,7 +26,7 @@ class JdbcJobRecords(
                 "INSERT INTO background_jobs " +
                     "(id, event_id, reaction, initiated_by, scope, revisions, " +
                     "next_attempt_at, created_at, updated_at) " +
-                    "VALUES (?, ?, ?, ?, CAST(? AS jsonb), CAST(? AS jsonb), ?, ?, ?)",
+                    "VALUES (?, ?, ?, ?, CAST(? AS jsonb), CAST(? AS jsonb), clock_timestamp(), ?, ?)",
                 event.jobId,
                 event.eventId,
                 job.reaction,
@@ -36,15 +35,13 @@ class JdbcJobRecords(
                 json.writeValueAsString(event.revisions),
                 now,
                 now,
-                now,
             )
             jdbc.update(
                 "INSERT INTO event_outbox (event_id, job_id, envelope, created_at, next_attempt_at) " +
-                    "VALUES (?, ?, CAST(? AS jsonb), ?, ?)",
+                    "VALUES (?, ?, CAST(? AS jsonb), ?, clock_timestamp())",
                 event.eventId,
                 event.jobId,
                 envelope,
-                now,
                 now,
             )
             Unit
@@ -52,19 +49,16 @@ class JdbcJobRecords(
 
     fun insertItem(item: NewJobItem): Boolean =
         transaction.requireCommit {
-            val now = Timestamp.from(Instant.now())
             jdbc.update(
                 "INSERT INTO background_job_items " +
                     "(id, job_id, item_key, revisions, snapshot_reference, next_attempt_at, created_at, updated_at) " +
-                    "VALUES (?, ?, ?, CAST(? AS jsonb), ?, ?, ?, ?) ON CONFLICT (job_id, item_key) DO NOTHING",
+                    "VALUES (?, ?, ?, CAST(? AS jsonb), ?, clock_timestamp(), clock_timestamp(), " +
+                    "clock_timestamp()) ON CONFLICT (job_id, item_key) DO NOTHING",
                 item.id,
                 item.jobId,
                 item.key,
                 json.writeValueAsString(item.revisions),
                 item.snapshotReference,
-                now,
-                now,
-                now,
             ) == 1
         }
 }
