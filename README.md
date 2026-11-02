@@ -1,5 +1,7 @@
 # Snippets Service
 
+SNI-60 agrega la capacidad de lint en Language: [contrato e integración](docs/linting.md).
+
 ## Asset Service — SNI-19
 
 El storage se selecciona con `STORAGE_PROVIDER=local|asset`; `local` sigue siendo
