@@ -468,6 +468,10 @@ La base de trabajos durables, outbox y publicación recuperable por Redis Stream
 está descrita en [SNI-57: configuración y recuperación](docs/background-outbox.md).
 El publicador está desactivado por defecto; no activa todavía las historias asíncronas.
 
+SNI-58 agrega consumo recuperable, leases, cupos compartidos con ejecuciones
+manuales y `GET /jobs/{jobId}`. Ver [consumo, autorización y operación](docs/background-consumer.md).
+El consumidor también está desactivado por defecto y todavía no registra handlers de negocio.
+
 ## SNI-43 — actualización de herramientas de CD
 
 El caller usa `github-workflows@v0.6.2`, con la revisión fija de infra que corrige el doble escape de healthchecks. Antes de reaplicar infraestructura o probar reconciliación, actualizar los cuatro callers del ambiente y esperar que no haya ejecuciones activas. No reejecutar herramientas antiguas sobre el stack ampliado.

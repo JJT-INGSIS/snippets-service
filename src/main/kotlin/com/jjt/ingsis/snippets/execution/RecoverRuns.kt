@@ -64,7 +64,11 @@ class RecoverRuns(
     ) {
         when (val described = channel.executor.describe(checkNotNull(channel.run.remote).id)) {
             is ExecutionResult.Success -> {
-                if (described.value.state in terminalStates) replayTerminal(channel, previousFailure)
+                if (described.value.processor != channel.run.remote.processor) {
+                    pending(channel, previousFailure, "recovery-processor-mismatch")
+                } else if (described.value.state in terminalStates) {
+                    replayTerminal(channel, previousFailure)
+                }
             }
 
             is ExecutionResult.Rejected -> {
@@ -92,10 +96,9 @@ class RecoverRuns(
             is RunResult.Success -> {
                 val result = opened.value.use { it.read {} }
                 if (result is RunResult.Refused && result.failure == RunFailure.HISTORY_UNAVAILABLE) {
-                    audit.unknown(
+                    audit.stopped(
                         channel.run.id,
                         "execution-result-recovery-incomplete",
-                        release = true,
                     )
                 } else if (result is RunResult.Refused) {
                     pending(channel, previousFailure, "execution-result-recovery-pending")
@@ -104,7 +107,7 @@ class RecoverRuns(
 
             is RunResult.Refused -> {
                 if (opened.failure in setOf(RunFailure.HISTORY_UNAVAILABLE, RunFailure.EXECUTION_MISSING)) {
-                    audit.unknown(channel.run.id, "execution-event-history-unavailable", release = true)
+                    audit.stopped(channel.run.id, "execution-event-history-unavailable")
                 } else if (opened.failure != RunFailure.CONSUMER_CONFLICT) {
                     pending(channel, previousFailure, "execution-result-recovery-pending")
                 }

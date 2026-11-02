@@ -44,22 +44,30 @@ class RunLauncher(
         try {
             val run =
                 AuditedRun(id = UUID.randomUUID(), actorId = actorId, snapshot = snapshot, startedAt = Instant.now())
-            if (!audit.reserve(run)) {
-                RunResult.Refused(RunFailure.ACTIVE)
-            } else {
-                when (val started = executor.start(snapshot.request())) {
-                    is ExecutionResult.Success -> {
-                        bind(run, executor, started.value)
-                    }
+            when (audit.reserveForStart(run)) {
+                AuditReservation.ACTOR_BUSY -> {
+                    RunResult.Refused(RunFailure.ACTIVE)
+                }
 
-                    is ExecutionResult.Rejected -> {
-                        audit.reject(run.id, started.reason)
-                        RunResult.Refused(executionFailure(started.reason))
-                    }
+                AuditReservation.CAPACITY -> {
+                    RunResult.Refused(RunFailure.CAPACITY_EXHAUSTED)
+                }
 
-                    is ExecutionResult.Failed -> {
-                        audit.unknown(run.id, started.reason, release = !started.uncertain)
-                        RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE)
+                AuditReservation.RESERVED -> {
+                    when (val started = executor.start(snapshot.request())) {
+                        is ExecutionResult.Success -> {
+                            bind(run, executor, started.value)
+                        }
+
+                        is ExecutionResult.Rejected -> {
+                            audit.reject(run.id, started.reason)
+                            RunResult.Refused(executionFailure(started.reason))
+                        }
+
+                        is ExecutionResult.Failed -> {
+                            audit.unknown(run.id, started.reason, release = !started.uncertain)
+                            RunResult.Refused(RunFailure.DEPENDENCY_UNAVAILABLE)
+                        }
                     }
                 }
             }
