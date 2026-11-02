@@ -16,6 +16,7 @@ import com.jjt.ingsis.snippets.identity.ActorIdentity
 import com.jjt.ingsis.snippets.identity.ActorIdentityResolver
 import com.jjt.ingsis.snippets.language.Diagnostic
 import com.jjt.ingsis.snippets.language.ValidationResult
+import com.jjt.ingsis.snippets.lintingrules.SavedSnippetLint
 import com.jjt.ingsis.snippets.metadata.ContentReplacementResult
 import com.jjt.ingsis.snippets.metadata.CreationResult
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
@@ -71,6 +72,23 @@ class UpdateFlowTest
         private val connectionLost = MetadataPersistenceException(IllegalStateException("Connection lost"))
         private val replacement =
             draft().copy(name = "Renamed", description = "Second version", version = "1.1", code = "println(2);")
+
+        @Test
+        fun `lint observes the committed replacement and does not decide update success`() {
+            val original = created()
+            val calls = mutableListOf<UUID>()
+            val updating =
+                updating(
+                    lint =
+                        SavedSnippetLint { id, _, input ->
+                            assertThat(storedCode(id)).isEqualTo(input.code)
+                            assertThat(store.findConfirmed(id)?.name).isEqualTo(input.name)
+                            calls += id
+                        },
+                )
+            assertThat(update(updating, original, replacement)).isInstanceOf(UpdateOutcome.Updated::class.java)
+            assertThat(calls).containsExactly(original.id)
+        }
 
         @Test
         fun `the owner replaces the code and every detail together`() {
@@ -260,6 +278,7 @@ class UpdateFlowTest
             links: SnippetContentLinks = this.links,
             permissions: ModificationChecker = allowed,
             validation: ValidationResult = ValidationResult.Valid,
+            lint: SavedSnippetLint = SavedSnippetLint { _, _, _ -> },
         ): UpdateSnippet =
             UpdateSnippet(
                 preparation =
@@ -270,6 +289,7 @@ class UpdateFlowTest
                         language = language(validation),
                     ),
                 replacement = replacementForTest(storage, links),
+                lint = lint,
             )
 
         private fun update(
@@ -295,6 +315,9 @@ class UpdateFlowTest
                     content = CreationContent(storage, links),
                     owner = CreationOwner(registered),
                     confirmation = CreationConfirmation(store),
+                    lint =
+                        com.jjt.ingsis.snippets.lintingrules
+                            .SavedSnippetLint { _, _, _ -> },
                 )
             val created = creation.create(draft(), UUID.randomUUID().toString(), context) as CreationOutcome.Created
 

@@ -1,6 +1,7 @@
 package com.jjt.ingsis.snippets.creation
 
 import com.jjt.ingsis.snippets.identity.ActorContext
+import com.jjt.ingsis.snippets.lintingrules.SavedSnippetLint
 import com.jjt.ingsis.snippets.metadata.SnippetState
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -12,6 +13,7 @@ class CreateSnippet(
     private val content: CreationContent,
     private val owner: CreationOwner,
     private val confirmation: CreationConfirmation,
+    private val lint: SavedSnippetLint,
 ) {
     private val logger = LoggerFactory.getLogger(CreateSnippet::class.java)
 
@@ -23,19 +25,19 @@ class CreateSnippet(
         when (val prepared = preparation.prepare(draft, keyHeader, context)) {
             is PreparationResult.Rejected -> CreationOutcome.Rejected(prepared.reason)
             PreparationResult.Conflict -> CreationOutcome.Conflict
-            is PreparationResult.Prepared -> complete(prepared, draft.code)
+            is PreparationResult.Prepared -> complete(prepared, draft)
         }
 
     private fun complete(
         prepared: PreparationResult.Prepared,
-        code: String,
+        draft: SnippetDraft,
     ): CreationOutcome {
         val snippet = prepared.metadata
         if (snippet.state == SnippetState.CONFIRMED) {
             return CreationOutcome.AlreadyCreated(snippet)
         }
 
-        val contentFailure = content.store(snippet.id, code)
+        val contentFailure = content.store(snippet.id, draft.code)
         if (contentFailure != null) {
             return incomplete(snippet.id, contentFailure)
         }
@@ -49,6 +51,7 @@ class CreateSnippet(
             confirmation.confirm(snippet.id)
                 ?: return incomplete(snippet.id, CreationFailure.METADATA_UNAVAILABLE)
 
+        lint.assess(confirmed.id, prepared.actorId, draft)
         return CreationOutcome.Created(confirmed)
     }
 
