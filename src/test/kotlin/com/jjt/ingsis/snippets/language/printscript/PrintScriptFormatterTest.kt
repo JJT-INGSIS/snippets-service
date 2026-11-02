@@ -1,10 +1,12 @@
 package com.jjt.ingsis.snippets.language.printscript
 
+import com.jjt.ingsis.snippets.language.Attributed
 import com.jjt.ingsis.snippets.language.Diagnostic
 import com.jjt.ingsis.snippets.language.PROCESSOR_REVISION_HEADER
 import com.jjt.ingsis.snippets.language.ProcessorIdentity
 import com.jjt.ingsis.snippets.language.ProcessorRevision
 import com.jjt.ingsis.snippets.language.formatting.FormattingCatalogResult
+import com.jjt.ingsis.snippets.language.formatting.FormattingCheckResult
 import com.jjt.ingsis.snippets.language.formatting.FormattingResult
 import com.jjt.ingsis.snippets.language.formatting.FormattingRule
 import com.jjt.ingsis.snippets.language.formatting.FormattingRuleViolation
@@ -12,6 +14,8 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 class PrintScriptFormatterTest {
+    private val validRules = """{"valid":true,"violations":[]}"""
+
     private val formattedBody = """{"formatted":true,"code":"let a = 1;","diagnostics":[]}"""
 
     private val unsupportedVersionBody =
@@ -158,6 +162,80 @@ class PrintScriptFormatterTest {
                 .isEqualTo(FormattingCatalogResult.UnsupportedVersion("printscript", "9.9"))
         }
     }
+
+    @Test
+    fun `checks the rules with the service and keeps only the rules turned on`() {
+        val revision = "sha256-v1:" + "d".repeat(64)
+        val stamped = mapOf(PROCESSOR_REVISION_HEADER to revision)
+        val rules =
+            linkedMapOf<String, Any?>(
+                "enforce-spacing-around-equals" to true,
+                "enforce-no-spacing-around-equals" to false,
+                "indent-inside-if" to 2,
+                "line-breaks-after-println" to null,
+            )
+
+        StubLanguageService(status = 200, body = validRules, headers = stamped).use { service ->
+            val attributed = formatterFor(service.baseUrl).check("1.1", rules)
+
+            val request = service.received.single()
+            assertThat(request.method).isEqualTo("POST")
+            assertThat(request.path).isEqualTo("/formatting/rules/check")
+            assertThat(request.body).isEqualTo(
+                """{"version":"1.1","rules":{"enforce-spacing-around-equals":true,""" +
+                    """"enforce-no-spacing-around-equals":false,"indent-inside-if":2,""" +
+                    """"line-breaks-after-println":null}}""",
+            )
+            assertThat(attributed).isEqualTo(
+                Attributed(
+                    FormattingCheckResult.Accepted(
+                        mapOf(
+                            "enforce-spacing-around-equals" to true,
+                            "indent-inside-if" to 2,
+                        ),
+                    ),
+                    ProcessorIdentity.Verified(ProcessorRevision(revision)),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `rules the service rejects come back with every violation`() {
+        val body =
+            """
+            {"valid":false,"violations":[
+              {"rule":"indent-inside-if","reason":"unavailable-in-version"},
+              {"rule":"tabs","reason":"unknown-rule"}]}
+            """.trimIndent()
+
+        assertThat(checkWith(200, body)).isEqualTo(
+            FormattingCheckResult.InvalidRules(
+                listOf(
+                    FormattingRuleViolation("indent-inside-if", "unavailable-in-version"),
+                    FormattingRuleViolation("tabs", "unknown-rule"),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `an unsupported version or an unexpected answer is never an accepted check`() {
+        assertThat(checkWith(422, unsupportedVersionBody))
+            .isEqualTo(FormattingCheckResult.UnsupportedVersion("printscript", "1.1"))
+
+        listOf(500 to """{"status":500}""", 400 to """{"status":400}""", 200 to "not json").forEach { (status, body) ->
+            assertThat(checkWith(status, body)).isInstanceOf(FormattingCheckResult.Failed::class.java)
+        }
+    }
+
+    private fun checkWith(
+        status: Int,
+        body: String,
+    ): FormattingCheckResult =
+        StubLanguageService(status = status, body = body).use { service ->
+            formatterFor(service.baseUrl).check("1.1", mapOf("indent-inside-if" to 2)).result
+        }
 
     private fun formatWith(
         status: Int,

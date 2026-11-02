@@ -2,6 +2,7 @@ package com.jjt.ingsis.snippets.language.printscript
 
 import com.jjt.ingsis.snippets.language.Attributed
 import com.jjt.ingsis.snippets.language.formatting.FormattingCatalogResult
+import com.jjt.ingsis.snippets.language.formatting.FormattingCheckResult
 import com.jjt.ingsis.snippets.language.formatting.FormattingResult
 import com.jjt.ingsis.snippets.language.formatting.LanguageFormatter
 import org.springframework.stereotype.Component
@@ -9,7 +10,7 @@ import org.springframework.stereotype.Component
 private const val INVALID_RULES = "urn:printscript:problem:invalid-formatting-rules"
 private const val OUTPUT_TOO_LARGE = "urn:printscript:problem:formatted-output-too-large"
 private const val CODE_TOO_LARGE = "urn:printscript:problem:request-too-large"
-private const val UNAVAILABLE = "The PrintScript service is unavailable or did not answer as its contract says"
+internal const val UNAVAILABLE = "The PrintScript service is unavailable or did not answer as its contract says"
 
 @Component
 class PrintScriptFormatter(
@@ -22,7 +23,23 @@ class PrintScriptFormatter(
     override fun catalog(version: String): Attributed<FormattingCatalogResult> {
         val exchange =
             printScript.get("/formatting/rules?version={version}", version, PrintScriptFormattingCatalog::class.java)
-        return Attributed(catalogOf(exchange.result, version), exchange.processor)
+        return Attributed(PrintScriptRuleAnswers.catalogOf(exchange.result, language, version), exchange.processor)
+    }
+
+    override fun check(
+        version: String,
+        rules: Map<String, Any?>,
+    ): Attributed<FormattingCheckResult> {
+        val request = PrintScriptRulesCheckRequest(version = version, rules = rules)
+        val exchange = printScript.post("/formatting/rules/check", request, PrintScriptRulesCheck::class.java)
+        val result =
+            PrintScriptRuleAnswers.checkOf(
+                answer = exchange.result,
+                language = language,
+                version = version,
+                rules = rules,
+            )
+        return Attributed(result, exchange.processor)
     }
 
     override fun format(
@@ -34,33 +51,6 @@ class PrintScriptFormatter(
         val exchange = printScript.post("/formatting", request, PrintScriptFormattingResponse::class.java)
         return Attributed(formattingOf(exchange.result, version), exchange.processor)
     }
-
-    private fun catalogOf(
-        answer: PrintScriptAnswer<PrintScriptFormattingCatalog>,
-        version: String,
-    ): FormattingCatalogResult =
-        when (answer) {
-            is PrintScriptAnswer.Answered -> catalogFrom(answer.body)
-            is PrintScriptAnswer.Rejected -> catalogRejection(answer, version)
-            PrintScriptAnswer.Unavailable -> FormattingCatalogResult.Failed(UNAVAILABLE)
-        }
-
-    private fun catalogFrom(body: PrintScriptFormattingCatalog?): FormattingCatalogResult =
-        if (body == null) {
-            FormattingCatalogResult.Failed(UNAVAILABLE)
-        } else {
-            FormattingCatalogResult.Catalog(body.rules)
-        }
-
-    private fun catalogRejection(
-        rejected: PrintScriptAnswer.Rejected,
-        version: String,
-    ): FormattingCatalogResult =
-        if (rejected.isUnsupportedVersion) {
-            FormattingCatalogResult.UnsupportedVersion(language, version)
-        } else {
-            FormattingCatalogResult.Failed(UNAVAILABLE)
-        }
 
     private fun formattingOf(
         answer: PrintScriptAnswer<PrintScriptFormattingResponse>,

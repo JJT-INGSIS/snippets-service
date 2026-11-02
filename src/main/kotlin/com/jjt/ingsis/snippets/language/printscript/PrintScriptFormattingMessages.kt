@@ -20,6 +20,16 @@ data class PrintScriptFormattingResponse(
     val diagnostics: List<PrintScriptDiagnostic>,
 )
 
+data class PrintScriptRulesCheckRequest(
+    val version: String,
+    val rules: Map<String, Any?>,
+)
+
+data class PrintScriptRulesCheck(
+    val valid: Boolean,
+    val violations: List<FormattingRuleViolation>,
+)
+
 data class PrintScriptProblem(
     val type: String? = null,
     val violations: List<FormattingRuleViolation>? = null,

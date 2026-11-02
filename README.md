@@ -195,8 +195,19 @@ Sin esa variable, `PrintScriptServiceLiveTest` se omite.
 `language.formattingCatalog(...)` devuelve las reglas de formato de una versión y
 `language.format(...)` formatea código, cada uno con la revisión del procesador
 que contestó. Para PrintScript lo resuelve `PrintScriptFormatter` contra
-`printscript-service`. Todavía no hay rutas públicas que lo usen. Ver
+`printscript-service`. `language.checkFormattingRules(...)` valida una selección
+contra el catálogo real (SNI-61). Ver
 [resultados, diseño y decisiones](docs/formatting-language.md).
+
+## Reglas de formato del owner — SNI-61
+
+`GET` y `PUT /formatting-rules/{language}/{version}` leen y reemplazan las reglas
+del actor, validadas contra el catálogo real de PrintScript. Un cambio confirmado
+guarda configuración, revisión, trabajo `format-owned-snippets` y el evento
+`FormattingRulesChanged` en un único commit (outbox de SNI-57); un `PUT` sin
+cambios no crea trabajo. `FormatSavedSnippet` formatea un snippet guardado con
+las reglas de su owner, sin escribir nada, y solo entrega un resultado vigente;
+lo expone SNI-66. Ver [contrato, casos, decisiones y evidencia](docs/formatting-rules.md).
 
 ## Responsabilidad prevista
 
