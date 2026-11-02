@@ -7,7 +7,7 @@ cambiaron, la configuración, su revisión, el trabajo raíz y el evento
 (outbox de [SNI-57](background-outbox.md)). El reprocesamiento de los snippets
 afectados es US12; acá solo queda el trabajo pendiente.
 
-Estado: **propuesto y aprobado; implementación en curso.**
+Estado: **implementado y verificado en Compose (02/11/2026).** La ruta HTTP del derivado individual es SNI-66.
 
 ## API
 
@@ -151,5 +151,35 @@ Aprobadas por Juan el 02/11/2026 («dale, aprobadas las 8»).
 
 ## Verificación
 
-Pendiente: pruebas de aplicación, HTTP y PostgreSQL, `./gradlew build` y prueba
-en vivo con printscript-service real.
+`./gradlew build` en verde (JDK 21 y Docker para Testcontainers):
+
+| Clase | Qué prueba |
+| --- | --- |
+| `FormattingSelectionTest` | Revisión independiente del orden y del tipo numérico; vacía = ausente |
+| `FormattingRulesUseCasesTest` | Matriz de casos: ausente, nueva, sin cambios, vacía, volver a defaults, inválidas, proveedor caído o no verificable, versión no soportada, identidades separadas, sin identidad, base caída |
+| `FormattingRulesPersistenceTest` | PostgreSQL real: config + trabajo + outbox en un commit, sin trabajo si no cambia, rollback completo si falla el outbox |
+| `FormattingRulesHttpTest` | API completa con PrintScript simulado: `200`, `400`, `401`, `422`, `502` y aislamiento entre owners |
+| `LanguageFormattingTest`, `PrintScriptFormatterTest` | `check` en Language y en el adaptador; selección canónica |
+| `FormattingBasisTest` | Vigencia: cualquier cambio de contenido, lenguaje, versión, reglas o procesador la invalida |
+| `FormatSavedSnippetTest` | Reglas del owner también para un lector, reintento ante una edición, `Stale`, procesador no verificable y ninguna escritura |
+| `SnippetProblemTest` | La tabla de errores de este doc coincide con los problemas que responde el servicio |
+
+### Evidencia con Compose — 02/11/2026
+
+Imágenes construidas desde las ramas locales con
+`docker compose --profile ui --profile ingress up -d --build printscript-service snippets-service`.
+Flyway aplicó V8. Publicador y worker apagados (default), sin Redis.
+
+| Comprobación | Resultado |
+| --- | --- |
+| `GET /formatting-rules/printscript/1.1` sin config | `200`, 12 reglas reales, booleanas `false`, numéricas `null`, `revision` = `sha256-v1:44136fa3…ff8a` (selección vacía) |
+| `PUT` con `if-brace-below-line`, `indent-inside-if: 2`, `mandatory-line-breaks-inside-if` | `200 changed:true`, `jobId` |
+| PostgreSQL después del `PUT` | 1 fila que une config, trabajo `PENDING` `format-owned-snippets` y outbox `FormattingRulesChanged` sin publicar |
+| Mismo `PUT` repetido | `200 changed:false`, `jobId:null`, misma revisión, sin trabajo nuevo |
+| `PUT` con `indent-inside-if: 11`, `"true"` y `tabs` | `422 invalid-formatting-rules` con `out-of-range`, `wrong-type` y `unknown-rule`; la config anterior sigue igual |
+| `GET /jobs/{jobId}` | `200 PENDING` para el owner, `404` para otro actor |
+| `GET` de otro actor | Todo en default: no ve reglas ajenas |
+| `revisions.formatProcessor` del evento | `sha256-v1:2001166d…5289`, igual a `capabilities.format` de `GET /processor` |
+| Versión `9.9` | `422 unsupported-version` |
+| `FormatSavedSnippet` con PostgreSQL y PrintScript reales (prueba solo en scratchpad) | Con las reglas guardadas del owner, `if(true){println(1);}` → `if(true)⏎{⏎  println(1);⏎}` y base con revisión de reglas `64454f53…2127` y del procesador `2001166d…5289`; un snippet de otro owner sin reglas sale sin cambios con la revisión vacía |
+| Aceptación SNI-53 (`scripts/verify_us8_10.py`) | 15/15: crear, editar, ejecutar y compartir no cambiaron |
