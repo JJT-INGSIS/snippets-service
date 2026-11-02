@@ -289,7 +289,7 @@ class JdbcJobProgress(
             "UPDATE background_job_items SET state = ?, next_attempt_at = clock_timestamp() + " +
                 "(? * INTERVAL '1 millisecond'), last_error = ?, " +
                 "updated_at = clock_timestamp() " +
-                "WHERE id = ? AND job_id = ? AND state = 'RUNNING'",
+                "WHERE id = ? AND job_id = ? AND state IN ('RUNNING', 'UNKNOWN')",
             if (attempt >= settings.retries.attempts) "FAILED" else "RETRY",
             settings.retries.delayMillis(attempt),
             safeJobReason(reason),
