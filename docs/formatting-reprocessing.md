@@ -8,7 +8,20 @@ segundo plano, sobre la base de [SNI-57](background-outbox.md) y
 ese lenguaje y esa versión, guarda un derivado formateado **separado del original**
 y lo publica solo si sigue vigente.
 
-Estado: **propuesto y aprobado; implementación en curso.**
+Estado: **implementado y verificado (02/11/2026).** El worker sigue apagado por
+defecto; activarlo en ambientes depende de Redis en infra (SNI-56).
+
+## Piezas
+
+| Pieza | Qué hace |
+| --- | --- |
+| `reformatting/FormattingRulesChangedHandler` | El handler: reglas vigentes, una página de selección y un snippet por turno |
+| `reformatting/OwnedSnippetSelection` + `JdbcReformattingCandidates` | Página estable de snippets propios (E1) |
+| `reformatting/SnippetReformatting` + `PermittedItem` | Formatea con permiso de fondo, guarda el blob y publica en la transacción del lease (E3, E5) |
+| `reformatting/ReformattingTarget`, `ReformattingFailures` | Lote del evento y clasificación de fallos (E6) |
+| `formattingrules/OwnerRulesFormatter` | Núcleo compartido con `FormatSavedSnippet` (E7) |
+| `formattingrules/FormattedVariants` + `JdbcFormattedVariants`, V10 | Derivado vigente por snippet (E2) |
+| Base de SNI-58 | `JobStep.Superseded`, motivo opcional al completar un elemento y `retryItem` sobre elementos `UNKNOWN` (E4, E5) |
 
 ## Recorrido de un lote
 
@@ -102,6 +115,10 @@ siguiente, `reconcile` lo libera y reintenta el elemento. Es seguro porque
 formatear es una función pura: repetirla no tiene efectos en PrintScript. Por
 eso se usa `capacity.rejected`, aunque su nombre piensa en ejecuciones remotas.
 
+Si el handler falla con el permiso tomado, la base deja el trabajo y el elemento
+`UNKNOWN`. Para poder reintentarlo, `retryItem` acepta ahora elementos `RUNNING`
+o `UNKNOWN`, igual que `completeItem`.
+
 ## Fallos (E6)
 
 | Tipo | Casos | Resultado |
@@ -176,5 +193,23 @@ Aprobadas por Juan el 02/11/2026 («dale, aprobadas las 8»).
 
 ## Verificación
 
-Pendiente: pruebas de aplicación, integración con PostgreSQL y Redis reales,
-`./gradlew build`, test en vivo con printscript-service y regresión SNI-53.
+`./gradlew build` en verde (JDK 21 y Docker para Testcontainers):
+
+| Clase | Qué prueba |
+| --- | --- |
+| `JobSupersessionIntegrationTest` | Base de SNI-58: lote `SUPERSEDED` solo sobre elementos abiertos, permiso tomado → `UNKNOWN`, motivo de fallo saneado |
+| `FormattedVariantsPersistenceTest` | Publicar y reemplazar; `CodeChanged`; `Superseded` por reglas o versión; transacción obligatoria y rollback |
+| `FormattingRulesChangedHandlerTest` | 9 casos por turno con PostgreSQL real: lote completo, turno muerto sin repetir, `PARTIAL`, lote superado, edición durante el formateo, dependencias caídas, sin capacidad, `reconcile` desde turno caído y desde `UNKNOWN` |
+| `FormattingReprocessingFlowTest` | De punta a punta con Redis real: `SaveFormattingRules` → outbox → stream → `JobConsumer` → handler; respuesta sin espera, entrega duplicada sin resultados nuevos, otro worker retoma; progreso por `FindJobProgress` |
+| `FormatSavedSnippetTest` | Sin cambios de comportamiento tras extraer `OwnerRulesFormatter` |
+
+### Evidencia en vivo — 02/11/2026
+
+| Comprobación | Resultado |
+| --- | --- |
+| `FormattingReprocessingLiveTest` con `PRINTSCRIPT_SERVICE_URL=http://127.0.0.1:8082` (printscript-service de Compose; PostgreSQL y Redis por Testcontainers) | Recorrido completo outbox → Redis → handler. `if(true){println(1);}` → derivado `if(true)⏎{⏎  println(1);⏎}` con llave abajo, salto y sangría 2; original intacto; revisión del procesador igual a `capabilities.format` de `GET /processor` (`2001166d…5289`); un texto sin cerrar queda `FAILED UNFORMATTABLE` y el lote termina `PARTIAL` |
+| Imagen de snippets-service reconstruida en Compose | Flyway aplicó V8 (SNI-68), V9 y V10 sobre la base local, después de limpiar la V8 vieja de SNI-61 registrada antes del renombre |
+| Aceptación SNI-53 (`scripts/verify_us8_10.py`) | 15/15. Una primera corrida dio 14/15 por una carrera del script en «recrear componentes» (lee un 502 de nginx como JSON mientras el servicio arranca); se repitió en verde y el arreglo del script quedó como tarea aparte de infra |
+
+El recorrido completo dentro de Compose, con el worker encendido, queda para cuando
+infra tenga Redis (SNI-56).
