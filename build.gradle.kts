@@ -19,6 +19,12 @@ dependencies {
 }
 
 tasks.test {
+    mustRunAfter("bootJar")
+    inputs.property("parserAdminTestImage", providers.environmentVariable("PARSER_ADMIN_TEST_IMAGE").orElse(""))
+    inputs.property(
+        "parserPrintScriptTestImage",
+        providers.environmentVariable("PARSER_PRINTSCRIPT_TEST_IMAGE").orElse(""),
+    )
     inputs.property("printScriptLintUrl", providers.environmentVariable("PRINTSCRIPT_LINT_URL").orElse(""))
     inputs.property("printScriptExecutionUrl", providers.environmentVariable("PRINTSCRIPT_EXECUTION_URL").orElse(""))
     inputs.dir("docs")

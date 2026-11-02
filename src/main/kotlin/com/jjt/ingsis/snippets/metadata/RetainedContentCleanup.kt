@@ -71,8 +71,12 @@ class RetainedContentCleanup(
     private fun held(reference: ContentReference): Boolean =
         jdbc.queryForObject(
             "SELECT EXISTS (SELECT 1 FROM snippets WHERE content_reference = ?) OR EXISTS " +
-                "(SELECT 1 FROM snippet_update_snapshots WHERE content_reference = ? AND released_at IS NULL)",
+                "(SELECT 1 FROM snippet_update_snapshots " +
+                "WHERE content_reference = ? AND released_at IS NULL) OR EXISTS " +
+                "(SELECT 1 FROM parser_validation_snapshots s JOIN background_jobs j ON j.id = s.job_id " +
+                "WHERE s.source_reference = ? AND j.finished_at IS NULL)",
             Boolean::class.java,
+            reference.value,
             reference.value,
             reference.value,
         ) == true

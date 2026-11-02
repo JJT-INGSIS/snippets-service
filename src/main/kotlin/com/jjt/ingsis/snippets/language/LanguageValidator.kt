@@ -7,6 +7,8 @@ interface LanguageValidator {
 
     val supportedVersions: Set<String>
 
+    fun validationProcessor(): ProcessorIdentity = ProcessorIdentity.Missing
+
     fun validate(
         version: String,
         code: String,
