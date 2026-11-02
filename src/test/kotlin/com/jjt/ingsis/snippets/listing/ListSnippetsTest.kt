@@ -6,6 +6,9 @@ import com.jjt.ingsis.snippets.identity.ActorIdentityResolver
 import com.jjt.ingsis.snippets.language.Language
 import com.jjt.ingsis.snippets.language.LanguageValidator
 import com.jjt.ingsis.snippets.language.ValidationResult
+import com.jjt.ingsis.snippets.lintquery.LintReadBasis
+import com.jjt.ingsis.snippets.lintquery.LintReadPreparation
+import com.jjt.ingsis.snippets.lintquery.PreparedLintRead
 import com.jjt.ingsis.snippets.metadata.MetadataPage
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
 import com.jjt.ingsis.snippets.metadata.PageRequest
@@ -55,7 +58,24 @@ private fun useCase(
     lister: AccessLister,
     search: SnippetSearch,
 ): ListSnippets =
-    ListSnippets(identityResolver = identity, accessLister = lister, search = search, language = printScript)
+    ListSnippets(
+        identityResolver = identity,
+        accessLister = lister,
+        search = search,
+        language = printScript,
+        lint =
+            LintReadPreparation { accesses, _ ->
+                PreparedLintRead.Ready(
+                    LintReadBasis(
+                        emptyMap(),
+                        accesses.associate {
+                            it.snippetId to
+                                it.ownerId
+                        },
+                    ),
+                )
+            },
+    )
 
 class ListSnippetsTest {
     private val shared = SnippetAccess(UUID.randomUUID(), "dev-thiago", AccessRelation.SHARED)
@@ -79,7 +99,9 @@ class ListSnippetsTest {
         val search =
             SnippetSearch { ids, filter, order, page ->
                 check(
-                    ids == setOf(shared.snippetId) && filter == query.filter && order == query.order &&
+                    ids == setOf(shared.snippetId) && filter.copy(lintBasis = null) == query.filter &&
+                        filter.lintBasis?.owners == mapOf(shared.snippetId to shared.ownerId) &&
+                        order == query.order &&
                         page == query.page,
                 )
                 MetadataPage(5, listOf(metadata))

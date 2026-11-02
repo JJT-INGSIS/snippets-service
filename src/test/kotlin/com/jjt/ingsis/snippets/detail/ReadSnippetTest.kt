@@ -109,6 +109,12 @@ private fun reader(
         gate = ConfirmedSnippetGate(identity, links, access),
         content = ContentReading(links, storage),
         language = printScript,
+        lint =
+            com.jjt.ingsis.snippets.lintquery.DetailLintReading { _, _ ->
+                com.jjt.ingsis.snippets.lintquery.DetailLint.Found(
+                    com.jjt.ingsis.snippets.lintquery.LintFinding.NOT_EVALUATED,
+                )
+            },
     )
 
 private fun found(

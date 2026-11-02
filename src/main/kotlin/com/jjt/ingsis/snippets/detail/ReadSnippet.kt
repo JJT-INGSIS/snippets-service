@@ -5,6 +5,8 @@ import com.jjt.ingsis.snippets.access.ReadFailure
 import com.jjt.ingsis.snippets.access.ReadGate
 import com.jjt.ingsis.snippets.identity.ActorContext
 import com.jjt.ingsis.snippets.language.Language
+import com.jjt.ingsis.snippets.lintquery.DetailLint
+import com.jjt.ingsis.snippets.lintquery.DetailLintReading
 import com.jjt.ingsis.snippets.listing.ListedSnippet
 import com.jjt.ingsis.snippets.metadata.LinkedSnippet
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
@@ -16,6 +18,7 @@ class ReadSnippet(
     private val gate: ReadGate,
     private val content: ContentReading,
     private val language: Language,
+    private val lint: DetailLintReading,
 ) {
     fun read(
         snippetId: String?,
@@ -43,8 +46,22 @@ class ReadSnippet(
         when (val read = content.read(linked)) {
             is ContentRead.Read -> {
                 val metadata = read.snippet.metadata
-                val snippet = ListedSnippet(metadata, access, language.extensionOf(metadata.language))
-                DetailOutcome.Found(SnippetDetail(snippet, read.code))
+                when (val finding = lint.read(read.snippet, access)) {
+                    is DetailLint.Found -> {
+                        val snippet =
+                            ListedSnippet(
+                                metadata = metadata,
+                                access = access,
+                                extension = language.extensionOf(metadata.language),
+                                lint = finding.finding,
+                            )
+                        DetailOutcome.Found(SnippetDetail(snippet, read.code))
+                    }
+
+                    DetailLint.Unavailable -> {
+                        DetailOutcome.LanguageUnavailable
+                    }
+                }
             }
 
             ContentRead.Unavailable -> {

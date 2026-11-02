@@ -76,26 +76,12 @@ Los parámetros y campos de paginación usan `page_size` como la UI
 
 ## Lint
 
-El linting no está implementado. Toda respuesta lo informa sin simular un resultado:
-
-```json
-{"status":"not-implemented"}
-```
-
-| `status` | Significado | Disponible |
-| --- | --- | --- |
-| `not-implemented` | No existe evaluación de lint en el sistema. | Ahora |
-| `pending` | Hay una evaluación pedida que todavía no terminó. | Futuro |
-| `compliant` | La última evaluación vigente no encontró infracciones. | Futuro |
-| `not-compliant` | La última evaluación vigente encontró infracciones. | Futuro |
-| `failed` | La evaluación no pudo completarse por una falla técnica. No significa incumplimiento. | Futuro |
-
-- No se devuelve `pending`, `compliant` ni `failed` mientras no exista el lint.
-- La validez del parser no es lint. Todo snippet guardado ya pasó la validación de
-  Language: ese dato no se informa como cumplimiento.
-- Filtrar u ordenar por lint responde `400` hasta que exista la evaluación. No se
-  ignora el parámetro, para no mostrar un resultado que parece filtrado sin estarlo.
-- Las infracciones del detalle se agregan cuando exista el lint (US14–15).
+El contrato de consulta vigente está en [reading.md](reading.md#lint-vigente--sni-64).
+Estados: `compliant`, `not-compliant`, `pending` y `failed`. Un resultado
+superado se representa como `pending` con reason `SUPERSEDED`, sin sus
+diagnósticos anteriores. La UI ya reconoce estos estados; SNI-67 integra
+la configuración y presentación completa. Lote recuperable y defaults
+conservan sus dependencias y no se dan por aceptados sólo por esta consulta.
 
 ## Capacidades
 
