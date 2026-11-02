@@ -472,8 +472,11 @@ SNI-58 agrega consumo recuperable, leases, cupos compartidos con ejecuciones
 manuales y `GET /jobs/{jobId}`. Ver [consumo, autorización y operación](docs/background-consumer.md).
 El consumidor también está desactivado por defecto y todavía no registra handlers de negocio.
 
+Snapshots y retención por actualización (SNI-68): [contrato y recuperación](docs/automatic-update-snapshots.md).
+
 ## SNI-43 — actualización de herramientas de CD
 
 El caller usa `github-workflows@v0.6.2`, con la revisión fija de infra que corrige el doble escape de healthchecks. Antes de reaplicar infraestructura o probar reconciliación, actualizar los cuatro callers del ambiente y esperar que no haya ejecuciones activas. No reejecutar herramientas antiguas sobre el stack ampliado.
 El procedimiento y la protección del registro están en
 [rollout SNI-43](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-43-cd.md).
+

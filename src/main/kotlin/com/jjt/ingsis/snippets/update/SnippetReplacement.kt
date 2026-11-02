@@ -1,8 +1,9 @@
 package com.jjt.ingsis.snippets.update
 
+import com.jjt.ingsis.snippets.automatic.ObsoleteContent
+import com.jjt.ingsis.snippets.automatic.SnippetUpdateCommit
 import com.jjt.ingsis.snippets.metadata.ContentReplacementResult
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
-import com.jjt.ingsis.snippets.metadata.SnippetContentLinks
 import com.jjt.ingsis.snippets.metadata.SnippetMissing
 import com.jjt.ingsis.snippets.storage.ContentReference
 import com.jjt.ingsis.snippets.storage.SnippetContentStorage
@@ -14,7 +15,8 @@ import org.springframework.stereotype.Component
 @Component
 class SnippetReplacement(
     private val storage: SnippetContentStorage,
-    private val links: SnippetContentLinks,
+    private val commits: SnippetUpdateCommit,
+    private val obsolete: ObsoleteContent,
 ) {
     private val logger = LoggerFactory.getLogger(SnippetReplacement::class.java)
 
@@ -29,9 +31,7 @@ class SnippetReplacement(
         reference: ContentReference,
     ): UpdateOutcome =
         try {
-            val details = candidate.replacement.details()
-
-            when (val result = links.replaceContent(candidate.snippetId, details, reference)) {
+            when (val result = commits.commit(candidate, reference)) {
                 is ContentReplacementResult.Replaced -> {
                     discard(result.replaced)
                     UpdateOutcome.Updated(result.metadata)
@@ -53,7 +53,7 @@ class SnippetReplacement(
 
     private fun discard(unused: ContentReference?) {
         if (unused != null) {
-            storage.delete(unused)
+            obsolete.discard(unused)
         }
     }
 

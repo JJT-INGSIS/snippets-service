@@ -269,7 +269,7 @@ class UpdateFlowTest
                         permissions = permissions,
                         language = language(validation),
                     ),
-                replacement = SnippetReplacement(storage, links),
+                replacement = replacementForTest(storage, links),
             )
 
         private fun update(
