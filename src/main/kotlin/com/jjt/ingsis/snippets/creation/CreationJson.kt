@@ -12,7 +12,9 @@ sealed interface DraftInput {
         val draft: SnippetDraft,
     ) : DraftInput
 
-    data object Rejected : DraftInput
+    data class Rejected(
+        val field: String? = null,
+    ) : DraftInput
 }
 
 @Component
@@ -27,19 +29,19 @@ class DraftJsonDecoder {
             val description = node?.get("description")
             when {
                 node == null || !node.isObject -> {
-                    DraftInput.Rejected
+                    DraftInput.Rejected()
                 }
 
                 node.propertyNames().any { it !in fields } -> {
-                    DraftInput.Rejected
+                    DraftInput.Rejected()
                 }
 
                 required.any { node.get(it)?.isString != true } -> {
-                    DraftInput.Rejected
+                    DraftInput.Rejected()
                 }
 
                 description != null && !description.isNull && !description.isString -> {
-                    DraftInput.Rejected
+                    DraftInput.Rejected()
                 }
 
                 else -> {
@@ -51,11 +53,16 @@ class DraftJsonDecoder {
                             version = node.get("version").asString(),
                             code = node.get("code").asString(),
                         )
-                    if (draft.invalidField() == null) DraftInput.Accepted(draft) else DraftInput.Rejected
+                    val invalid = draft.invalidField()
+                    if (invalid == null) {
+                        DraftInput.Accepted(draft)
+                    } else {
+                        DraftInput.Rejected(field = invalid.takeIf { it == "code" })
+                    }
                 }
             }
         } catch (_: JacksonException) {
-            DraftInput.Rejected
+            DraftInput.Rejected()
         }
 }
 
