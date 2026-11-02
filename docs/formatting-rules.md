@@ -168,7 +168,13 @@ Aprobadas por Juan el 02/11/2026 («dale, aprobadas las 8»).
 
 Imágenes construidas desde las ramas locales con
 `docker compose --profile ui --profile ingress up -d --build printscript-service snippets-service`.
-Flyway aplicó V8. Publicador y worker apagados (default), sin Redis.
+Flyway aplicó la migración de esta tabla (entonces V8). Publicador y worker apagados
+(default), sin Redis.
+
+La migración se renombró después a `V9__create_formatting_configurations.sql`,
+porque SNI-68 (#55) entró antes a `dev` con su propia V8. Es aditiva y no había
+llegado a ningún ambiente compartido, así que el número se puede cambiar sin
+afectar datos.
 
 | Comprobación | Resultado |
 | --- | --- |
