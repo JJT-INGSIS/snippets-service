@@ -1,6 +1,7 @@
 package com.jjt.ingsis.snippets.language
 
 import com.jjt.ingsis.snippets.language.formatting.FormattingCatalogResult
+import com.jjt.ingsis.snippets.language.formatting.FormattingCheckResult
 import com.jjt.ingsis.snippets.language.formatting.FormattingResult
 import com.jjt.ingsis.snippets.language.formatting.LanguageFormatter
 import org.assertj.core.api.Assertions.assertThat
@@ -25,6 +26,14 @@ class LanguageFormattingTest {
     }
 
     @Test
+    fun `checks rules with the formatter of the language and keeps its answer and revision`() {
+        val rules = mapOf<String, Any?>("indent-inside-if" to 2)
+
+        assertThat(language.checkFormattingRules("printscript", "1.1", rules))
+            .isEqualTo(Attributed(FormattingCheckResult.Accepted(mapOf("checked" to "1.1|$rules")), revision))
+    }
+
+    @Test
     fun `a language without formatter is unsupported`() {
         val validatorOnly = Language(listOf(FixedValidator("printscript")))
 
@@ -33,6 +42,8 @@ class LanguageFormattingTest {
         ).isEqualTo(FormattingResult.UnsupportedLanguage("printscript"))
         assertThat(language.formattingCatalog("python", "3.12").result)
             .isEqualTo(FormattingCatalogResult.UnsupportedLanguage("python"))
+        assertThat(language.checkFormattingRules("python", "3.12", emptyMap()).result)
+            .isEqualTo(FormattingCheckResult.UnsupportedLanguage("python"))
     }
 
     @Test
@@ -41,6 +52,8 @@ class LanguageFormattingTest {
             .isEqualTo(Attributed(FormattingResult.UnsupportedVersion("printscript", "2.0"), ProcessorIdentity.Missing))
         assertThat(language.formattingCatalog("printscript", "2.0").result)
             .isEqualTo(FormattingCatalogResult.UnsupportedVersion("printscript", "2.0"))
+        assertThat(language.checkFormattingRules("printscript", "2.0", emptyMap()).result)
+            .isEqualTo(FormattingCheckResult.UnsupportedVersion("printscript", "2.0"))
         assertThat(formatter.calls).isZero()
     }
 
@@ -86,6 +99,14 @@ class LanguageFormattingTest {
         ): Attributed<FormattingResult> {
             calls++
             return Attributed(FormattingResult.Formatted("$code|$version|$rules"), processor)
+        }
+
+        override fun check(
+            version: String,
+            rules: Map<String, Any?>,
+        ): Attributed<FormattingCheckResult> {
+            calls++
+            return Attributed(FormattingCheckResult.Accepted(mapOf("checked" to "$version|$rules")), processor)
         }
     }
 }

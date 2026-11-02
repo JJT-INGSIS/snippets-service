@@ -69,10 +69,25 @@ revisión, y un `PUT` que no cambia la selección no escribe nada.
 | `PUT` con selección nueva | `200 changed:true` con `jobId` | Nueva revisión | Sí, en el mismo commit |
 | Reglas inválidas (desconocida, de otra versión, tipo, rango, conflicto) | `422 invalid-formatting-rules` con `violations` | Se conserva la anterior | No |
 | Lenguaje o versión no soportados | `422` | Se conserva la anterior | No |
-| PrintScript caído o revisión del procesador no verificable | `503` | Se conserva la anterior | No |
-| Falla al escribir config, trabajo u outbox | `503` | Rollback completo | No queda evento |
-| Body mal formado o sin `rules` | `400` | Sin cambios | No |
-| Identidad ausente o inválida | Igual que el resto de la API | Sin cambios | No |
+| PrintScript caído, o catálogo y chequeo sin la misma revisión verificada | `502 dependency-failure` | Se conserva la anterior | No |
+| Falla al escribir config, trabajo u outbox | `503 metadata-unavailable` | Rollback completo | No queda evento |
+| Body que no es `{"rules":{…}}` exacto, o con claves repetidas | `400` | Sin cambios | No |
+| Identidad ausente o inválida | `401` | Sin cambios | No |
+
+## Errores
+
+| Status | Type | Cuándo |
+| --- | --- | --- |
+| `400` | `urn:snippets:problem:invalid-request` | El body no es exactamente `{"rules":{…}}`. |
+| `401` | `urn:snippets:problem:identity-unavailable` | Identidad ausente, inválida o deshabilitada. |
+| `422` | `urn:snippets:problem:invalid-formatting-rules` | Alguna regla no vale para esa versión. `violations` trae `rule` y `reason` de cada una. |
+| `422` | `urn:snippets:problem:unsupported-language` | Lenguaje sin formatter. |
+| `422` | `urn:snippets:problem:unsupported-version` | Versión no soportada por el lenguaje. |
+| `502` | `urn:snippets:problem:dependency-failure` | PrintScript no respondió según su contrato o su revisión no se pudo verificar. Repetir es seguro. |
+| `503` | `urn:snippets:problem:metadata-unavailable` | PostgreSQL no está disponible. Repetir es seguro. |
+
+Los motivos de `violations` son los de printscript-service: `unknown-rule`,
+`unavailable-in-version`, `wrong-type`, `out-of-range` y `conflicting-rules`.
 
 ## Evento
 

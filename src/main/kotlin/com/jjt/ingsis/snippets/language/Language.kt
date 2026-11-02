@@ -3,6 +3,7 @@ package com.jjt.ingsis.snippets.language
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
 import com.jjt.ingsis.snippets.language.execution.LanguageExecutor
 import com.jjt.ingsis.snippets.language.formatting.FormattingCatalogResult
+import com.jjt.ingsis.snippets.language.formatting.FormattingCheckResult
 import com.jjt.ingsis.snippets.language.formatting.FormattingResult
 import com.jjt.ingsis.snippets.language.formatting.LanguageFormatter
 import org.springframework.stereotype.Service
@@ -99,6 +100,21 @@ class Language(
         }
 
         return formatter.format(version, code, rules)
+    }
+
+    fun checkFormattingRules(
+        language: String,
+        version: String,
+        rules: Map<String, Any?>,
+    ): Attributed<FormattingCheckResult> {
+        val formatter =
+            formatters.find { it.language == language }
+                ?: return Attributed(FormattingCheckResult.UnsupportedLanguage(language), ProcessorIdentity.Missing)
+        if (!supports(language, version)) {
+            return Attributed(FormattingCheckResult.UnsupportedVersion(language, version), ProcessorIdentity.Missing)
+        }
+
+        return formatter.check(version, rules)
     }
 
     private fun supports(
