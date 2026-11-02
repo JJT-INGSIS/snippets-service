@@ -21,6 +21,7 @@ interface ExecutionCapacity {
         permitId: UUID,
         result: String?,
         state: ItemState,
+        reason: String? = null,
     )
 
     fun rejected(
