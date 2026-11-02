@@ -178,10 +178,11 @@ class JdbcExecutionCapacity(
         permitId: UUID,
         result: String?,
         state: ItemState,
+        reason: String?,
     ) = jobs.owned(lease) {
         val permit = requirePermit(lease, permitId)
         lock()
-        jobs.completeItem(lease = lease, itemId = permit.itemId, result = result, state = state)
+        jobs.completeItem(lease = lease, itemId = permit.itemId, result = result, state = state, reason = reason)
         release(permitId, "REMOTE_RESULT_PERSISTED")
     }
 
