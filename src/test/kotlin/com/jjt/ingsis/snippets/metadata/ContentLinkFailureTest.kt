@@ -15,7 +15,7 @@ class ContentLinkFailureTest {
 
     private val links =
         JdbcSnippetContentLinks(
-            rows = SnippetContentRows(JdbcTemplate(unavailable)),
+            rows = SnippetContentRows(JdbcTemplate(unavailable), ContentRetention(JdbcTemplate(unavailable))),
             transaction = MetadataTransaction(JdbcTransactionManager(unavailable)),
         )
 

@@ -43,7 +43,7 @@ class PrepareUpdateTest {
             language.validate(replacement.language, replacement.version, replacement.code),
         ).thenReturn(ValidationResult.Valid)
         assertEquals(
-            UpdatePreparationResult.Prepared(UpdateCandidate(existing.id, replacement)),
+            UpdatePreparationResult.Prepared(UpdateCandidate(existing.id, replacement, "dev-thiago")),
             prepare().prepare(replacement, existing.id.toString(), context),
         )
         verify(store).findMetadata(existing.id)
