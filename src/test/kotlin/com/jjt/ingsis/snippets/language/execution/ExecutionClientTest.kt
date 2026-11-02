@@ -1,6 +1,8 @@
 package com.jjt.ingsis.snippets.language.execution
 
 import com.jjt.ingsis.snippets.language.Language
+import com.jjt.ingsis.snippets.language.PROCESSOR_REVISION_HEADER
+import com.jjt.ingsis.snippets.language.ProcessorRevision
 import com.jjt.ingsis.snippets.language.printscript.PrintScriptProperties
 import com.jjt.ingsis.snippets.language.printscript.execution.ExecutionClientProperties
 import com.jjt.ingsis.snippets.language.printscript.execution.PrintScriptExecutor
@@ -10,6 +12,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
 import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
@@ -62,6 +65,40 @@ class ExecutionClientTest {
                     ),
                 )
             assertThat((result as ExecutionResult.Success).value.id).isEqualTo(id)
+        }
+    }
+
+    @Test
+    fun `start describe and events keep the processor revision of each answer`() {
+        val revision = "sha256-v1:" + "d".repeat(64)
+        server { exchange ->
+            exchange.responseHeaders.add(PROCESSOR_REVISION_HEADER, revision)
+            when {
+                exchange.requestURI.path.endsWith("/events") -> {
+                    reply(exchange = exchange, status = 200, body = events(), contentType = "application/x-ndjson")
+                }
+
+                exchange.requestMethod == "POST" -> {
+                    reply(exchange, 201, descriptor())
+                }
+
+                else -> {
+                    reply(exchange, 200, descriptor())
+                }
+            }
+        }.use { server ->
+            val executor = client(server)
+            val started = executor.start(ExecutionRequest("println(1);", "1.1", ExecutionMode.TEST))
+            val described = executor.describe(id)
+            val opened = executor.openEvents(id, 0) as ExecutionResult.Success
+
+            assertThat((started as ExecutionResult.Success).value.processor).isEqualTo(ProcessorRevision(revision))
+            assertThat((described as ExecutionResult.Success).value.processor).isEqualTo(ProcessorRevision(revision))
+            assertThat(opened.value.processor).isEqualTo(ProcessorRevision(revision))
+            opened.value.close()
+        }
+        server { exchange -> reply(exchange, 200, descriptor()) }.use { server ->
+            assertThat((client(server).describe(id) as ExecutionResult.Success).value.processor).isNull()
         }
     }
 
@@ -137,6 +174,19 @@ class ExecutionClientTest {
     }
 
     @Test
+    fun `a start that cannot even connect is a certain failure`() {
+        val port = ServerSocket(0).use { it.localPort }
+        val closed =
+            PrintScriptExecutor(
+                PrintScriptProperties(baseUrl = "http://127.0.0.1:$port", readTimeout = Duration.ofMillis(500)),
+                ExecutionClientProperties(Duration.ofMillis(250)),
+                mapper,
+            )
+        val result = closed.start(ExecutionRequest("", "1.0", ExecutionMode.TEST))
+        assertThat(result).isEqualTo(ExecutionResult.Failed("execution-service-unavailable", false))
+    }
+
+    @Test
     fun `uses stable problem type rather than human messages and rejects invalid acknowledgments`() {
         server {
             reply(
@@ -168,6 +218,50 @@ class ExecutionClientTest {
             val start = System.nanoTime()
             assertThat(client(server).events(id, 0) {}).isInstanceOf(ExecutionResult.Failed::class.java)
             assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(1))
+        }
+    }
+
+    @Test
+    fun `opening preserves a cursor rejection before exposing a readable channel`() {
+        server {
+            reply(
+                exchange = it,
+                status = 409,
+                body = """{"type":"urn:printscript:problem:event-history-unavailable","status":409}""",
+                contentType = "application/problem+json",
+            )
+        }.use { server ->
+            assertThat(client(server).openEvents(id, 0))
+                .isEqualTo(ExecutionResult.Rejected("event-history-unavailable"))
+        }
+    }
+
+    @Test
+    fun `an opened channel has a deadline even when its caller never begins consuming`() {
+        val release = java.util.concurrent.CountDownLatch(1)
+        val providerStillOpen =
+            java.util.concurrent.atomic
+                .AtomicBoolean(true)
+        server { exchange ->
+            exchange.responseHeaders.add("Content-Type", "application/x-ndjson")
+            exchange.sendResponseHeaders(200, 0)
+            exchange.responseBody.write(' '.code)
+            exchange.responseBody.flush()
+            release.await(2, java.util.concurrent.TimeUnit.SECONDS)
+            providerStillOpen.set(false)
+            exchange.close()
+        }.use { server ->
+            val channel = (client(server).openEvents(id, 0) as ExecutionResult.Success).value
+            try {
+                Thread.sleep(350)
+                assertThat(release.count).isEqualTo(1)
+                assertThat(channel.read {}).isInstanceOf(ExecutionResult.Failed::class.java)
+                assertThat(providerStillOpen.get()).isTrue()
+                assertThat(channel.read {}).isEqualTo(ExecutionResult.Rejected("execution-consumer-conflict"))
+            } finally {
+                channel.close()
+                release.countDown()
+            }
         }
     }
 

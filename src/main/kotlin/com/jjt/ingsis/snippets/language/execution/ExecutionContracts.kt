@@ -1,6 +1,7 @@
 package com.jjt.ingsis.snippets.language.execution
 
 import com.jjt.ingsis.snippets.language.Diagnostic
+import com.jjt.ingsis.snippets.language.ProcessorRevision
 import java.util.UUID
 
 enum class ExecutionMode { TEST, INTERACTIVE }
@@ -32,6 +33,7 @@ data class ExecutionDescriptor(
     val state: ExecutionState,
     val limits: Map<String, Long>,
     val lastSeq: Long,
+    val processor: ProcessorRevision? = null,
 )
 
 data class ExecutionEvent(
@@ -91,11 +93,21 @@ interface LanguageExecutor {
 
     fun describe(id: UUID): ExecutionResult<ExecutionDescriptor>
 
+    fun openEvents(
+        id: UUID,
+        after: Long,
+    ): ExecutionResult<LanguageEventStream>
+
     fun events(
         id: UUID,
         after: Long,
         consume: (ExecutionEvent) -> Unit,
-    ): ExecutionResult<Unit>
+    ): ExecutionResult<Unit> =
+        when (val opened = openEvents(id, after)) {
+            is ExecutionResult.Success -> opened.value.use { it.read(consume) }
+            is ExecutionResult.Rejected -> opened
+            is ExecutionResult.Failed -> opened
+        }
 
     fun input(
         id: UUID,
@@ -104,4 +116,11 @@ interface LanguageExecutor {
     ): ExecutionResult<Unit>
 
     fun cancel(id: UUID): ExecutionResult<ExecutionState>
+}
+
+interface LanguageEventStream : AutoCloseable {
+    val processor: ProcessorRevision?
+        get() = null
+
+    fun read(consume: (ExecutionEvent) -> Unit): ExecutionResult<Unit>
 }

@@ -1,6 +1,7 @@
 package com.jjt.ingsis.snippets.language.printscript.execution
 
 import com.jjt.ingsis.snippets.language.Diagnostic
+import com.jjt.ingsis.snippets.language.ProcessorRevision
 import com.jjt.ingsis.snippets.language.execution.ExecutionDescriptor
 import com.jjt.ingsis.snippets.language.execution.ExecutionEvent
 import com.jjt.ingsis.snippets.language.execution.ExecutionMode
@@ -26,6 +27,7 @@ internal object ExecutionProtocol {
     fun descriptor(
         node: JsonNode,
         expectedId: UUID? = null,
+        processor: ProcessorRevision? = null,
     ): ExecutionDescriptor {
         val id = uuid(text(node, "executionId"))
         if (expectedId != null && id != expectedId) fail()
@@ -51,6 +53,7 @@ internal object ExecutionProtocol {
             state = state(text(node, "state")),
             limits = mapped,
             lastSeq = nonnegative(node.path("lastSeq")),
+            processor = processor,
         )
     }
 

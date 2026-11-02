@@ -1,7 +1,8 @@
 # SNI-47 — Capacidad de ejecución de Language
 
 Implementa el cliente del [contrato interno de SNI-45](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/architecture/execution-contract.md).
-No habilita endpoints públicos de ejecución en Snippets: SNI-48/SNI-49 coordinan
+Esta capacidad por sí sola no habilita endpoints públicos. SNI-48 agrega la
+[coordinación de tests y auditoría](test-execution.md); [SNI-49](interactive-execution.md) completa el modo interactivo. Ambos coordinan
 lectura, autorización, snapshot, cupo por actor y asociación de IDs públicos/internos.
 SNI-50 crea/lista definiciones; este transporte no las persiste ni compara outputs.
 
@@ -38,7 +39,9 @@ con «dale hacelo apruebo todo». Los detalles siguientes aplican esas garantía
   El lector acota cada línea a 320 KiB y JSON de control a 64 KiB. Si se aumentan
   los límites de eventos en PrintScript, revisar estos límites de transporte.
 - **Sin reintentos automáticos:** perder la respuesta de un POST produce Failed
-  con uncertain=true; no implica que no se ejecutó. Reenviar input solo es seguro
+  con uncertain=true; no implica que no se ejecutó. En cambio, si la conexión ni
+  se abrió (conexión rechazada o timeout de conexión), el pedido no llegó y la falla
+  es segura (uncertain=false); ver el bug B de SNI-53. Reenviar input solo es seguro
   con el mismo requestId y valor según el protocolo. Una desconexión no es éxito:
   se conservan eventos ya entregados y se devuelve interrupción/incertidumbre.
 - **Timeout de cuerpo explícito:** JDK HttpClient no limita la lectura completa
@@ -88,3 +91,11 @@ por sus condiciones de proveedor. Los 10 casos nuevos de SNI-47 sí se ejecutaro
 8 con HTTP controlado y 2 contra el proceso PrintScript real. Las pruebas existentes
 de PostgreSQL/Asset conservaron sus fixtures y no tocaron volúmenes de dev/prod.
 Rama local `feat/sni-47-language-execution`, lista para commit/PR, sin despliegue.
+
+## Apertura separada del consumo — SNI-48
+
+Thiago aprobó el 28/10/2026 `openEvents` para validar status/headers antes de
+comprometer el 200 NDJSON público. Devuelve un canal cerrable con deadline;
+`events` se conserva y delega en apertura/lectura/cierre. Esto evita una tarea
+concurrente adicional para negociar el primer evento y conserva errores de cursor
+antes de abrir la respuesta al navegador. No cambia las rutas ni eventos de PrintScript.

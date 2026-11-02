@@ -11,4 +11,9 @@ interface LanguageValidator {
         version: String,
         code: String,
     ): ValidationResult
+
+    fun validateAttributed(
+        version: String,
+        code: String,
+    ): Attributed<ValidationResult> = Attributed(validate(version, code), ProcessorIdentity.Missing)
 }

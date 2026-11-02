@@ -1,5 +1,8 @@
 package com.jjt.ingsis.snippets.language.printscript.execution
 
+import com.jjt.ingsis.snippets.language.PROCESSOR_REVISION_HEADER
+import com.jjt.ingsis.snippets.language.ProcessorIdentity
+import com.jjt.ingsis.snippets.language.ProcessorRevision
 import com.jjt.ingsis.snippets.language.execution.ExecutionResult
 import com.jjt.ingsis.snippets.language.printscript.PrintScriptProperties
 import org.springframework.http.HttpStatus
@@ -7,8 +10,10 @@ import tools.jackson.core.JacksonException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.ObjectMapper
 import java.io.IOException
+import java.net.ConnectException
 import java.net.URI
 import java.net.http.HttpClient
+import java.net.http.HttpConnectTimeoutException
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
@@ -29,7 +34,7 @@ internal class ExecutionHttpTransport(
         path: String,
         body: Any?,
         expected: Int,
-        decode: (JsonNode) -> T,
+        decode: (JsonNode, ProcessorRevision?) -> T,
     ): ExecutionResult<T> =
         attempt(method != "GET") {
             val response = send(method, path, body)
@@ -53,10 +58,13 @@ internal class ExecutionHttpTransport(
                     ) {
                         throw ExecutionProtocolFailure()
                     }
-                    ExecutionResult.Success(decode(node))
+                    ExecutionResult.Success(decode(node, processorOf(response)))
                 }
             }
         }
+
+    fun processorOf(response: HttpResponse<*>): ProcessorRevision? =
+        ProcessorIdentity.of(response.headers().firstValue(PROCESSOR_REVISION_HEADER).orElse(null)).verifiedOrNull()
 
     fun send(
         method: String,
@@ -115,6 +123,10 @@ internal class ExecutionHttpTransport(
     ): ExecutionResult<T> =
         try {
             action()
+        } catch (_: ConnectException) {
+            ExecutionResult.Failed("execution-service-unavailable")
+        } catch (_: HttpConnectTimeoutException) {
+            ExecutionResult.Failed("execution-service-unavailable")
         } catch (_: IOException) {
             ExecutionResult.Failed("execution-service-unavailable", uncertain)
         } catch (_: InterruptedException) {

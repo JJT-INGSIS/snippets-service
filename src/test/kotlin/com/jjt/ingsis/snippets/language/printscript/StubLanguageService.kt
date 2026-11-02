@@ -17,6 +17,7 @@ class StubLanguageService(
     private val status: Int,
     private val body: String,
     private val delay: Duration = Duration.ZERO,
+    private val headers: Map<String, String> = emptyMap(),
 ) : AutoCloseable {
     private val server: HttpServer = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
 
@@ -46,6 +47,7 @@ class StubLanguageService(
 
         val bytes = body.toByteArray(Charsets.UTF_8)
         exchange.responseHeaders.add("Content-Type", "application/json")
+        headers.forEach { (name, value) -> exchange.responseHeaders.add(name, value) }
         exchange.sendResponseHeaders(status, bytes.size.toLong())
         exchange.responseBody.use { output -> output.write(bytes) }
     }

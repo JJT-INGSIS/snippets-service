@@ -180,6 +180,8 @@ Para PrintScript, `PrintScriptValidator` llama por HTTP a `POST /validate` de [p
 
 No hay reintentos. Si `printscript-service` no está disponible, este servicio arranca igual y cada validación devuelve `Failed`.
 
+`language.validateAttributed(...)` devuelve además qué build de PrintScript contestó (header `Processor-Revision`). Ver [revisión del procesador — SNI-76](docs/processor-revision.md).
+
 Los tests usan un servidor HTTP local. Para comprobar además contra el servicio real, levantarlo y definir su dirección:
 
 ```bash
@@ -187,6 +189,14 @@ PRINTSCRIPT_SERVICE_URL=http://localhost:8082 ./gradlew test
 ```
 
 Sin esa variable, `PrintScriptServiceLiveTest` se omite.
+
+## Language: formato — SNI-59
+
+`language.formattingCatalog(...)` devuelve las reglas de formato de una versión y
+`language.format(...)` formatea código, cada uno con la revisión del procesador
+que contestó. Para PrintScript lo resuelve `PrintScriptFormatter` contra
+`printscript-service`. Todavía no hay rutas públicas que lo usen. Ver
+[resultados, diseño y decisiones](docs/formatting-language.md).
 
 ## Responsabilidad prevista
 
@@ -437,8 +447,12 @@ dev → prod quedan pendientes de la configuración y pruebas con VMs encendidas
 
 SNI-47 agrega la capacidad de ejecución y el cliente HTTP incremental en Language.
 Ver [decisiones, configuración y prueba con PrintScript real](docs/execution-language.md).
-No habilita endpoints públicos de ejecución ni compara tests; esa coordinación
-corresponde a SNI-48/SNI-49.
+SNI-48 agrega ejecución de un test guardado, comparación exacta y auditoría durable.
+Ver [contrato, decisiones, recuperación y verificación](docs/test-execution.md).
+SNI-49 agrega la ejecución interactiva: arrancar sin test y mandar inputs mientras corre.
+Ver [contrato, decisiones y verificación](docs/interactive-execution.md).
+SNI-76 registra qué build de PrintScript contestó cada validación y ejecución, y no acepta una sesión que cambia de build.
+Ver [revisión del procesador](docs/processor-revision.md).
 
 La UI utiliza `/api` en el mismo origen mediante Vite o NGINX. Para autorizar
 acceso desde otros orígenes, configurar `SNIPPETS_CORS_ALLOWED_ORIGINS` en el backend.
@@ -447,6 +461,16 @@ Ver [configuración, pruebas y límites de autenticación de CORS](docs/cors.md)
 SNI-52 amplía esa política exactamente a las rutas/métodos públicos de tests y
 ejecución de SNI-45. La aceptación local del transporte NGINX/NDJSON usa un upstream
 controlado; la ejecución funcional con el intérprete se verifica posteriormente.
+
+## Procesamiento en segundo plano
+
+La base de trabajos durables, outbox y publicación recuperable por Redis Streams
+está descrita en [SNI-57: configuración y recuperación](docs/background-outbox.md).
+El publicador está desactivado por defecto; no activa todavía las historias asíncronas.
+
+SNI-58 agrega consumo recuperable, leases, cupos compartidos con ejecuciones
+manuales y `GET /jobs/{jobId}`. Ver [consumo, autorización y operación](docs/background-consumer.md).
+El consumidor también está desactivado por defecto y todavía no registra handlers de negocio.
 
 ## SNI-43 — actualización de herramientas de CD
 
