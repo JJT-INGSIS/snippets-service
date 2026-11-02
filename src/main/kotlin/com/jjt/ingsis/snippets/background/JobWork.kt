@@ -35,7 +35,8 @@ class JobWork(
         item: WorkItem,
         reference: String?,
         state: ItemState = ItemState.COMPLETED,
-    ) = store.completeItem(lease = lease, itemId = item.id, result = reference, state = state)
+        reason: String? = null,
+    ) = store.completeItem(lease = lease, itemId = item.id, result = reference, state = state, reason = reason)
 
     fun retry(
         item: WorkItem,
@@ -56,5 +57,6 @@ class JobWork(
         permit: UUID,
         reference: String?,
         state: ItemState = ItemState.COMPLETED,
-    ) = capacity.complete(lease = lease, permitId = permit, result = reference, state = state)
+        reason: String? = null,
+    ) = capacity.complete(lease = lease, permitId = permit, result = reference, state = state, reason = reason)
 }
