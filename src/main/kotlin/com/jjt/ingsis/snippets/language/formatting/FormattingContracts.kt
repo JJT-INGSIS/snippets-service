@@ -2,9 +2,12 @@ package com.jjt.ingsis.snippets.language.formatting
 
 import com.jjt.ingsis.snippets.language.Attributed
 import com.jjt.ingsis.snippets.language.Diagnostic
+import com.jjt.ingsis.snippets.language.ProcessorIdentity
 
 interface LanguageFormatter {
     val language: String
+
+    fun processor(): ProcessorIdentity = ProcessorIdentity.Missing
 
     fun catalog(version: String): Attributed<FormattingCatalogResult>
 

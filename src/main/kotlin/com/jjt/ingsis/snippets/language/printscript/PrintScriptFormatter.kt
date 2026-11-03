@@ -1,6 +1,7 @@
 package com.jjt.ingsis.snippets.language.printscript
 
 import com.jjt.ingsis.snippets.language.Attributed
+import com.jjt.ingsis.snippets.language.ProcessorIdentity
 import com.jjt.ingsis.snippets.language.formatting.FormattingCatalogResult
 import com.jjt.ingsis.snippets.language.formatting.FormattingCheckResult
 import com.jjt.ingsis.snippets.language.formatting.FormattingResult
@@ -19,6 +20,8 @@ class PrintScriptFormatter(
     private val printScript = PrintScriptExchange(properties)
 
     override val language: String = "printscript"
+
+    override fun processor(): ProcessorIdentity = printScript.capability("format")
 
     override fun catalog(version: String): Attributed<FormattingCatalogResult> {
         val exchange =

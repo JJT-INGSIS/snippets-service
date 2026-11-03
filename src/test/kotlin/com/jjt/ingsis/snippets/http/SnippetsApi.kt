@@ -100,6 +100,11 @@ internal class SnippetsApi(
         actors: List<String> = listOf(ACTOR),
     ): HttpAnswer = send(request("/snippets/$snippetId/tests", "application/json", actors).GET())
 
+    fun formatted(
+        snippetId: String,
+        actors: List<String> = listOf(ACTOR),
+    ): HttpAnswer = send(request("/snippets/$snippetId/formatted", "application/json", actors).GET())
+
     fun formattingRules(
         language: String,
         version: String,

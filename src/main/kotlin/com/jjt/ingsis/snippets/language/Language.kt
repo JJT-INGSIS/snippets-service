@@ -77,6 +77,9 @@ class Language(
         return validator.validateAttributed(version, code)
     }
 
+    fun formatProcessor(language: String): ProcessorIdentity =
+        formatters.find { it.language == language }?.processor() ?: ProcessorIdentity.Missing
+
     fun extensionOf(language: String): String? = validators.find { it.language == language }?.extension
 
     fun executorFor(language: String): ExecutionResult<LanguageExecutor> =

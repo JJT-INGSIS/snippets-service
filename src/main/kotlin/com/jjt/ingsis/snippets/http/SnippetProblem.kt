@@ -80,6 +80,21 @@ enum class SnippetProblem(
         "invalid-formatting-rules",
         "Some formatting rules are not valid for this language version. The violations property lists them.",
     ),
+    UNFORMATTABLE_CODE(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "unformattable-code",
+        "The saved code has a lexical error that prevents formatting it. See diagnostics.",
+    ),
+    FORMATTING_LIMIT_EXCEEDED(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "formatting-limit-exceeded",
+        "The code or its formatted result exceeds the processor limit. The limit property names which one.",
+    ),
+    FORMATTING_STALE(
+        HttpStatus.CONFLICT,
+        "formatting-stale",
+        "The snippet changed while its formatted variant was prepared. Repeating the same request is safe.",
+    ),
     UNSUPPORTED_LANGUAGE(
         HttpStatus.UNPROCESSABLE_CONTENT,
         "unsupported-language",

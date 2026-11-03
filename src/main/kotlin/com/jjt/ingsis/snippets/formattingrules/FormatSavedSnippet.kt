@@ -23,9 +23,14 @@ class FormatSavedSnippet(
         context: ActorContext,
     ): SavedSnippetFormatting =
         when (val decision = gate.open(snippetId, context)) {
-            is ReadDecision.Granted -> attempt(decision.snippet, decision.access.ownerId, MAX_ATTEMPTS)
+            is ReadDecision.Granted -> format(decision.snippet, decision.access.ownerId)
             is ReadDecision.Refused -> SavedSnippetFormatting.Refused(decision.failure)
         }
+
+    fun format(
+        snippet: LinkedSnippet,
+        ownerId: String,
+    ): SavedSnippetFormatting = attempt(snippet, ownerId, MAX_ATTEMPTS)
 
     private fun attempt(
         snippet: LinkedSnippet,
