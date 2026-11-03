@@ -4,7 +4,7 @@ La descarga original ya existe: la UI arma el archivo con el `code` del detalle 
 no cambia. Este ticket agrega la **descarga formateada**: el código guardado del
 snippet, formateado con las reglas de su owner, solo si ese resultado es el vigente.
 
-Estado: **en desarrollo.**
+Estado: **implementado y verificado (03/11/2026).**
 
 ## API
 
@@ -163,4 +163,37 @@ Aprobadas por Juan el 03/11/2026 («ok»).
 
 ## Verificación
 
-Pendiente.
+`./gradlew build` en verde (JDK 21 y Docker para Testcontainers): 616 tests, 18
+salteados (los tests en vivo opcionales de siempre), ninguno fallido.
+
+| Clase | Qué prueba |
+| --- | --- |
+| `DownloadFormattedSnippetTest` | Derivado vigente sin formatear; formato en el momento sin escribir; lector con las reglas del owner; derivado con otro código, reglas, procesador o versión nunca presentado como actual; procesador no verificable; edición durante la lectura del derivado; blob descartado; acceso rechazado sin tocar storage; errores tipados; metadatos caídos |
+| `FormattedDownloadHttpTest` | Ruta real con PostgreSQL y Permissions y PrintScript simulados: nombre, extensión y Unicode exactos; lector con las reglas del owner y tercero con `404` sin contenido; `stored` contra `on-demand` por revisión del procesador; PrintScript caído con `502` mientras el original sigue; `422 unformattable-code` con diagnósticos y `422 formatting-limit-exceeded`; `400` y `401` |
+| `PrintScriptFormatterTest`, `LanguageFormattingTest` | La revisión `format` sale de `GET /processor`; sin manifiesto válido o sin servicio, no es verificable |
+| `CorsHttpTest` | `GET /snippets/*/formatted` permitido; otros métodos rechazados |
+| `SnippetProblemTest` | La tabla de errores de este doc coincide con los problemas del servicio |
+| `FormatSavedSnippetTest` | Sin cambios de comportamiento tras sumar la entrada con acceso ya comprobado |
+
+### Evidencia en vivo — 03/11/2026
+
+Stack aislado de Compose (proyecto propio, puertos 18080–18082) con esta rama de
+snippets-service y `dev` de permissions-service, printscript-service e infra, con
+Redis y el worker prendidos. Actores dev de SNI-75: owner `dev-thiago`, lectora
+`dev-ana`, tercero `dev-bruno`.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Owner sin reglas guardadas | `200 source=on-demand`; Unicode (`¡Hola, señor! 🚀`) y saltos de línea intactos |
+| Owner guarda `enforce-spacing-around-equals` y `enforce-spacing-after-colon-in-declaration` | El lote de SNI-62 llega a `COMPLETED` en unos 6 s |
+| Owner después del lote | `200 source=stored`: `let saludo: string = "¡Hola, señor! 🚀";` |
+| Lectora | El mismo código y `source=stored`, con las reglas del owner |
+| Tercero | `404 snippet-not-found`, sin contenido |
+| Original | `GET /snippets/{id}` devuelve el código sin formatear, sin cambios |
+| Owner edita el snippet | `200 source=on-demand` con el código nuevo; el derivado viejo no se entrega |
+| PrintScript detenido | Descarga formateada `502`; detalle y original `200` |
+| PrintScript de nuevo arriba | `200` |
+
+El stack se bajó y se borraron sus volúmenes e imágenes locales. El caso
+`409 formatting-stale` y los errores de formato quedan cubiertos por los tests,
+porque la creación ya rechaza código con errores léxicos.

@@ -54,6 +54,7 @@ Wildcards, `null`, credentials, query strings and fragments fail application sta
 | `/snippets` | GET, POST |
 | `/snippets/*` | GET, PUT |
 | `/snippets/*/shares/*` | PUT |
+| `/snippets/*/formatted` | GET |
 | `/snippets/*/tests` | GET, POST |
 | `/snippets/*/tests/*/executions`, `/snippets/*/executions` | POST |
 | `/executions/*`, `/executions/*/events` | GET |

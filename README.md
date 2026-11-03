@@ -222,6 +222,16 @@ el lote viejo. Retoma sin repetir lo terminado, y un snippet que falla no frena 
 los demás. El progreso se consulta con `GET /jobs/{id}`. Ver
 [diseño, casos, decisiones y evidencia](docs/formatting-reprocessing.md).
 
+## Descarga formateada — SNI-66
+
+`GET /snippets/{id}/formatted` devuelve el código guardado formateado con las
+reglas del owner, para el owner o un lector autorizado; un tercero recibe `404`.
+Usa el derivado del lote de SNI-62 solo si toda su base sigue vigente, incluida la
+revisión `format` actual de PrintScript; si no, formatea en el momento con
+`FormatSavedSnippet`, sin guardar nada. Nunca entrega un resultado viejo como
+actual y no modifica el original. Ver
+[contrato, casos, decisiones y evidencia](docs/formatted-download.md).
+
 ## Responsabilidad prevista
 
 Este servicio administrará los metadatos y el ciclo de vida de los snippets, los listados y los tests, y coordinará operaciones con los servicios de permisos y de lenguaje.

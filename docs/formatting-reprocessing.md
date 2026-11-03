@@ -170,7 +170,7 @@ configuración operativa (SNI-56); los tests usan un valor chico.
 
 No cambia la versión de lenguaje de ningún snippet, no reescribe el original, no
 revalida con el parser y no emite eventos: producir un derivado no dispara US16.
-La lectura del derivado guardado para descargarlo corresponde a SNI-66.
+La lectura del derivado guardado para descargarlo es [SNI-66](formatted-download.md).
 
 El Compose de infra todavía no tiene Redis (SNI-56). Las pruebas con PostgreSQL y
 Redis reales usan Testcontainers dentro del build, y un test en vivo opcional
