@@ -41,6 +41,7 @@ class CorsConfiguration {
             "/executions/*/cancel" to listOf("POST"),
             "/users" to listOf("GET"),
             "/languages" to listOf("GET"),
+            "/formatting-rules/*/*" to listOf("GET", "PUT"),
             "/jobs/*" to listOf("GET"),
         ).forEach { (path, methods) ->
             source.registerCorsConfiguration(

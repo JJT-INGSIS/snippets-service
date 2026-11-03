@@ -35,6 +35,8 @@ class CorsHttpTest
                 Triple("/snippets/123/shares/recipient", "PUT", "x-dev-actor-id"),
                 Triple("/languages", "GET", ""),
                 Triple("/users", "GET", "x-dev-actor-id"),
+                Triple("/formatting-rules/printscript/1.1", "GET", "x-dev-actor-id"),
+                Triple("/formatting-rules/printscript/1.1", "PUT", "content-type,x-dev-actor-id"),
             ).forEach { (path, method, headers) ->
                 val response = api.preflight(path, method, headers)
                 assertThat(response.statusCode()).isEqualTo(200)
@@ -129,6 +131,7 @@ class CorsHttpTest
                 api.preflight(path = "/snippets", method = "POST", headers = "content-type", origin = "null"),
                 api.preflight("/snippets", "DELETE", ""),
                 api.preflight("/users", "POST", "content-type"),
+                api.preflight("/formatting-rules/printscript/1.1", "DELETE", ""),
                 api.preflight("/snippets", "POST", "authorization"),
             ).forEach { response ->
                 assertThat(
@@ -136,9 +139,12 @@ class CorsHttpTest
                 ).describedAs(response.request().toString() + response.request().headers()).isEqualTo(403)
                 assertThat(response.headers().firstValue("Access-Control-Allow-Origin")).isEmpty()
             }
-            assertThat(
-                api.preflight("/internal", "GET", "").headers().firstValue("Access-Control-Allow-Origin"),
-            ).isEmpty()
+            listOf("/internal" to "GET", "/formatting-rules/printscript" to "PUT").forEach { (path, method) ->
+                assertThat(
+                    api.preflight(path, method, "").headers().firstValue("Access-Control-Allow-Origin"),
+                ).describedAs("$method $path grants no CORS permission")
+                    .isEmpty()
+            }
         }
 
         @Test
