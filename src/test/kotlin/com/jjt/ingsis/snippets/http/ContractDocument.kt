@@ -21,6 +21,8 @@ internal val testsContract = ContractDocument("docs/tests.md")
 
 internal val formattingRulesContract = ContractDocument("docs/formatting-rules.md")
 
+internal val formattedDownloadContract = ContractDocument("docs/formatted-download.md")
+
 internal data class ContractExample(
     val title: String,
     val status: Int,

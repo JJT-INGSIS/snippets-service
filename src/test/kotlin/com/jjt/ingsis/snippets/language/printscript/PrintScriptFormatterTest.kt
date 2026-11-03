@@ -229,6 +229,36 @@ class PrintScriptFormatterTest {
         }
     }
 
+    @Test
+    fun `the format revision is read from the processor manifest`() {
+        val revision = "sha256-v1:" + "f".repeat(64)
+        val manifest = """{"capabilities":{"validate":"sha256-v1:${"a".repeat(64)}","format":"$revision"}}"""
+
+        StubLanguageService(status = 200, body = manifest).use { service ->
+            assertThat(formatterFor(service.baseUrl).processor())
+                .isEqualTo(ProcessorIdentity.Verified(ProcessorRevision(revision)))
+            assertThat(service.received.single().method).isEqualTo("GET")
+            assertThat(service.received.single().path).isEqualTo("/processor")
+        }
+    }
+
+    @Test
+    fun `a manifest without a valid format revision or an absent service is unverifiable`() {
+        val answers =
+            listOf(
+                200 to """{"capabilities":{"validate":"sha256-v1:${"a".repeat(64)}"}}""",
+                200 to """{"capabilities":{"format":"1.1"}}""",
+                500 to """{"status":500}""",
+                200 to "not json",
+            )
+
+        answers.forEach { (status, body) ->
+            StubLanguageService(status = status, body = body).use { service ->
+                assertThat(formatterFor(service.baseUrl).processor().verifiedOrNull()).isNull()
+            }
+        }
+    }
+
     private fun checkWith(
         status: Int,
         body: String,

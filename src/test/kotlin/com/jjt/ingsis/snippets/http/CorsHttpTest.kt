@@ -37,6 +37,7 @@ class CorsHttpTest
                 Triple("/users", "GET", "x-dev-actor-id"),
                 Triple("/formatting-rules/printscript/1.1", "GET", "x-dev-actor-id"),
                 Triple("/formatting-rules/printscript/1.1", "PUT", "content-type,x-dev-actor-id"),
+                Triple("/snippets/123/formatted", "GET", "x-dev-actor-id"),
             ).forEach { (path, method, headers) ->
                 val response = api.preflight(path, method, headers)
                 assertThat(response.statusCode()).isEqualTo(200)
@@ -132,6 +133,7 @@ class CorsHttpTest
                 api.preflight("/snippets", "DELETE", ""),
                 api.preflight("/users", "POST", "content-type"),
                 api.preflight("/formatting-rules/printscript/1.1", "DELETE", ""),
+                api.preflight("/snippets/123/formatted", "PUT", "content-type"),
                 api.preflight("/snippets", "POST", "authorization"),
             ).forEach { response ->
                 assertThat(
