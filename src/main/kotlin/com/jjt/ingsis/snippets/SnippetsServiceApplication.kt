@@ -10,5 +10,10 @@ class SnippetsServiceApplication
 
 @Suppress("SpreadOperator")
 fun main(args: Array<String>) {
-    runApplication<SnippetsServiceApplication>(*args)
+    if (args.firstOrNull() == "parser-admin") {
+        com.jjt.ingsis.snippets.revalidation.ParserAdminCommand
+            .run(args.drop(1))
+    } else {
+        runApplication<SnippetsServiceApplication>(*args)
+    }
 }

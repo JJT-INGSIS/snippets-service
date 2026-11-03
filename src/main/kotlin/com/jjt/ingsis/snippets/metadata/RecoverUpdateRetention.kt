@@ -35,6 +35,9 @@ class RecoverUpdateRetention(
                             "NOT EXISTS (SELECT 1 FROM snippets n WHERE n.content_reference = c.reference) AND " +
                             "NOT EXISTS (SELECT 1 FROM snippet_update_snapshots s WHERE " +
                             "s.content_reference = c.reference AND s.released_at IS NULL) " +
+                            "AND NOT EXISTS (SELECT 1 FROM parser_validation_snapshots p " +
+                            "JOIN background_jobs j ON j.id = p.job_id " +
+                            "WHERE p.source_reference = c.reference AND j.finished_at IS NULL) " +
                             "ORDER BY c.reference LIMIT 100",
                         { row, _ -> ContentReference(row.getString(1)) },
                     )

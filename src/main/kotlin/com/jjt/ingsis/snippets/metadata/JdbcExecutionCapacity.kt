@@ -58,7 +58,8 @@ class JdbcExecutionCapacity(
         val held =
             checkNotNull(
                 jdbc.queryForObject(
-                    "SELECT count(*) FROM execution_permits WHERE state <> 'RELEASED'",
+                    "SELECT (SELECT count(*) FROM execution_permits WHERE state <> 'RELEASED') + " +
+                        "(SELECT count(*) FROM parser_analysis_admission WHERE expires_at > clock_timestamp())",
                     Int::class.java,
                 ),
             )
@@ -82,6 +83,16 @@ class JdbcExecutionCapacity(
         )
         return true
     }
+
+    fun canReserveAnalysis(): Boolean =
+        jdbc.queryForObject(
+            "SELECT count(*) FROM execution_permits WHERE kind = 'BACKGROUND' AND state <> 'RELEASED'",
+            Int::class.java,
+        ) == 0 &&
+            jdbc.queryForObject(
+                "SELECT count(*) FROM parser_analysis_admission WHERE expires_at > clock_timestamp()",
+                Int::class.java,
+            ) == 0 && room(background = true)
 
     fun releaseManual(id: UUID) {
         // V7 can adopt an existing audit before admission is enabled; its terminal state still releases it.
@@ -130,7 +141,12 @@ class JdbcExecutionCapacity(
                             "<> 'RELEASED'",
                         Int::class.java,
                     ) != 0
-                if (occupied || !room(background = true)) {
+                val analysis =
+                    jdbc.queryForObject(
+                        "SELECT count(*) FROM parser_analysis_admission WHERE expires_at > clock_timestamp()",
+                        Int::class.java,
+                    ) != 0
+                if (occupied || analysis || !room(background = true)) {
                     emptyList()
                 } else {
                     val item =

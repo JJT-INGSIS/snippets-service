@@ -494,7 +494,10 @@ El publicador está desactivado por defecto; no activa todavía las historias as
 
 SNI-58 agrega consumo recuperable, leases, cupos compartidos con ejecuciones
 manuales y `GET /jobs/{jobId}`. Ver [consumo, autorización y operación](docs/background-consumer.md).
-El consumidor también está desactivado por defecto y todavía no registra handlers de negocio.
+El consumidor también está desactivado por defecto; su habilitación operativa es explícita.
+
+SNI-70 agrega activación administrativa de una referencia del parser y revalidación
+por eventos: [contrato, comando y recuperación](docs/parser-revalidation.md).
 
 Snapshots y retención por actualización (SNI-68): [contrato y recuperación](docs/automatic-update-snapshots.md).
 
