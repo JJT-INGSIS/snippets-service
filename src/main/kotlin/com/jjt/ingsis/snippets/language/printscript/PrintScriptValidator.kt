@@ -29,6 +29,20 @@ class PrintScriptValidator(
 
     override val supportedVersions: Set<String> = setOf("1.0", "1.1")
 
+    override fun validationProcessor(): ProcessorIdentity =
+        try {
+            val manifest =
+                client
+                    .get()
+                    .uri("/processor")
+                    .retrieve()
+                    .toEntity<ProcessorManifest>()
+                    .body
+            ProcessorIdentity.of(manifest?.capabilities?.get("validate"))
+        } catch (_: RestClientException) {
+            ProcessorIdentity.Missing
+        }
+
     override fun validate(
         version: String,
         code: String,
@@ -90,3 +104,7 @@ class PrintScriptValidator(
         return ValidationResult.Failed("The PrintScript service is unavailable or did not answer as its contract says")
     }
 }
+
+private data class ProcessorManifest(
+    val capabilities: Map<String, String?> = emptyMap(),
+)
