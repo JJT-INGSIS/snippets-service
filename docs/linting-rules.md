@@ -1,10 +1,10 @@
 # SNI-63 — Configuración y evaluación puntual de lint
 
-Estado: implementación en revisión; **aceptación final pendiente de SNI-77**.
+Estado: implementación en revisión; defaults integrados con el contrato SNI-77.
 Thiago aprobó defaults reales sin configuración, selección explícita vacía que
 desactiva reglas y no crear otro lote al guardar nuevamente la misma configuración
-(02/11/2026). El proveedor integrado SNI-60 no expone defaults: no se copian ni se
-interpretan `{}` como defaults. SNI-77 solicita esa extensión a su responsable.
+(02/11/2026). SNI-77 incorpora la selección real de la biblioteca en el catálogo del proveedor;
+no se copian defaults ni se interpreta `{}` como configuración implícita.
 
 ## Configuración explícita
 
@@ -26,9 +26,9 @@ procesador. Rechazos y fallos conservan la selección anterior. Un owner no lee
 ni modifica las reglas de otro; un lector configura exclusivamente sus propias
 reglas, sin cambiar las del owner del snippet compartido.
 
-Hasta integrar SNI-77, GET sin configuración responde error de dependencia,
-no devuelve defaults inventados. No se presenta esta limitación como capacidad
-terminada ni se debe promover esta rama antes de completar la integración.
+GET sin configuración devuelve la selección default atribuida del catálogo.
+Si el proveedor no incluye defaults o no acredita su revisión, devuelve error
+de dependencia. Un proveedor anterior no activa una lista local de reglas.
 
 | Status | Type | Condición |
 | --- | --- | --- |
@@ -57,9 +57,10 @@ la proyección sólo cambia si referencia, lenguaje, versión y reglas aún coin
 Se comprueba también el contenido de la referencia antes de evaluar: un update
 intermedio no puede asociar el código anterior con su blob nuevo.
 
-Mientras falte SNI-77, ausencia de configuración persiste explícitamente
-DEFAULTS_CONTRACT_UNAVAILABLE, sin ejecutar una selección vacía por conveniencia.
-Esta ruta está pendiente de integración; su prueba no acredita defaults reales.
+Sin configuración se evalúa con defaults verificados del proveedor y se guarda
+su revisión. Si no están disponibles, se registra DEFAULTS_UNAVAILABLE. Una
+selección explícita vacía continúa desactivando reglas. False/null admitidos por
+el validador se normalizan a regla desactivada antes de calcular la revisión.
 
 Si PostgreSQL falla después de confirmar el contenido, no se puede garantizar
 persistir simultáneamente el diagnóstico del fallo: se registra advertencia y
@@ -73,8 +74,8 @@ JDK 21/Docker: `./gradlew build`. Las pruebas de persistencia usan PostgreSQL re
 para atomicidad/no-op/aislamiento y para resultados obsoletos. Pruebas del evaluador
 usan un proveedor controlado y no se presentan como integración real del linter.
 Las pruebas de flujo comprueban el orden después del commit y el retry idempotente.
-La aceptación real con defaults queda bloqueada por SNI-77, y listado/lote/UI
-continúan en SNI-64/67.
+El proveedor y Language de SNI-77 deben integrarse antes de consumir defaults
+en un ambiente. Listado/lote/UI continúan en SNI-64/67.
 
 ## Evidencia con proveedores reales — 02/11/2026
 
@@ -96,3 +97,23 @@ reales, en una base local aislada (`lint63`). Actor/fixture nuevos:
 
 Esta evidencia acredita configuración explícita/evaluación puntual, no defaults,
 lote US15, filtros/listado ni UI de lint. No se modificó CD ni se desplegó Azure.
+
+
+Actualización 04/11/2026: la migración de lint es V14, después de V12/V13 ya integradas en dev. V11 nunca se integró en esa rama; el cambio evita intentar aplicar una migración menor después de las existentes.
+
+
+04/11/2026: guardar explícitamente la selección default actual conserva su revisión y no crea lote, pero persiste esa elección para que una futura modificación del default no cambie la configuración explícita del usuario. INSERT y UPDATE distinguen el alta inicial de cambios concurrentes sin basarse en una lectura previa no bloqueante.
+
+### Verificación posterior a SNI-77 — 2026-11-04
+
+Build completo verde sobre `6a8dc67`, con PostgreSQL real en los tests.
+Además se ejecutaron los JARs de Snippets y PrintScript con una base nueva y
+Permissions real: sin configuración se mostraron los defaults publicados
+(`identifier_format=camel case`, `mandatory-variable-or-literal-in-println=true`).
+Guardar esos mismos defaults persistió la elección explícita sin lote; cambiar
+a `{}` emitió un lote; guardar después una regla booleana desactivada mantuvo
+la revisión sin otro lote. La configuración de otra identidad no cambió.
+Crear código válido con identificador `Bad_name` confirmó el contenido y guardó
+`NON_COMPLIANT`, diagnóstico real `identifier_format`, hash de defaults y revisión
+efectiva del proveedor en PostgreSQL. La infracción no revirtió la creación.
+Esta prueba no acredita el consumidor de lotes SNI-64 ni un despliegue en Azure.

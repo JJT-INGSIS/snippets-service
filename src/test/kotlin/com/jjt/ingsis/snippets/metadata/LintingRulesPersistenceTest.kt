@@ -30,7 +30,7 @@ class LintingRulesPersistenceTest(
     fun `a new selection stores configuration revision job and outbox in one commit`() {
         val scope = scope()
 
-        val replacement = store.replace(scope, indentTwo, jobFor(scope, indentTwo)) as RulesReplacement.Changed
+        val replacement = store.replace(scope, indentTwo, jobFor = jobFor(scope, indentTwo)) as RulesReplacement.Changed
 
         assertThat(store.find(scope)).isEqualTo(SavedLintingRules(replacement.configurationId, indentTwo))
         assertThat(revisionOf(scope)).isEqualTo(indentTwo.revision)
@@ -50,13 +50,15 @@ class LintingRulesPersistenceTest(
     @Test
     fun `the same selection again writes no job and a new one keeps the configuration id`() {
         val scope = scope()
-        val first = store.replace(scope, indentTwo, jobFor(scope, indentTwo)) as RulesReplacement.Changed
+        val first = store.replace(scope, indentTwo, jobFor = jobFor(scope, indentTwo)) as RulesReplacement.Changed
 
-        assertThat(store.replace(scope, indentTwo, jobFor(scope, indentTwo))).isEqualTo(RulesReplacement.Unchanged)
+        assertThat(
+            store.replace(scope, indentTwo, jobFor = jobFor(scope, indentTwo)),
+        ).isEqualTo(RulesReplacement.Unchanged)
         assertThat(jobsOf(scope)).isEqualTo(1)
 
         val indentFour = LintingSelection(mapOf("indent-inside-if" to 4))
-        val second = store.replace(scope, indentFour, jobFor(scope, indentFour)) as RulesReplacement.Changed
+        val second = store.replace(scope, indentFour, jobFor = jobFor(scope, indentFour)) as RulesReplacement.Changed
 
         assertThat(second.configurationId).isEqualTo(first.configurationId)
         assertThat(revisionOf(scope)).isEqualTo(indentFour.revision)
@@ -68,7 +70,7 @@ class LintingRulesPersistenceTest(
         val scope = scope()
 
         assertThat(store.find(scope)).isNull()
-        assertThat(store.replace(scope, LintingSelection.EMPTY, jobFor(scope, LintingSelection.EMPTY)))
+        assertThat(store.replace(scope, LintingSelection.EMPTY, jobFor = jobFor(scope, LintingSelection.EMPTY)))
             .isInstanceOf(RulesReplacement.Changed::class.java)
         assertThat(store.find(scope)?.selection).isEqualTo(LintingSelection.EMPTY)
         assertThat(jobsOf(scope)).isEqualTo(1)
@@ -77,7 +79,7 @@ class LintingRulesPersistenceTest(
     @Test
     fun `when the job or outbox cannot be written the configuration change is rolled back`() {
         val scope = scope()
-        val first = store.replace(scope, indentTwo, jobFor(scope, indentTwo)) as RulesReplacement.Changed
+        val first = store.replace(scope, indentTwo, jobFor = jobFor(scope, indentTwo)) as RulesReplacement.Changed
         val repeatedEvent = eventIdOf(first.jobId)
         val indentFour = LintingSelection(mapOf("indent-inside-if" to 4))
 
@@ -100,12 +102,38 @@ class LintingRulesPersistenceTest(
     }
 
     @Test
+    fun `explicitly saving current defaults preserves revision and creates no batch but keeps the choice`() {
+        val scope = scope()
+        val result =
+            store.replace(
+                scope = scope,
+                selection = indentTwo,
+                implicitSelection = indentTwo,
+                jobFor = jobFor(scope, indentTwo),
+            )
+        assertThat(result).isEqualTo(RulesReplacement.Unchanged)
+        assertThat(store.find(scope)?.selection).isEqualTo(indentTwo)
+        assertThat(jobsOf(scope)).isZero()
+    }
+
+    @Test
+    fun `disabled false and null values are equivalent to explicit empty selection`() {
+        val scope = scope()
+        val disabled = LintingSelection(mapOf("flag" to false, "choice" to null))
+        assertThat(disabled).isEqualTo(LintingSelection.EMPTY)
+        store.replace(scope, disabled, jobFor = jobFor(scope, disabled))
+        assertThat(store.replace(scope, LintingSelection.EMPTY, jobFor = jobFor(scope, LintingSelection.EMPTY)))
+            .isEqualTo(RulesReplacement.Unchanged)
+        assertThat(jobsOf(scope)).isEqualTo(1)
+    }
+
+    @Test
     fun `each owner language and version has its own configuration`() {
         val juan = scope()
         val thiago = juan.copy(ownerId = UUID.randomUUID().toString())
         val older = juan.copy(version = "1.0")
 
-        store.replace(juan, indentTwo, jobFor(juan, indentTwo))
+        store.replace(juan, indentTwo, jobFor = jobFor(juan, indentTwo))
 
         assertThat(store.find(thiago)).isNull()
         assertThat(store.find(older)).isNull()

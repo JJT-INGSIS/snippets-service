@@ -29,6 +29,7 @@ interface LintingRulesStore {
     fun replace(
         scope: LintingScope,
         selection: LintingSelection,
+        implicitSelection: LintingSelection? = null,
         jobFor: (configurationId: UUID) -> NewBackgroundJob,
     ): RulesReplacement
 }

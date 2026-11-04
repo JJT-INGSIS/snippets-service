@@ -51,6 +51,7 @@ class SavedLintAssessment(
     private val language: Language,
     private val fingerprints: SnapshotFingerprint,
     private val assessments: LintAssessments,
+    private val rulesProvider: LintingRulesProvider,
 ) : SavedSnippetLint {
     private val logger = LoggerFactory.getLogger(SavedLintAssessment::class.java)
 
@@ -65,7 +66,9 @@ class SavedLintAssessment(
             // An intervening update must not associate an earlier request's code with its new blob.
             val content = storage.read(reference)
             if (content is ReadResult.Found && content.code != draft.code) return
-            val configuration = configurations.find(LintingScope(ownerId, draft.language, draft.version))
+            val scope = LintingScope(ownerId, draft.language, draft.version)
+            val configuration = configurations.find(scope)
+            val selection = configuration?.selection ?: rulesProvider.defaults(scope)
             val basis =
                 LintAssessment(
                     snippetId = id,
@@ -74,7 +77,7 @@ class SavedLintAssessment(
                     version = draft.version,
                     reference = reference,
                     codeHash = fingerprints.code(draft.language, draft.version, draft.code),
-                    rulesRevision = configuration?.selection?.revision,
+                    rulesRevision = selection?.revision,
                     processor = null,
                     state = LintState.NOT_EVALUATED_ERROR,
                     diagnostics = emptyList(),
@@ -83,8 +86,8 @@ class SavedLintAssessment(
             val evaluated =
                 when {
                     content !is ReadResult.Found -> basis.copy(reason = "STORAGE_UNAVAILABLE")
-                    configuration == null -> basis.copy(reason = "DEFAULTS_CONTRACT_UNAVAILABLE")
-                    else -> evaluate(basis, draft, configuration.selection)
+                    selection == null -> basis.copy(reason = "DEFAULTS_UNAVAILABLE")
+                    else -> evaluate(basis, draft, selection)
                 }
             assessments.record(evaluated)
         } catch (_: MetadataPersistenceException) {

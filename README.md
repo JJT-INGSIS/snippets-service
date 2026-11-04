@@ -211,6 +211,27 @@ cambios no crea trabajo. `FormatSavedSnippet` formatea un snippet guardado con
 las reglas de su owner, sin escribir nada, y solo entrega un resultado vigente;
 lo expone SNI-66. Ver [contrato, casos, decisiones y evidencia](docs/formatting-rules.md).
 
+## Reprocesar formato al cambiar reglas — SNI-62
+
+`FormattingRulesChangedHandler` procesa en segundo plano el trabajo que deja
+SNI-61: recorre en páginas estables los snippets propios del owner para ese
+lenguaje y esa versión, formatea uno por turno con el permiso de fondo compartido
+y guarda un derivado separado del original (`formatted_snippets`, V12). Solo lo
+publica si código, reglas y procesador siguen vigentes; reglas más nuevas superan
+el lote viejo. Retoma sin repetir lo terminado, y un snippet que falla no frena a
+los demás. El progreso se consulta con `GET /jobs/{id}`. Ver
+[diseño, casos, decisiones y evidencia](docs/formatting-reprocessing.md).
+
+## Descarga formateada — SNI-66
+
+`GET /snippets/{id}/formatted` devuelve el código guardado formateado con las
+reglas del owner, para el owner o un lector autorizado; un tercero recibe `404`.
+Usa el derivado del lote de SNI-62 solo si toda su base sigue vigente, incluida la
+revisión `format` actual de PrintScript; si no, formatea en el momento con
+`FormatSavedSnippet`, sin guardar nada. Nunca entrega un resultado viejo como
+actual y no modifica el original. Ver
+[contrato, casos, decisiones y evidencia](docs/formatted-download.md).
+
 ## Responsabilidad prevista
 
 Este servicio administrará los metadatos y el ciclo de vida de los snippets, los listados y los tests, y coordinará operaciones con los servicios de permisos y de lenguaje.
@@ -483,7 +504,10 @@ El publicador está desactivado por defecto; no activa todavía las historias as
 
 SNI-58 agrega consumo recuperable, leases, cupos compartidos con ejecuciones
 manuales y `GET /jobs/{jobId}`. Ver [consumo, autorización y operación](docs/background-consumer.md).
-El consumidor también está desactivado por defecto y todavía no registra handlers de negocio.
+El consumidor también está desactivado por defecto; su habilitación operativa es explícita.
+
+SNI-70 agrega activación administrativa de una referencia del parser y revalidación
+por eventos: [contrato, comando y recuperación](docs/parser-revalidation.md).
 
 Snapshots y retención por actualización (SNI-68): [contrato y recuperación](docs/automatic-update-snapshots.md).
 

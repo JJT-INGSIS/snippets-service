@@ -16,6 +16,20 @@ class PrintScriptLinterTest {
     private val finding = """{"rule":"identifier_format","message":"Nombre inválido","line":2,"column":5}"""
 
     @Test
+    fun `provider defaults retain their actual values and attribution without local fallback`() {
+        val body = """{"version":"1.1","rules":[],"defaults":{"identifier_format":"camel case","selected":true}}"""
+        StubLanguageService(200, body, headers = mapOf(PROCESSOR_REVISION_HEADER to revision)).use {
+            val answer = linter(it.baseUrl).catalog("1.1")
+            val catalog = answer.result as LintCatalogResult.Catalog
+            assertThat(catalog.defaults).isEqualTo(mapOf("identifier_format" to "camel case", "selected" to true))
+            assertThat(answer.processor).isEqualTo(ProcessorIdentity.Verified(ProcessorRevision(revision)))
+        }
+        StubLanguageService(200, """{"version":"1.1","rules":[]}""").use {
+            assertThat((linter(it.baseUrl).catalog("1.1").result as LintCatalogResult.Catalog).defaults).isNull()
+        }
+    }
+
+    @Test
     fun `empty selection crosses HTTP unchanged with operation revision`() {
         StubLanguageService(200, analyzed, headers = mapOf(PROCESSOR_REVISION_HEADER to revision)).use {
             val result = linter(it.baseUrl).lint("1.0", "println(1+2);", emptyMap())

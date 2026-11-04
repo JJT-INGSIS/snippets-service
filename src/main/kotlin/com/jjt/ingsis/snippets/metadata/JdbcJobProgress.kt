@@ -142,6 +142,7 @@ class JdbcJobProgress(
                 lease.jobId,
                 lease.token,
             )
+            if (status == JobState.SUPERSEDED) supersedeOpenItems(lease.jobId)
             if (status == JobState.UNKNOWN) {
                 jdbc.update(
                     "UPDATE background_job_items SET state = 'UNKNOWN' WHERE job_id = ? AND state = 'RUNNING'",
@@ -163,7 +164,7 @@ class JdbcJobProgress(
             is JobStep.Retry -> safeJobReason(step.reason)
             is JobStep.Failed -> safeJobReason(step.reason)
             is JobStep.Unknown -> safeJobReason(step.reason)
-            JobStep.Complete, JobStep.Yield -> if (held) "RECONCILIATION_REQUIRED" else null
+            JobStep.Complete, JobStep.Yield, JobStep.Superseded -> if (held) "RECONCILIATION_REQUIRED" else null
         }
 
     private fun status(
@@ -188,6 +189,10 @@ class JdbcJobProgress(
                 JobState.PENDING
             }
 
+            JobStep.Superseded -> {
+                JobState.SUPERSEDED
+            }
+
             is JobStep.Retry -> {
                 if (job.attempts + 1 >= settings.retries.attempts) JobState.FAILED else JobState.RETRY
             }
@@ -200,6 +205,14 @@ class JdbcJobProgress(
                 JobState.UNKNOWN
             }
         }
+    }
+
+    private fun supersedeOpenItems(jobId: UUID) {
+        jdbc.update(
+            "UPDATE background_job_items SET state = 'SUPERSEDED', updated_at = clock_timestamp() " +
+                "WHERE job_id = ? AND state IN ('PENDING', 'RETRY', 'RUNNING')",
+            jobId,
+        )
     }
 
     override fun select(
@@ -241,15 +254,17 @@ class JdbcJobProgress(
         itemId: UUID,
         result: String?,
         state: ItemState,
+        reason: String?,
     ) = owned(lease) {
         require(state in setOf(ItemState.COMPLETED, ItemState.FAILED, ItemState.SUPERSEDED))
         check(
             jdbc.update(
-                "UPDATE background_job_items SET state = ?, result_reference = ?, last_error = NULL, " +
+                "UPDATE background_job_items SET state = ?, result_reference = ?, last_error = ?, " +
                     "updated_at = clock_timestamp() " +
                     "WHERE id = ? AND job_id = ? AND state IN ('RUNNING', 'UNKNOWN')",
                 state.name,
                 result,
+                reason?.let(::safeJobReason),
                 itemId,
                 lease.jobId,
             ) == 1,
@@ -274,7 +289,7 @@ class JdbcJobProgress(
             "UPDATE background_job_items SET state = ?, next_attempt_at = clock_timestamp() + " +
                 "(? * INTERVAL '1 millisecond'), last_error = ?, " +
                 "updated_at = clock_timestamp() " +
-                "WHERE id = ? AND job_id = ? AND state = 'RUNNING'",
+                "WHERE id = ? AND job_id = ? AND state IN ('RUNNING', 'UNKNOWN')",
             if (attempt >= settings.retries.attempts) "FAILED" else "RETRY",
             settings.retries.delayMillis(attempt),
             safeJobReason(reason),

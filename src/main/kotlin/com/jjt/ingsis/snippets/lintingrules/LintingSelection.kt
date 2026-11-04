@@ -8,9 +8,18 @@ private const val REVISION_SCHEME = "sha256-v1:"
 
 private val canonicalJson = JsonMapper.builder().build()
 
-data class LintingSelection(
-    val rules: Map<String, Any?>,
+class LintingSelection(
+    input: Map<String, Any?>,
 ) {
+    // The provider validates first; false/null are disabled under the published lint reader contract.
+    val rules: Map<String, Any?> = input.filterValues { it != null && it != false }.toMap()
+
+    override fun equals(other: Any?): Boolean = other is LintingSelection && rules == other.rules
+
+    override fun hashCode(): Int = rules.hashCode()
+
+    override fun toString(): String = "LintingSelection($rules)"
+
     val revision: String = REVISION_SCHEME + HexFormat.of().formatHex(digest(rules))
 
     companion object {

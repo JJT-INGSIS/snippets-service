@@ -7,7 +7,7 @@ cambiaron, la configuración, su revisión, el trabajo raíz y el evento
 (outbox de [SNI-57](background-outbox.md)). El reprocesamiento de los snippets
 afectados es US12; acá solo queda el trabajo pendiente.
 
-Estado: **implementado y verificado en Compose (02/11/2026).** La ruta HTTP del derivado individual es SNI-66.
+Estado: **implementado y verificado en Compose (02/11/2026).** La ruta HTTP del derivado individual es [SNI-66](formatted-download.md).
 
 ## API
 
@@ -112,7 +112,7 @@ Hasta que existan los consumidores (SNI-58) y US12, cada cambio deja un trabajo
 - Las reglas que aplican a un snippet son las **de su owner** para el lenguaje y
   la versión del snippet. Un lector de un snippet compartido puede obtener la
   variante formateada con esas reglas, pero no tiene forma de modificarlas.
-- `FormatSavedSnippet` (para US13/SNI-66, sin ruta HTTP en este ticket) formatea
+- `FormatSavedSnippet` (para US13, expuesto en [SNI-66](formatted-download.md)) formatea
   el snippet guardado bajo demanda y **no persiste** el resultado. Lee el
   contenido de forma estable, formatea con `Language` y antes de devolver vuelve
   a comprobar la base. Si cambió, reintenta y, si sigue cambiando, responde `Stale`.

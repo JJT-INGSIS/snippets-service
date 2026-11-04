@@ -12,7 +12,11 @@ import org.springframework.stereotype.Component
 sealed interface CatalogLookup {
     data class Found(
         val rules: List<LintRule>,
-    ) : CatalogLookup
+        val defaults: LintingSelection?,
+        val processor: ProcessorRevision?,
+    ) : CatalogLookup {
+        val verifiedDefaults: LintingSelection? get() = defaults.takeIf { processor != null }
+    }
 
     data class Refused(
         val outcome: LintingRulesOutcome,
@@ -24,6 +28,7 @@ sealed interface RulesAcceptance {
         val selection: LintingSelection,
         val catalog: List<LintRule>,
         val processor: ProcessorRevision,
+        val implicitSelection: LintingSelection? = null,
     ) : RulesAcceptance
 
     data class Refused(
@@ -35,10 +40,15 @@ sealed interface RulesAcceptance {
 class LintingRulesProvider(
     private val language: Language,
 ) {
-    fun catalog(scope: LintingScope): CatalogLookup =
-        when (val answer = language.lintingCatalog(scope.language, scope.version).result) {
+    fun catalog(scope: LintingScope): CatalogLookup {
+        val attributed = language.lintingCatalog(scope.language, scope.version)
+        return when (val answer = attributed.result) {
             is LintCatalogResult.Catalog -> {
-                CatalogLookup.Found(answer.rules)
+                CatalogLookup.Found(
+                    answer.rules,
+                    answer.defaults?.let(::LintingSelection),
+                    attributed.processor.verifiedOrNull(),
+                )
             }
 
             is LintCatalogResult.UnsupportedLanguage -> {
@@ -57,6 +67,9 @@ class LintingRulesProvider(
                 CatalogLookup.Refused(LintingRulesOutcome.LanguageUnavailable)
             }
         }
+    }
+
+    fun defaults(scope: LintingScope): LintingSelection? = (catalog(scope) as? CatalogLookup.Found)?.verifiedDefaults
 
     fun accept(
         scope: LintingScope,
@@ -81,7 +94,12 @@ class LintingRulesProvider(
                 .verifiedOrNull()
                 ?.takeIf { catalog.processor.checkAgainst(it) == ProcessorCheck.ACCREDITED }
                 ?: return RulesAcceptance.Refused(LintingRulesOutcome.LanguageUnavailable)
-        return RulesAcceptance.Accepted(LintingSelection(rules.toMap()), rulesOfVersion.rules, processor)
+        return RulesAcceptance.Accepted(
+            selection = LintingSelection(rules.toMap()),
+            catalog = rulesOfVersion.rules,
+            processor = processor,
+            implicitSelection = rulesOfVersion.defaults?.let(::LintingSelection),
+        )
     }
 
     private fun refusal(result: LintCheckResult): LintingRulesOutcome? =

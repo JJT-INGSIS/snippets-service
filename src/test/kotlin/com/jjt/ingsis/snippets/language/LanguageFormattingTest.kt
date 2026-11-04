@@ -58,6 +58,13 @@ class LanguageFormattingTest {
     }
 
     @Test
+    fun `the format revision comes from the formatter of the language`() {
+        assertThat(language.formatProcessor("printscript")).isEqualTo(revision)
+        assertThat(language.formatProcessor("python")).isEqualTo(ProcessorIdentity.Missing)
+        assertThat(formatter.calls).isZero()
+    }
+
+    @Test
     fun `rejects two formatters for the same language`() {
         assertThatIllegalArgumentException().isThrownBy {
             Language(
@@ -86,6 +93,8 @@ class LanguageFormattingTest {
     ) : LanguageFormatter {
         var calls = 0
             private set
+
+        override fun processor(): ProcessorIdentity = processor
 
         override fun catalog(version: String): Attributed<FormattingCatalogResult> {
             calls++

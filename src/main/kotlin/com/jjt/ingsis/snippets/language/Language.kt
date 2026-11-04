@@ -59,6 +59,9 @@ class Language(
         code: String,
     ): ValidationResult = validateAttributed(language, version, code).result
 
+    fun validationProcessor(language: String): ProcessorIdentity =
+        validators.find { it.language == language }?.validationProcessor() ?: ProcessorIdentity.Missing
+
     fun validateAttributed(
         language: String,
         version: String,
@@ -73,6 +76,9 @@ class Language(
 
         return validator.validateAttributed(version, code)
     }
+
+    fun formatProcessor(language: String): ProcessorIdentity =
+        formatters.find { it.language == language }?.processor() ?: ProcessorIdentity.Missing
 
     fun extensionOf(language: String): String? = validators.find { it.language == language }?.extension
 

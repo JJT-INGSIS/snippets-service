@@ -6,6 +6,7 @@ import com.jjt.ingsis.snippets.language.Diagnostic
 import com.jjt.ingsis.snippets.language.Language
 import com.jjt.ingsis.snippets.language.ProcessorIdentity
 import com.jjt.ingsis.snippets.language.ProcessorRevision
+import com.jjt.ingsis.snippets.language.linting.LintCatalogResult
 import com.jjt.ingsis.snippets.language.linting.LintResult
 import com.jjt.ingsis.snippets.metadata.JsonSnapshotFingerprint
 import com.jjt.ingsis.snippets.metadata.LinkedSnippet
@@ -36,6 +37,8 @@ class SavedLintAssessmentTest {
     private val recorded = mutableListOf<LintAssessment>()
 
     private fun service(saved: LintingSelection? = selection): SavedLintAssessment {
+        `when`(language.lintingCatalog(draft.language, draft.version))
+            .thenReturn(Attributed(LintCatalogResult.Failed("down"), ProcessorIdentity.Missing))
         val metadata =
             SnippetMetadata(
                 id = id,
@@ -55,6 +58,7 @@ class SavedLintAssessmentTest {
             configurations = configurations,
             language = language,
             fingerprints = JsonSnapshotFingerprint(),
+            rulesProvider = LintingRulesProvider(language),
             assessments =
                 LintAssessments {
                     recorded +=
@@ -98,9 +102,27 @@ class SavedLintAssessmentTest {
     }
 
     @Test
+    fun `no saved configuration evaluates with verified provider defaults and records their revision`() {
+        val service = service(null)
+        `when`(language.lintingCatalog(draft.language, draft.version))
+            .thenReturn(Attributed(LintCatalogResult.Catalog(emptyList(), selection.rules), processor))
+        `when`(
+            language.lint(
+                language = draft.language,
+                version = draft.version,
+                code = draft.code,
+                rules = selection.rules,
+            ),
+        ).thenReturn(Attributed(LintResult.Analyzed(emptyList()), processor))
+        service.assess(id, owner, draft)
+        assertThat(recorded.single().state).isEqualTo(LintState.COMPLIANT)
+        assertThat(recorded.single().rulesRevision).isEqualTo(selection.revision)
+    }
+
+    @Test
     fun `missing provider defaults remain an explicit blocked capability and never invented success`() {
         service(null).assess(id, owner, draft)
-        assertThat(recorded.single().reason).isEqualTo("DEFAULTS_CONTRACT_UNAVAILABLE")
+        assertThat(recorded.single().reason).isEqualTo("DEFAULTS_UNAVAILABLE")
         assertThat(recorded.single().state).isEqualTo(LintState.NOT_EVALUATED_ERROR)
     }
 
