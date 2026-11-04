@@ -103,3 +103,17 @@ Actualización 04/11/2026: la migración de lint es V14, después de V12/V13 ya 
 
 
 04/11/2026: guardar explícitamente la selección default actual conserva su revisión y no crea lote, pero persiste esa elección para que una futura modificación del default no cambie la configuración explícita del usuario. INSERT y UPDATE distinguen el alta inicial de cambios concurrentes sin basarse en una lectura previa no bloqueante.
+
+### Verificación posterior a SNI-77 — 2026-11-04
+
+Build completo verde sobre `6a8dc67`, con PostgreSQL real en los tests.
+Además se ejecutaron los JARs de Snippets y PrintScript con una base nueva y
+Permissions real: sin configuración se mostraron los defaults publicados
+(`identifier_format=camel case`, `mandatory-variable-or-literal-in-println=true`).
+Guardar esos mismos defaults persistió la elección explícita sin lote; cambiar
+a `{}` emitió un lote; guardar después una regla booleana desactivada mantuvo
+la revisión sin otro lote. La configuración de otra identidad no cambió.
+Crear código válido con identificador `Bad_name` confirmó el contenido y guardó
+`NON_COMPLIANT`, diagnóstico real `identifier_format`, hash de defaults y revisión
+efectiva del proveedor en PostgreSQL. La infracción no revirtió la creación.
+Esta prueba no acredita el consumidor de lotes SNI-64 ni un despliegue en Azure.
