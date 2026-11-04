@@ -42,3 +42,12 @@ localmente y definir PRINTSCRIPT_LINT_URL con su URL antes de ejecutar el build.
 PrintScriptLintLiveTest compara la revisión de catálogo/análisis con
 capabilities.lint y comprueba selección vacía, infracciones, sintaxis y CHOICE.
 Sin esa variable sólo se omiten estas dos pruebas de integración externa.
+
+## Defaults del proveedor — SNI-77
+
+GET /linting/rules incorpora defaults reales por versión (aprobado por Thiago
+el 04/11/2026). Language los conserva junto al catálogo y su ProcessorIdentity,
+sin listas locales ni reinterpretación de opciones. Un proveedor anterior que
+no los envíe devuelve defaults=null: compatibilidad de transporte, no un fallback
+que habilite reglas inventadas. El consumidor que necesite defaults debe tratar
+esa ausencia como capacidad no disponible. {} sigue siendo selección explícita vacía.

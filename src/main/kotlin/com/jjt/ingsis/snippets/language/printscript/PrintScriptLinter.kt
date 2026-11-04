@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component
 data class PrintScriptLintCatalog(
     val version: String,
     val rules: List<LintRule>,
+    val defaults: Map<String, Any?>? = null,
 )
 
 data class PrintScriptLintCheck(
@@ -45,7 +46,7 @@ class PrintScriptLinter(
             when (val answer = response.result) {
                 is PrintScriptAnswer.Answered -> {
                     answer.body?.takeIf { it.version == version }?.let {
-                        LintCatalogResult.Catalog(it.rules)
+                        LintCatalogResult.Catalog(it.rules, it.defaults?.toMap())
                     } ?: LintCatalogResult.Failed(UNAVAILABLE)
                 }
 
