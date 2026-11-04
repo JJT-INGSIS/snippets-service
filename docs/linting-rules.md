@@ -96,3 +96,6 @@ reales, en una base local aislada (`lint63`). Actor/fixture nuevos:
 
 Esta evidencia acredita configuración explícita/evaluación puntual, no defaults,
 lote US15, filtros/listado ni UI de lint. No se modificó CD ni se desplegó Azure.
+
+
+Actualización 04/11/2026: la migración de lint es V14, después de V12/V13 ya integradas en dev. V11 nunca se integró en esa rama; el cambio evita intentar aplicar una migración menor después de las existentes.
