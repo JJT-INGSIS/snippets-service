@@ -35,7 +35,12 @@ class SaveLintingRules(
         accepted: RulesAcceptance.Accepted,
     ): LintingRulesOutcome =
         try {
-            val replacement = store.replace(scope, accepted.selection) { id -> changedJob(scope, accepted, id) }
+            val replacement =
+                store.replace(
+                    scope,
+                    accepted.selection,
+                    accepted.implicitSelection,
+                ) { id -> changedJob(scope, accepted, id) }
             val view =
                 LintingRulesView.of(
                     scope = scope,
