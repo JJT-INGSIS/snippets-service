@@ -36,6 +36,7 @@ data class LintViolation(
 sealed interface LintCatalogResult {
     data class Catalog(
         val rules: List<LintRule>,
+        val defaults: Map<String, Any?>? = null,
     ) : LintCatalogResult
 
     data class UnsupportedLanguage(
