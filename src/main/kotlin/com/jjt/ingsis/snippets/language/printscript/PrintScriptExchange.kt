@@ -45,6 +45,21 @@ internal class PrintScriptExchange(
                 .toEntity(answer)
         }
 
+    fun capability(name: String): ProcessorIdentity =
+        try {
+            val manifest =
+                client
+                    .get()
+                    .uri("/processor")
+                    .retrieve()
+                    .toEntity(PrintScriptManifest::class.java)
+                    .body
+            ProcessorIdentity.of(manifest?.capabilities?.get(name))
+        } catch (failure: RestClientException) {
+            logger.warn("The PrintScript service did not publish its processor manifest", failure)
+            ProcessorIdentity.Missing
+        }
+
     private fun <T : Any> exchange(call: () -> ResponseEntity<T>): Attributed<PrintScriptAnswer<T>> =
         try {
             val response = call()
@@ -68,3 +83,7 @@ internal class PrintScriptExchange(
     private fun processorOf(headers: HttpHeaders?): ProcessorIdentity =
         ProcessorIdentity.of(headers?.getFirst(PROCESSOR_REVISION_HEADER))
 }
+
+internal data class PrintScriptManifest(
+    val capabilities: Map<String, String?> = emptyMap(),
+)

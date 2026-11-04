@@ -37,6 +37,8 @@ sealed interface JobStep {
 
     data object Yield : JobStep
 
+    data object Superseded : JobStep
+
     data class Retry(
         val reason: String,
     ) : JobStep

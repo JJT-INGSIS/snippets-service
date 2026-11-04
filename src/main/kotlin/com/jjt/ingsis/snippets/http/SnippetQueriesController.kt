@@ -1,6 +1,7 @@
 package com.jjt.ingsis.snippets.http
 
 import com.jjt.ingsis.snippets.detail.ReadSnippet
+import com.jjt.ingsis.snippets.formattingrules.DownloadFormattedSnippet
 import com.jjt.ingsis.snippets.listing.ListSnippets
 import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseEntity
@@ -19,6 +20,8 @@ class SnippetQueriesController(
     private val listingTranslator: ListingOutcomeTranslator,
     private val readSnippet: ReadSnippet,
     private val detailTranslator: DetailOutcomeTranslator,
+    private val downloadFormatted: DownloadFormattedSnippet,
+    private val formattedTranslator: FormattedDownloadTranslator,
 ) {
     @GetMapping
     fun list(
@@ -40,4 +43,10 @@ class SnippetQueriesController(
         @PathVariable snippetId: String,
         @RequestHeader headers: HttpHeaders,
     ): ResponseEntity<*> = detailTranslator.toResponse(readSnippet.read(snippetId, headers.actorContext()))
+
+    @GetMapping("/{snippetId}/formatted")
+    fun formatted(
+        @PathVariable snippetId: String,
+        @RequestHeader headers: HttpHeaders,
+    ): ResponseEntity<*> = formattedTranslator.toResponse(downloadFormatted.download(snippetId, headers.actorContext()))
 }

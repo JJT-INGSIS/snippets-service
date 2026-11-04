@@ -169,10 +169,9 @@ class FormatSavedSnippetTest {
         val refusing =
             FormatSavedSnippet(
                 gate = { _, _ -> ReadDecision.Refused(ReadFailure.SNIPPET_MISSING) },
-                content = ContentReading(links, storage),
+                formatter = ownerRulesFormatter(),
                 links = links,
                 rules = ApplicableFormattingRules(rules),
-                language = language,
             )
         assertThat(refusing.format(snippetId.toString(), ActorContext()))
             .isEqualTo(SavedSnippetFormatting.Refused(ReadFailure.SNIPPET_MISSING))
@@ -191,13 +190,15 @@ class FormatSavedSnippetTest {
         val useCase =
             FormatSavedSnippet(
                 gate = gate,
-                content = ContentReading(links, storage),
+                formatter = ownerRulesFormatter(),
                 links = links,
                 rules = ApplicableFormattingRules(rules),
-                language = language,
             )
         return useCase.format(snippetId.toString(), ActorContext(listOf(actor)))
     }
+
+    private fun ownerRulesFormatter(): OwnerRulesFormatter =
+        OwnerRulesFormatter(ContentReading(links, storage), ApplicableFormattingRules(rules), language)
 
     private class PrintScriptOnly : LanguageValidator {
         override val language: String = "printscript"

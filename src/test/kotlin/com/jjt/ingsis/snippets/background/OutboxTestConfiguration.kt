@@ -9,7 +9,19 @@ import org.testcontainers.utility.DockerImageName
 class OutboxRedis : GenericContainer<OutboxRedis>(DockerImageName.parse("redis:7.4.7-alpine")) {
     init {
         withExposedPorts(6379)
-        withCommand("redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction")
+        // Bounded fault-injection filesystem: tests can fill AOF without filling the host disk.
+        withTmpFs(mapOf("/data" to "rw,size=8m"))
+        withCommand(
+            "redis-server",
+            "--dir",
+            "/data",
+            "--appendonly",
+            "yes",
+            "--appendfsync",
+            "everysec",
+            "--maxmemory-policy",
+            "noeviction",
+        )
     }
 }
 
