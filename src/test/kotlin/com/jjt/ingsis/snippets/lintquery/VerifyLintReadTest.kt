@@ -5,6 +5,7 @@ import com.jjt.ingsis.snippets.language.Language
 import com.jjt.ingsis.snippets.language.ProcessorIdentity
 import com.jjt.ingsis.snippets.language.ProcessorRevision
 import com.jjt.ingsis.snippets.language.linting.LintCatalogResult
+import com.jjt.ingsis.snippets.lintingrules.LintingSelection
 import com.jjt.ingsis.snippets.metadata.SnippetFilter
 import com.jjt.ingsis.snippets.permissions.AccessRelation
 import com.jjt.ingsis.snippets.permissions.SnippetAccess
@@ -23,6 +24,19 @@ class VerifyLintReadTest {
     private val processor = ProcessorRevision("sha256-v1:" + "a".repeat(64))
     private val access = SnippetAccess(UUID.randomUUID(), "owner", AccessRelation.SHARED)
     private val filter = SnippetFilter("", "")
+
+    @Test
+    fun `current defaults use the same canonical effective selection as saved assessments`() {
+        val defaults = mapOf("identifier_format" to "camel case", "disabled" to false)
+        `when`(language.lintingCatalog("printscript", "1.1"))
+            .thenReturn(
+                Attributed(LintCatalogResult.Catalog(emptyList(), defaults), ProcessorIdentity.Verified(processor)),
+            )
+        val result =
+            VerifyLintRead(MetadataLanguages { _, _ -> setOf(scope) }, language)
+                .prepare(listOf(access), filter) as PreparedLintRead.Ready
+        assertThat(result.basis.defaults).isEqualTo(mapOf(scope to LintingSelection(defaults).revision))
+    }
 
     @Test
     fun `many snippets with the same language version require only one verified catalog request`() {

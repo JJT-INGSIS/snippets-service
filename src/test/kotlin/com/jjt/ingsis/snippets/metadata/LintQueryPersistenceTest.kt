@@ -41,6 +41,33 @@ class LintQueryPersistenceTest(
     private val diagnostic = Diagnostic(rule = "fixture-rule", message = "ñ", line = 2, column = 3)
 
     @Test
+    fun `implicit defaults stay current and a new default revision supersedes them`() {
+        val fixture = fixture()
+        record(fixture, LintState.NON_COMPLIANT)
+        jdbc.update("DELETE FROM linting_configurations WHERE owner_id = ?", fixture.owner)
+        val scope = LanguageVersion("printscript", "1.1")
+        val current = basis(listOf(fixture)).copy(defaults = mapOf(scope to LintingSelection.EMPTY.revision))
+        assertThat(detail.find(fixture.linked, current))
+            .isEqualTo(
+                DetailLint.Found(
+                    LintFinding(
+                        status = LintStatus.NON_COMPLIANT,
+                        reason = null,
+                        diagnostics = listOf(diagnostic),
+                        codeHash = "sha256-v1:" + "c".repeat(64),
+                        rulesRevision = LintingSelection.EMPTY.revision,
+                        processorRevision = processor.value,
+                    ),
+                ),
+            )
+        val changed = current.copy(defaults = mapOf(scope to LintingSelection(mapOf("new-rule" to true)).revision))
+        assertThat(detail.find(fixture.linked, changed)).isEqualTo(DetailLint.Found(LintFinding.SUPERSEDED))
+        // An explicit selection remains authoritative even if library defaults subsequently change.
+        save(fixture, LintingSelection.EMPTY)
+        assertThat(detail.find(fixture.linked, changed)).isEqualTo(detail.find(fixture.linked, current))
+    }
+
+    @Test
     fun `compliance filter and count are applied before pagination across authorized owners`() {
         val passed = List(3) { fixture("same") }
         val rejected = List(2) { fixture("same") }

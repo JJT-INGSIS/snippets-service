@@ -37,6 +37,7 @@ data class LanguageVersion(
 data class LintReadBasis(
     val processors: Map<LanguageVersion, ProcessorRevision>,
     val owners: Map<UUID, String>,
+    val defaults: Map<LanguageVersion, String> = emptyMap(),
 )
 
 sealed interface PreparedLintRead {

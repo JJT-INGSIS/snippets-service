@@ -15,14 +15,16 @@ internal object LintProjectionSql {
     private const val OBSOLETE =
         "a.owner_id IS DISTINCT FROM (x.owners ->> s.id::text) OR " +
             "a.content_reference IS DISTINCT FROM s.content_reference OR a.language <> s.language OR " +
-            "a.version <> s.version OR a.rules_revision IS DISTINCT FROM c.revision OR " +
+            "a.version <> s.version OR a.rules_revision IS DISTINCT FROM " +
+            "COALESCE(c.revision, x.processors -> s.language -> s.version ->> 'defaults') OR " +
             "(a.state IN ('COMPLIANT', 'NON_COMPLIANT') AND a.processor_revision IS NULL) OR " +
             "(a.processor_revision IS NOT NULL AND " +
-            "a.processor_revision IS DISTINCT FROM (x.processors -> s.language ->> s.version))"
+            "a.processor_revision IS DISTINCT FROM (x.processors -> s.language -> s.version ->> 'processor'))"
 
     const val CANDIDATES =
         "WITH read_context AS (SELECT CAST(? AS jsonb) AS processors, CAST(? AS jsonb) AS owners), " +
-            "candidates AS (SELECT s.*, (x.processors -> s.language ->> s.version) IS NOT NULL AS lint_verified, " +
+            "candidates AS (SELECT s.*, " +
+            "(x.processors -> s.language -> s.version ->> 'processor') IS NOT NULL AS lint_verified, " +
             "a.diagnostics AS lint_diagnostics, a.code_hash AS lint_code_hash, " +
             "a.rules_revision AS lint_rules_revision, a.processor_revision AS lint_processor_revision, " +
             "CASE WHEN a.id IS NULL OR ($OBSOLETE) THEN 'pending' " +

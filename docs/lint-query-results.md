@@ -64,9 +64,12 @@ JDK 21 y Docker: `./gradlew build`.
 La prueba HTTP opt-in `scripts/verify_lint_queries.py` se ejecuta con todos los
 proveedores reales y una base aislada. Configurar cuatro actores dev existentes
 (no OAuth), API/PrintScript/Permissions/Asset/Azurite, sin worker de US15 activo.
-El fixture actual incluye la limitación explícita de defaults SNI-77 para obtener
-un error técnico persistido: **no prueba defaults reales**. Debe actualizarse
-cuando se entregue esa capacidad, sin relajar el criterio de defaults.
+El fixture actualizado usa los defaults reales de SNI-77 para una segunda
+evaluación compliant sin configuración. Verifica tres estados en HTTP
+(compliant, not-compliant y pending); los errores técnicos persistidos se
+verifican además en PostgreSQL y mediante fallos controlados del proveedor.
+La ejecución histórica del 02/11 tenía un cuarto estado por defaults ausentes;
+ese caso no representa el proveedor actual.
 
 ```sh
 python3 scripts/verify_lint_queries.py --phase healthy --evidence /tmp/sni64-evidence.json
@@ -91,3 +94,30 @@ estas fases HTTP, sin cambios de CD, Azure ni volúmenes existentes.
 Pendiente para cerrar: contrato SNI-78, consumidor del lote, integración de
 SNI-77/defaults, progreso/recuperación real con Redis y aceptación con UI SNI-67.
 Estas verificaciones parciales no declaran terminadas US15 ni SNI-37.
+
+### Integración de defaults — 2026-11-04
+
+La verificación de catálogo conserva también la revisión canónica de los defaults
+por lenguaje/versión, en la misma llamada que acredita el procesador. SQL compara
+contra la configuración explícita si existe, o contra esos defaults actuales.
+Así un resultado default no queda permanentemente superado por no tener fila de
+configuración; cambiar los defaults invalida el anterior. La selección explícita
+conserva precedencia, incluso `{}`. No se agregan consultas por snippet ni nuevas
+llamadas de lint al listado. Pruebas PostgreSQL cubren vigencia, sustitución de
+defaults y precedencia explícita, además de los filtros/paginación existentes.
+
+El contrato de descarga original de los tests se reconcilió con la decisión
+aprobada de verificar el proveedor al leer detalle: con PrintScript caído,
+ese detalle devuelve 502 y no pierde contenido; al recuperar el proveedor vuelve
+a entregar el original. No se certifica lint usando una revisión en caché.
+
+Verificación 04/11/2026: build completo verde (5m01s). Con JARs reales de
+Snippets/PrintScript, PostgreSQL nuevo y Permissions/Asset/Azurite reales,
+`verify_lint_queries.py` pasó el recorrido de defaults, consulta compartida,
+filtro/count/paginación y autorización. Apagar PrintScript produjo 502 y
+restaurarlo recuperó la consulta. Una segunda ejecución con proxy de fallos
+local inyectó 503 sólo en el análisis de un fixture, conservando validación y
+catálogo reales: el contenido quedó confirmado con lint `failed`, y los cinco
+resultados se filtraron y paginaron correctamente entre los cuatro estados.
+El fallo inyectado se distingue de respuestas reales; no se fabricó un resultado
+de lint ni se modificaron filas para obtener el estado esperado.

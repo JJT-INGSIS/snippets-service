@@ -20,7 +20,10 @@ internal object LintQueryParameters {
         PreparedStatementSetter { statement ->
             val processors =
                 filter.lintBasis?.processors.orEmpty().entries.groupBy { it.key.language }.mapValues { (_, entries) ->
-                    entries.associate { it.key.version to it.value.value }
+                    entries.associate {
+                        it.key.version to
+                            mapOf("processor" to it.value.value, "defaults" to filter.lintBasis?.defaults?.get(it.key))
+                    }
                 }
             statement.setString(1, json.writeValueAsString(processors))
             statement.setString(
