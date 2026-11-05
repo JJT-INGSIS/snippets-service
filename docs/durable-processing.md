@@ -23,7 +23,12 @@ queries the same ID; it never submits a new start while that CPU might be alive.
 If GET returns 404, cancellation must establish a durable fence before retrying
 with a new ID. Cancellation in progress or a failed connection does not release
 capacity. Records are checked for ID, kind, expected processor/version and effective
-capacity; results are checked against the persisted source fingerprint.
+capacity; results are checked against the persisted source fingerprint and effective
+rules hash. A mismatched result cannot be published or settle the permit.
+
+UNKNOWN deliveries may already be acknowledged in Redis. PostgreSQL recovery also
+resumes due PENDING/RETRY/RUNNING jobs with existing permit history, so a proven
+terminal retry does not depend on another queue delivery.
 
 Legacy synchronous permits without remote identity remain UNKNOWN. They cannot
 be made safe by cancelling a new unrelated ID. Drain/independently verify them
