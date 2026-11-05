@@ -121,3 +121,7 @@ catálogo reales: el contenido quedó confirmado con lint `failed`, y los cinco
 resultados se filtraron y paginaron correctamente entre los cuatro estados.
 El fallo inyectado se distingue de respuestas reales; no se fabricó un resultado
 de lint ni se modificaron filas para obtener el estado esperado.
+
+También se verificó la caída real de Asset con el fixture actualizado: listado
+con filtros siguió disponible (200) y detalle devolvió 503; restaurar Asset
+recuperó la lectura. No se tocaron blobs ni filas para simular la caída.
