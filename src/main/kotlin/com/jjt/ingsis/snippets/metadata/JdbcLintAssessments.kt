@@ -15,7 +15,7 @@ class JdbcLintAssessments(
     private val json = JsonMapper.builder().findAndAddModules().build()
 
     override fun record(assessment: LintAssessment) {
-        transaction.commit {
+        transaction.join {
             // Keep obsolete attempts internally, but never publish them over newer content/configuration.
             val id = UUID.randomUUID()
             jdbc.update(

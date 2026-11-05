@@ -5,6 +5,7 @@ import com.jjt.ingsis.snippets.background.JobState
 import com.jjt.ingsis.snippets.background.JobStep
 import com.jjt.ingsis.snippets.background.JobWork
 import com.jjt.ingsis.snippets.background.NewJobItem
+import com.jjt.ingsis.snippets.background.RemoteExecution
 import com.jjt.ingsis.snippets.background.newJob
 import com.jjt.ingsis.snippets.formattingrules.FormattedVariants
 import com.jjt.ingsis.snippets.formattingrules.FormattingRulesChangedJob
@@ -44,7 +45,12 @@ private val indentTwo = FormattingSelection(mapOf("indent-inside-if" to 2))
 
 private val requests = JsonMapper.builder().build()
 
-private fun printScriptAnswer(request: StubRequest): StubResponse {
+private val operationFixture = OperationHttpFixture(processor.value, ::legacyPrintScriptAnswer)
+
+private fun printScriptAnswer(request: StubRequest): StubResponse =
+    operationFixture.answer(request) ?: legacyPrintScriptAnswer(request)
+
+private fun legacyPrintScriptAnswer(request: StubRequest): StubResponse {
     val code = requests.readTree(request.body).get("code").asString()
     val body =
         if (code.contains("BAD")) {
@@ -206,19 +212,28 @@ class FormattingRulesChangedHandlerTest(
         val job = changeRules(indentTwo)
         val interrupted = claim(job)
         interrupted.select(listOf(itemFor(job, id)), cursor = id.toString(), complete = true)
-        checkNotNull(interrupted.beginRemote(interrupted.items().single()))
+        val reserved = checkNotNull(interrupted.beginRemote(interrupted.items().single()))
+        interrupted.bindRemote(
+            reserved.id,
+            RemoteExecution(
+                id = reserved.id.toString(),
+                processor = processor.value,
+                activeLimit = 4L,
+                context = mapOf("kind" to "FORMAT", "version" to "1.1"),
+            ),
+        )
         expireLease(job)
 
         assertThat(turn(job)).isEqualTo(JobStep.Yield)
         assertThat(capacity.held(job)).isNull()
-        assertThat(itemReason(job, id)).isEqualTo("FORMAT_INTERRUPTED")
+        assertThat(itemReason(job, id)).isEqualTo("REMOTE_OPERATION_CANCELLED")
 
         assertThat(runUntilFinished(job)).isEqualTo(JobState.COMPLETED)
         assertThat(variants.find(id)).isNotNull()
     }
 
     @Test
-    fun `a turn that failed while holding the permit is reconciled and formatted again`() {
+    fun `a legacy synchronous attempt without a known ID keeps UNKNOWN until termination is independently proven`() {
         val id = snippet("println(1);")
         val job = changeRules(indentTwo)
         val failed = claim(job)
@@ -227,11 +242,9 @@ class FormattingRulesChangedHandlerTest(
         jobs.finish(failed.lease, JobStep.Retry("HANDLER_FAILURE"))
 
         assertThat(checkNotNull(jobs.find(job)).state).isEqualTo(JobState.UNKNOWN)
-        assertThat(turn(job)).isEqualTo(JobStep.Yield)
-        assertThat(itemReason(job, id)).isEqualTo("FORMAT_INTERRUPTED")
-
-        assertThat(runUntilFinished(job)).isEqualTo(JobState.COMPLETED)
-        assertThat(variants.find(id)).isNotNull()
+        assertThat(turn(job)).isEqualTo(JobStep.Unknown("LEGACY_REMOTE_PROOF_REQUIRED"))
+        assertThat(capacity.held(job)).isNotNull()
+        assertThat(variants.find(id)).isNull()
     }
 
     private fun runUntilFinished(job: UUID): JobState {
@@ -321,7 +334,11 @@ class FormattingRulesChangedHandlerTest(
             id.toString(),
         )
 
-    private fun formattingCalls(): Int = printScript.received.count { it.path == "/formatting" }
+    private fun formattingCalls(): Int =
+        printScript.received.count {
+            it.path.startsWith("/operations/") &&
+                it.method == "PUT"
+        }
 
     companion object {
         private val finished = setOf(JobState.COMPLETED, JobState.PARTIAL, JobState.FAILED, JobState.SUPERSEDED)

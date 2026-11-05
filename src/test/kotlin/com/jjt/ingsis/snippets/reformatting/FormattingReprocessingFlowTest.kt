@@ -49,7 +49,12 @@ private const val CATALOG =
     """{"version":"1.1","rules":[{"id":"indent-inside-if","type":"integer","default":null,"minimum":0,""" +
         """"maximum":10,"conflictsWith":[],"description":"Sangría dentro de un if."}]}"""
 
+private val operationFixture = OperationHttpFixture(revision.getValue("Processor-Revision"), ::legacyPrintScriptAnswer)
+
 private fun printScriptAnswer(request: StubRequest): StubResponse =
+    operationFixture.answer(request) ?: legacyPrintScriptAnswer(request)
+
+private fun legacyPrintScriptAnswer(request: StubRequest): StubResponse =
     when (request.path) {
         "/formatting/rules" -> StubResponse(200, CATALOG, headers = revision)
         "/formatting/rules/check" -> StubResponse(200, """{"valid":true,"violations":[]}""", headers = revision)
@@ -165,6 +170,29 @@ class FormattingReprocessingFlowTest(
         assertThat(formattingCalls()).isEqualTo(3)
     }
 
+    @Test
+    fun `a fenced UNKNOWN retry finishes after the original Redis delivery was acknowledged`() {
+        val snippet = snippet("println(1);")
+        val job = saveRules()
+        printScript.answerWith { request ->
+            if (request.method == "PUT") StubResponse(503, "{}") else printScriptAnswer(request)
+        }
+        publishOutbox()
+        val queue = inbox("uncertain-start")
+        consumer.cycle(queue)
+        assertThat(jobs.find(job)?.state).isEqualTo(JobState.UNKNOWN)
+        assertThat(
+            redis.opsForStream<String, String>().pending(outbox.stream, settings.group)?.totalPendingMessages,
+        ).isZero()
+        val original = printScript.received.first { it.method == "PUT" }.path
+        printScript.reset()
+        assertThat(processUntilFinished(job, queue)).isEqualTo(JobState.COMPLETED)
+        assertThat(variants.find(snippet)).isNotNull()
+        assertThat(printScript.received.any { it.path == "$original/cancel" }).isTrue()
+        assertThat(formattingCalls()).isEqualTo(1)
+        assertThat(jobs.progress(job)?.processed).isEqualTo(1)
+    }
+
     private fun saveRules(): UUID {
         val outcome =
             save.save(
@@ -203,7 +231,11 @@ class FormattingReprocessingFlowTest(
 
     private fun snippet(code: String): UUID = seeds.confirmed(code, "1.1", owner).also { ledger.own(owner, it) }
 
-    private fun formattingCalls(): Int = printScript.received.count { it.path == "/formatting" }
+    private fun formattingCalls(): Int =
+        printScript.received.count {
+            it.path.startsWith("/operations/") &&
+                it.method == "PUT"
+        }
 
     companion object {
         private val finished = setOf(JobState.COMPLETED, JobState.PARTIAL, JobState.FAILED, JobState.SUPERSEDED)

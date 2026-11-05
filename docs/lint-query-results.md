@@ -1,9 +1,10 @@
 # SNI-64 — Consulta de resultados vigentes
 
-Estado: parte de consulta implementada; **ticket completo pendiente de SNI-78**
-(operaciones de lint recuperables en proveedor/Language) y de integrar SNI-63/77.
-No se registra un consumidor ficticio que libere capacidad tras un timeout.
-El lote US15 y su progreso recuperable todavía no se acreditan en esta entrega.
+Estado al 05/11/2026: consultas y consumidor del lote implementados. La recuperación
+usa operaciones durables SNI-78, con ID asignado por Snippets y retención terminal
+de siete días, según aprobación de Thiago. Ver [ciclo durable](durable-processing.md).
+La aceptación final con proveedor real se registra en SNI-75, separada del merge
+y de cualquier activación/despliegue.
 
 ## Decisiones aprobadas
 
@@ -91,9 +92,9 @@ Apagar PrintScript produjo 502, sin lista ficticia; apagar Asset mantuvo listado
 200 y detalle 503. Restaurar proveedores recuperó las lecturas. Sin mocks en
 estas fases HTTP, sin cambios de CD, Azure ni volúmenes existentes.
 
-Pendiente para cerrar: contrato SNI-78, consumidor del lote, integración de
-SNI-77/defaults, progreso/recuperación real con Redis y aceptación con UI SNI-67.
-Estas verificaciones parciales no declaran terminadas US15 ni SNI-37.
+Estado histórico del 02/11: entonces faltaban contrato SNI-78 y consumidor.
+La implementación del 05/11 se describe en durable-processing.md. La UI SNI-67
+conserva su entrega y aceptación propias; no se declara cerrado SNI-37.
 
 ### Integración de defaults — 2026-11-04
 

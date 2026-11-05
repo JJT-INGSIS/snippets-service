@@ -31,10 +31,7 @@ class FormattingRulesChangedHandler(
     override fun reconcile(
         work: JobWork,
         permit: RemotePermit?,
-    ): JobStep {
-        if (permit != null) reformatting.release(work, permit)
-        return JobStep.Yield
-    }
+    ): JobStep = reformatting.recover(work, permit)
 
     private fun rulesStillCurrent(target: ReformattingTarget): Boolean =
         (rules.find(target.scope)?.selection ?: FormattingSelection.EMPTY).revision == target.rulesRevision

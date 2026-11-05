@@ -1,6 +1,9 @@
 package com.jjt.ingsis.snippets.metadata
 
 import com.jjt.ingsis.snippets.formattingrules.FormattingScope
+import com.jjt.ingsis.snippets.processing.RuleBatchCandidate
+import com.jjt.ingsis.snippets.processing.RuleBatchCandidates
+import com.jjt.ingsis.snippets.processing.RuleBatchScope
 import com.jjt.ingsis.snippets.reformatting.ReformattingCandidate
 import com.jjt.ingsis.snippets.reformatting.ReformattingCandidates
 import com.jjt.ingsis.snippets.storage.ContentReference
@@ -19,18 +22,32 @@ private const val PAGE =
 class JdbcReformattingCandidates(
     private val jdbc: JdbcTemplate,
     private val transaction: MetadataTransaction,
-) : ReformattingCandidates {
+) : ReformattingCandidates,
+    RuleBatchCandidates {
     override fun page(
         owned: Set<UUID>,
         scope: FormattingScope,
         after: UUID?,
         limit: Int,
     ): List<ReformattingCandidate> =
+        page(
+            owned = owned,
+            scope = RuleBatchScope(scope.ownerId, scope.language, scope.version),
+            after = after,
+            limit = limit,
+        ).map { ReformattingCandidate(it.id, it.reference) }
+
+    override fun page(
+        owned: Set<UUID>,
+        scope: RuleBatchScope,
+        after: UUID?,
+        limit: Int,
+    ): List<RuleBatchCandidate> =
         transaction.read {
             jdbc.query(
                 PAGE,
                 { row, _ ->
-                    ReformattingCandidate(
+                    RuleBatchCandidate(
                         id = row.getObject("id", UUID::class.java),
                         reference = ContentReference(row.getString("content_reference")),
                     )

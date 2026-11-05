@@ -56,6 +56,7 @@ data class RemoteExecution(
     val id: String,
     val processor: String?,
     val activeLimit: Long? = null,
+    val context: Map<String, String> = emptyMap(),
 )
 
 data class RemotePermit(
