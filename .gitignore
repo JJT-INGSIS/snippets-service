@@ -34,3 +34,6 @@ build/
 # Local configuration
 .env
 .env.*
+
+# Local acceptance scripts
+__pycache__/

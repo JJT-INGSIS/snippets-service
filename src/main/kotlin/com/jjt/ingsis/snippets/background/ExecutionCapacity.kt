@@ -30,6 +30,13 @@ interface ExecutionCapacity {
         reason: String,
     )
 
+    fun retryTerminated(
+        lease: JobLease,
+        permitId: UUID,
+        evidence: RemoteTerminationEvidence,
+        reason: String,
+    )
+
     fun resolve(
         lease: JobLease,
         permitId: UUID,

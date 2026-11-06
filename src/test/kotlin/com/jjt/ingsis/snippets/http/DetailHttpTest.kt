@@ -187,11 +187,13 @@ class DetailHttpTest
 
         companion object {
             private val ledger = AccessLedger()
+            private val lintCatalog = verifiedLintCatalog()
             private val permissions = ScriptedHttpService { request -> ledger.answer(request) }
 
             @JvmStatic
             @DynamicPropertySource
             fun dependencies(registry: DynamicPropertyRegistry) {
+                registry.add("language.printscript.base-url") { lintCatalog.baseUrl }
                 registry.add("permissions.base-url") { permissions.baseUrl }
                 registry.add("storage.local.directory") { Files.createTempDirectory("detail-http").toString() }
             }
@@ -200,6 +202,7 @@ class DetailHttpTest
             @AfterAll
             fun stopDependencies() {
                 permissions.close()
+                lintCatalog.close()
             }
         }
     }

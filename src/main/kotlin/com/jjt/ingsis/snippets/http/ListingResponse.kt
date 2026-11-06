@@ -1,15 +1,32 @@
 package com.jjt.ingsis.snippets.http
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.jjt.ingsis.snippets.language.Diagnostic
+import com.jjt.ingsis.snippets.lintquery.LintFinding
 import com.jjt.ingsis.snippets.listing.ListedSnippet
 import com.jjt.ingsis.snippets.listing.SnippetPage
 import java.util.UUID
 
-private val notImplemented = LintResponse("not-implemented")
-
 data class LintResponse(
     val status: String,
-)
+    val reason: String?,
+    val diagnostics: List<Diagnostic>,
+    val codeHash: String?,
+    val rulesRevision: String?,
+    val processorRevision: String?,
+) {
+    companion object {
+        fun from(finding: LintFinding) =
+            LintResponse(
+                status = finding.status.value,
+                reason = finding.reason,
+                diagnostics = finding.diagnostics,
+                codeHash = finding.codeHash,
+                rulesRevision = finding.rulesRevision,
+                processorRevision = finding.processorRevision,
+            )
+    }
+}
 
 data class ListedSnippetResponse(
     val id: UUID,
@@ -20,9 +37,8 @@ data class ListedSnippetResponse(
     val extension: String?,
     val ownerId: String,
     val relation: String,
+    val lint: LintResponse,
 ) {
-    val lint: LintResponse = notImplemented
-
     companion object {
         fun from(snippet: ListedSnippet): ListedSnippetResponse {
             val metadata = snippet.metadata
@@ -37,6 +53,7 @@ data class ListedSnippetResponse(
                 extension = snippet.extension,
                 ownerId = access.ownerId,
                 relation = access.relation.name.lowercase(),
+                lint = LintResponse.from(snippet.lint),
             )
         }
     }

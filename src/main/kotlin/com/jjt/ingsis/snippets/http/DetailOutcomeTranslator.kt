@@ -13,6 +13,7 @@ class DetailOutcomeTranslator {
             DetailOutcome.IdentityRejected -> SnippetProblem.IDENTITY_UNAVAILABLE.response()
             DetailOutcome.Missing -> SnippetProblem.SNIPPET_NOT_FOUND.response()
             DetailOutcome.PermissionsUnavailable -> SnippetProblem.DEPENDENCY_FAILURE.response()
+            DetailOutcome.LanguageUnavailable -> SnippetProblem.DEPENDENCY_FAILURE.response()
             DetailOutcome.MetadataUnavailable -> SnippetProblem.METADATA_UNAVAILABLE.response()
             DetailOutcome.StorageUnavailable -> SnippetProblem.STORAGE_UNAVAILABLE.response()
             DetailOutcome.ContentBroken -> SnippetProblem.TECHNICAL_FAILURE.response()

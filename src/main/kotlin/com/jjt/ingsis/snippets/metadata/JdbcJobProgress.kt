@@ -342,13 +342,16 @@ class JdbcJobProgress(
                 ).singleOrNull()
         }
 
+    // UNKNOWN deliveries can already be ACKed. Their proven retries must remain runnable after releasing the permit.
     override fun reconciliations(): List<UUID> =
         transaction.read {
             jdbc.query(
-                "SELECT id FROM background_jobs WHERE state = 'UNKNOWN' AND next_attempt_at <= " +
-                    "clock_timestamp() " +
-                    "AND (lease_until IS NULL OR lease_until <= clock_timestamp()) ORDER BY " +
-                    "next_attempt_at LIMIT ?",
+                "SELECT j.id FROM background_jobs j WHERE j.finished_at IS NULL AND " +
+                    "(j.state = 'UNKNOWN' OR (j.state IN ('PENDING','RETRY','RUNNING') AND " +
+                    "EXISTS (SELECT 1 FROM execution_permits p WHERE p.job_id = j.id))) " +
+                    "AND j.next_attempt_at <= clock_timestamp() " +
+                    "AND (j.lease_until IS NULL OR j.lease_until <= clock_timestamp()) " +
+                    "ORDER BY j.next_attempt_at LIMIT ?",
                 { row, _ -> row.getObject("id", UUID::class.java) },
                 settings.batchSize,
             )

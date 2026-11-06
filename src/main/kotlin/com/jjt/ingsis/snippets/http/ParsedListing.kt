@@ -1,5 +1,6 @@
 package com.jjt.ingsis.snippets.http
 
+import com.jjt.ingsis.snippets.lintquery.LintStatus
 import com.jjt.ingsis.snippets.listing.ListingQuery
 import com.jjt.ingsis.snippets.metadata.PageRequest
 import com.jjt.ingsis.snippets.metadata.SnippetFilter
@@ -11,10 +12,11 @@ import com.jjt.ingsis.snippets.permissions.RelationFilter
 private const val RELATION = "relation"
 private const val NAME = "name"
 private const val LANGUAGE = "language"
+private const val LINT = "lint"
 private const val SORT = "sort"
 private const val DIRECTION = "direction"
 
-private val known = setOf(RELATION, NAME, LANGUAGE, SORT, DIRECTION, PAGE, PAGE_SIZE)
+private val known = setOf(LINT, RELATION, NAME, LANGUAGE, SORT, DIRECTION, PAGE, PAGE_SIZE)
 
 sealed interface ParsedListing {
     data class Valid(
@@ -31,6 +33,7 @@ fun listingQueryOf(parameters: Map<String, List<String>>): ParsedListing {
     if (malformed != null) return ParsedListing.Invalid(malformed)
 
     val values = parameters.mapValues { it.value.single() }
+    val lint = values[LINT]?.let { value -> LintStatus.entries.find { it.value == value } }
     val relation = choice(values[RELATION], RelationFilter.entries, RelationFilter.ALL)
     val field = choice(values[SORT], SortField.entries, SortField.NAME)
     val direction = choice(values[DIRECTION], SortDirection.entries, SortDirection.ASC)
@@ -38,6 +41,10 @@ fun listingQueryOf(parameters: Map<String, List<String>>): ParsedListing {
     val size = number(values[PAGE_SIZE], DEFAULT_PAGE_SIZE, 1..MAX_PAGE_SIZE)
 
     return when {
+        values[LINT] != null && lint == null -> {
+            ParsedListing.Invalid(LINT)
+        }
+
         relation == null -> {
             ParsedListing.Invalid(RELATION)
         }
@@ -59,7 +66,8 @@ fun listingQueryOf(parameters: Map<String, List<String>>): ParsedListing {
         }
 
         else -> {
-            val filter = SnippetFilter(name = values[NAME].orEmpty(), language = values[LANGUAGE].orEmpty())
+            val filter =
+                SnippetFilter(name = values[NAME].orEmpty(), language = values[LANGUAGE].orEmpty(), lintStatus = lint)
             ParsedListing.Valid(
                 ListingQuery(
                     relation = relation,

@@ -37,6 +37,8 @@ sealed interface DetailOutcome {
 
     data object PermissionsUnavailable : DetailOutcome
 
+    data object LanguageUnavailable : DetailOutcome
+
     data object MetadataUnavailable : DetailOutcome
 
     data object StorageUnavailable : DetailOutcome

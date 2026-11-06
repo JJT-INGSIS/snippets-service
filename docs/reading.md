@@ -39,15 +39,15 @@ lista ni en el detalle, aunque Permissions ya tenga su owner.
 | `relation` | `all` | `all`, `owned`, `shared` | Propios, compartidos o ambos. |
 | `name` | sin filtro | texto | Contiene el texto, sin distinguir mayúsculas. Vacío equivale a no filtrar. No se recorta. |
 | `language` | sin filtro | texto | Igual exacto al lenguaje del snippet. Vacío equivale a no filtrar. |
-| `sort` | `name` | `name`, `language` | Campo de orden. |
+| `lint` | sin filtro | `compliant`, `not-compliant`, `pending`, `failed` | Estado vigente, aplicado antes de paginar. |
+| `sort` | `name` | `name`, `language`, `lint` | Campo de orden; lint usa orden lexicográfico del estado. |
 | `direction` | `asc` | `asc`, `desc` | Sentido del orden. |
 | `page` | `0` | entero `>= 0` | Número de página. La primera es `0`. |
 | `page_size` | `10` | entero de `1` a `100` | Tamaño de página. Cubre las opciones de la tabla de la UI: 10, 25, 50 y 100. |
 
 - Cada parámetro admite un solo valor. Un valor repetido o fuera de rango responde `400`.
-- Un parámetro desconocido responde `400`. En particular, filtrar u ordenar por
-  lint (`lint`, `compliance`, `sort=lint`) responde `400` mientras no exista el
-  lint: no se ignora para no aparentar un filtro aplicado.
+- Un parámetro desconocido responde `400`; `compliance` no es un alias de `lint`.
+- `lint` requiere uno de los estados documentados; no acepta `not-implemented`.
 - Los números se escriben solo con dígitos: `+1`, `1.5` o `-1` responden `400`.
 - Los parámetros se validan antes que la identidad, como el body en
   [creation.md](creation.md): un pedido con parámetros inválidos y sin identidad
@@ -56,9 +56,10 @@ lista ni en el detalle, aunque Permissions ya tenga su owner.
 ### Orden y página
 
 1. Permissions entrega los IDs que el actor puede ver con la relación pedida.
-2. Snippets aplica sobre esos IDs los filtros de nombre y lenguaje.
-3. Ordena **todo** el resultado filtrado, no solo la página.
-4. Recién después corta la página.
+2. Snippets verifica la revisión actual del linter por lenguaje/versión, sin transacción abierta durante HTTP.
+3. Aplica sobre esos IDs los filtros de nombre, lenguaje y cumplimiento vigente.
+4. Ordena **todo** el resultado filtrado, no solo la página.
+5. Recién después corta la página.
 
 El orden es estable: ante valores iguales del campo pedido, desempata por `id`
 ascendente. `name` y `language` se comparan sin distinguir mayúsculas. Repetir
@@ -103,7 +104,7 @@ X-Dev-Actor-Id: dev-juan
 ```
 
 ```json
-{"page":0,"page_size":2,"count":3,"snippets":[{"id":"0f8b3c1e-4a2d-4d3b-9b7a-2c6e5f1a9d40","name":"Hello","description":null,"language":"printscript","version":"1.0","extension":"prs","ownerId":"dev-juan","relation":"owned","lint":{"status":"not-implemented"}},{"id":"7d2e9a4f-1b3c-4e5d-8f6a-0b1c2d3e4f50","name":"Sum","description":"Adds two numbers","language":"printscript","version":"1.1","extension":"prs","ownerId":"dev-thiago","relation":"shared","lint":{"status":"not-implemented"}}]}
+{"page":0,"page_size":2,"count":3,"snippets":[{"id":"0f8b3c1e-4a2d-4d3b-9b7a-2c6e5f1a9d40","name":"Hello","description":null,"language":"printscript","version":"1.0","extension":"prs","ownerId":"dev-juan","relation":"owned","lint":{"status":"pending","reason":"NOT_EVALUATED","diagnostics":[],"codeHash":null,"rulesRevision":null,"processorRevision":null}},{"id":"7d2e9a4f-1b3c-4e5d-8f6a-0b1c2d3e4f50","name":"Sum","description":"Adds two numbers","language":"printscript","version":"1.1","extension":"prs","ownerId":"dev-thiago","relation":"shared","lint":{"status":"pending","reason":"NOT_EVALUATED","diagnostics":[],"codeHash":null,"rulesRevision":null,"processorRevision":null}}]}
 ```
 
 #### `200` Solo compartidos, filtrados por nombre
@@ -114,7 +115,7 @@ X-Dev-Actor-Id: dev-juan
 ```
 
 ```json
-{"page":0,"page_size":10,"count":1,"snippets":[{"id":"7d2e9a4f-1b3c-4e5d-8f6a-0b1c2d3e4f50","name":"Sum","description":"Adds two numbers","language":"printscript","version":"1.1","extension":"prs","ownerId":"dev-thiago","relation":"shared","lint":{"status":"not-implemented"}}]}
+{"page":0,"page_size":10,"count":1,"snippets":[{"id":"7d2e9a4f-1b3c-4e5d-8f6a-0b1c2d3e4f50","name":"Sum","description":"Adds two numbers","language":"printscript","version":"1.1","extension":"prs","ownerId":"dev-thiago","relation":"shared","lint":{"status":"pending","reason":"NOT_EVALUATED","diagnostics":[],"codeHash":null,"rulesRevision":null,"processorRevision":null}}]}
 ```
 
 #### `200` Página posterior a la última
@@ -139,7 +140,7 @@ X-Dev-Actor-Id: dev-juan
 {"type":"urn:snippets:problem:invalid-request","title":"Bad Request","status":400,"detail":"The body, one of its fields, a header or the snippet id is missing or invalid.","instance":"/snippets","parameter":"page_size"}
 ```
 
-#### `400` Filtro por lint
+#### `200` Filtro por lint
 
 ```http
 GET /snippets?lint=compliant
@@ -147,7 +148,7 @@ X-Dev-Actor-Id: dev-juan
 ```
 
 ```json
-{"type":"urn:snippets:problem:invalid-request","title":"Bad Request","status":400,"detail":"The body, one of its fields, a header or the snippet id is missing or invalid.","instance":"/snippets","parameter":"lint"}
+{"page":0,"page_size":10,"count":0,"snippets":[]}
 ```
 
 #### `502` Permissions no disponible
@@ -269,7 +270,7 @@ X-Dev-Actor-Id: dev-juan
 ```
 
 ```json
-{"id":"0f8b3c1e-4a2d-4d3b-9b7a-2c6e5f1a9d40","name":"Hello","description":null,"language":"printscript","version":"1.0","extension":"prs","ownerId":"dev-juan","relation":"owned","lint":{"status":"not-implemented"},"code":"println(\"Hello\");","capabilities":{"modify":true,"share":true}}
+{"id":"0f8b3c1e-4a2d-4d3b-9b7a-2c6e5f1a9d40","name":"Hello","description":null,"language":"printscript","version":"1.0","extension":"prs","ownerId":"dev-juan","relation":"owned","lint":{"status":"pending","reason":"NOT_EVALUATED","diagnostics":[],"codeHash":null,"rulesRevision":null,"processorRevision":null},"code":"println(\"Hello\");","capabilities":{"modify":true,"share":true}}
 ```
 
 #### `200` Snippet compartido
@@ -280,7 +281,7 @@ X-Dev-Actor-Id: dev-juan
 ```
 
 ```json
-{"id":"7d2e9a4f-1b3c-4e5d-8f6a-0b1c2d3e4f50","name":"Sum","description":"Adds two numbers","language":"printscript","version":"1.1","extension":"prs","ownerId":"dev-thiago","relation":"shared","lint":{"status":"not-implemented"},"code":"let a: number = 1;\nprintln(a + 2);","capabilities":{"modify":false,"share":false}}
+{"id":"7d2e9a4f-1b3c-4e5d-8f6a-0b1c2d3e4f50","name":"Sum","description":"Adds two numbers","language":"printscript","version":"1.1","extension":"prs","ownerId":"dev-thiago","relation":"shared","lint":{"status":"pending","reason":"NOT_EVALUATED","diagnostics":[],"codeHash":null,"rulesRevision":null,"processorRevision":null},"code":"let a: number = 1;\nprintln(a + 2);","capabilities":{"modify":false,"share":false}}
 ```
 
 #### `404` Sin acceso
@@ -479,3 +480,28 @@ try {
 
 Descarga del código formateado (US13), infracciones de lint, tests del snippet y
 ejecución. Ver las funciones deshabilitadas en [ui-integration.md](ui-integration.md).
+
+
+## Lint vigente — SNI-64
+
+La consulta de esta rama sustituye `not-implemented` por resultados persistidos.
+Compliant/not-compliant requieren la misma referencia de contenido, lenguaje,
+versión, owner de Permissions, revisión de reglas y procesador verificado.
+Un resultado anterior queda `pending` con reason `SUPERSEDED`, sin diagnósticos
+ni hashes históricos. Sin evaluación: `pending`/`NOT_EVALUATED`. Un fallo técnico
+vigente es `failed` con su motivo; no equivale a infracción.
+
+El objeto lint agrega reason, diagnostics, codeHash, rulesRevision y
+processorRevision (campos sin valor se representan como null). Listar no ejecuta
+el linter ni lee blobs; listado y detalle comparten la misma definición SQL de
+vigencia. Count/filtro/orden/página usan un snapshot PostgreSQL consistente.
+Si el catálogo/revisión no puede verificarse, responde 502, incluso cuando un
+filtro de lint podría producir cero filas. Un ámbito nuevo que aparezca después
+de verificar también impide certificar el listado, en vez de descartarlo.
+
+Decisiones aprobadas por Thiago el 02/11/2026: `pending` con motivo para superados;
+verificación actual con error ante caída del proveedor. Beneficio: no certificar
+resultados de otro procesador; costo: consultas HTTP por scope y dependencia
+del proveedor al leer. Se descarta cachear la última revisión conocida. El
+lote recuperable sigue pendiente del contrato SNI-78 y defaults de SNI-77;
+esta consulta no declara aceptación completa de US15 ni SNI-37.

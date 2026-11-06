@@ -47,7 +47,8 @@ sequenceDiagram
         end
         W->>DB: Tomar un elemento y el permiso de fondo
         W->>ST: Leer el código (lectura estable)
-        W->>PS: Formatear con las reglas del evento
+        W->>DB: Confirmar ID remoto y base junto con el permiso
+        W->>PS: Iniciar/consultar operación durable con las reglas del evento
         W->>ST: Guardar el derivado como blob nuevo
         W->>DB: Transacción con lease: comparar base, publicar, completar, liberar permiso
     end
@@ -110,14 +111,23 @@ ejecuciones manuales: hay como máximo una operación pesada de fondo y se respe
 el cupo manual. Sin permiso disponible, el handler cede el turno sin llamar a
 PrintScript.
 
-Si el worker se cae durante la llamada, el permiso queda tomado. En el turno
-siguiente, `reconcile` lo libera y reintenta el elemento. Es seguro porque
-formatear es una función pura: repetirla no tiene efectos en PrintScript. Por
-eso se usa `capacity.rejected`, aunque su nombre piensa en ejecuciones remotas.
+Actualización aprobada por Thiago el 05/11/2026 (SNI-78): el formato de fondo
+usa operaciones durables consultables. Que la función sea pura permite repetir
+su resultado, pero no demuestra que la llamada anterior haya dejado de consumir
+CPU. Se reemplaza la liberación/reintento incondicional del reconciliador.
 
-Si el handler falla con el permiso tomado, la base deja el trabajo y el elemento
-`UNKNOWN`. Para poder reintentarlo, `retryItem` acepta ahora elementos `RUNNING`
-o `UNKNOWN`, igual que `completeItem`.
+La reserva y el ID remoto se confirman en la misma transacción, antes de enviar
+PUT. Tras un corte se consulta ese ID. Un 404 necesita una cancelación que deje
+un fence durable antes de reintentar; CANCELLING o una caída de red mantienen
+UNKNOWN y su cupo. El resultado terminal se recupera desde Redis sin reconstruir
+la operación. Intentos síncronos antiguos sin ID requieren evidencia independiente
+de terminación; no se liberan creando un ID nuevo.
+
+Los reintentos posteriores a un UNKNOWN ya ACKeado también se recuperan desde
+PostgreSQL: conservar sólo el evento Redis habría dejado el trabajo PENDING sin
+un mensaje que lo despertara. La identidad/lease y publicación siguen protegidas;
+no se inicia trabajo nuevo sin la reserva correspondiente. Ver
+[durable-processing.md](durable-processing.md) para la secuencia y los límites.
 
 ## Fallos (E6)
 
@@ -164,7 +174,7 @@ configuración operativa (SNI-56); los tests usan un valor chico.
 | Reglas cambiadas otra vez | El lote viejo termina `SUPERSEDED`; publica solo el lote nuevo |
 | PrintScript caído o sin revisión verificable | Reintento del elemento; nada se publica |
 | Sin permiso de fondo disponible | Cede el turno sin llamar a PrintScript |
-| Worker caído con el permiso tomado | `reconcile` libera el permiso y reintenta el elemento |
+| Worker caído con el permiso tomado | se consulta/cancela la operación conocida; sin prueba terminal se conserva UNKNOWN |
 
 ## Límites
 
@@ -186,7 +196,7 @@ Aprobadas por Juan el 02/11/2026 («dale, aprobadas las 8»).
 | E2 | Blob nuevo + tabla `formatted_snippets` con un derivado vigente por snippet | Guardar la referencia solo en el elemento del trabajo | Una tabla más |
 | E3 | Publicar dentro de la transacción del lease comparando la base | Publicar y limpiar después | Un derivado viejo por edición queda guardado hasta el próximo cambio de reglas, sin presentarse como actual |
 | E4 | `JobStep.Superseded` y fallo con motivo en la base de SNI-58 | Superar elemento por elemento | Se toca código compartido; se avisa a Juanfran |
-| E5 | Permiso de fondo por cada formateo; `reconcile` libera y reintenta | No usar capacidad | Se usa `rejected` para algo que no es una ejecución remota |
+| E5 | Permiso de fondo por cada formateo; recuperación por ID durable; el estado terminal permite liberar/reintentar | No usar capacidad | Se usa `rejected` para algo que no es una ejecución remota |
 | E6 | Fallos definitivos `FAILED` con motivo; transitorios con reintento | Reintentar todo | — |
 | E7 | Núcleo de formato compartido con `FormatSavedSnippet` | Duplicar la lógica en el handler | Se toca código de SNI-61 sin cambiar su comportamiento |
 | E8 | Mantener el ritmo de la base | Varios elementos por turno | Lotes grandes tardan minutos |

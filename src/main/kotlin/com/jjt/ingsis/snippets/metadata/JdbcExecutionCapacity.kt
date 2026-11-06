@@ -214,22 +214,39 @@ class JdbcExecutionCapacity(
         release(permitId, "REMOTE_START_REJECTED")
     }
 
+    override fun retryTerminated(
+        lease: JobLease,
+        permitId: UUID,
+        evidence: RemoteTerminationEvidence,
+        reason: String,
+    ) = settleVerified(lease = lease, permitId = permitId, evidence = evidence, retryReason = reason)
+
     override fun resolve(
         lease: JobLease,
         permitId: UUID,
         evidence: RemoteTerminationEvidence,
+    ) = settleVerified(lease = lease, permitId = permitId, evidence = evidence, retryReason = null)
+
+    private fun settleVerified(
+        lease: JobLease,
+        permitId: UUID,
+        evidence: RemoteTerminationEvidence,
+        retryReason: String?,
     ) {
-        // Verification may use remote I/O: never execute it while holding a database transaction.
         val permit = checkNotNull(held(lease.jobId)).also { check(it.id == permitId) }
         val proof =
             checkNotNull(evidence.confirm(permit)) { "Termination is not proven; keep UNKNOWN and its capacity" }
         require(proof.isNotBlank() && proof.length <= MAX_REMOTE_PROOF_LENGTH)
         jobs.owned(lease) {
-            check(requirePermit(lease, permitId).remote == permit.remote) {
-                "Remote association changed during verification"
-            }
+            check(
+                requirePermit(lease, permitId).remote == permit.remote,
+            ) { "Remote association changed during verification" }
             lock()
-            jobs.completeItem(lease = lease, itemId = permit.itemId, result = null, state = ItemState.FAILED)
+            if (retryReason == null) {
+                jobs.completeItem(lease = lease, itemId = permit.itemId, result = null, state = ItemState.FAILED)
+            } else {
+                jobs.retryItem(lease, permit.itemId, retryReason)
+            }
             release(permitId, proof)
         }
     }

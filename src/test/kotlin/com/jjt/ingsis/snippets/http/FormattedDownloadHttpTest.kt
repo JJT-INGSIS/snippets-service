@@ -39,6 +39,10 @@ private val indentCatalog =
 
 private fun formattingAnswer(request: StubRequest): StubResponse =
     when {
+        request.path == "/linting/rules" -> {
+            StubResponse(200, """{"version":"1.1","rules":[],"defaults":{}}""", headers = revisionHeader)
+        }
+
         request.path == "/formatting/rules" -> {
             StubResponse(200, indentCatalog, headers = revisionHeader)
         }
@@ -158,7 +162,7 @@ class FormattedDownloadHttpTest
         }
 
         @Test
-        fun `PrintScript down answers 502 while the original keeps downloading`() {
+        fun `PrintScript down answers 502 without losing the original`() {
             val owner = actor()
             val id = snippet(owner, "Caido", UNICODE_SOURCE)
             publishVariant(id, formatRevision)
@@ -169,6 +173,9 @@ class FormattedDownloadHttpTest
             assertThat(download.status).isEqualTo(502)
             assertThat(download.type).isEqualTo("urn:snippets:problem:dependency-failure")
             assertThat(download.body.has("code")).isFalse()
+            // Detail now verifies current lint provenance too; a provider outage cannot certify it.
+            assertThat(api.detail(id.toString(), listOf(owner)).status).isEqualTo(502)
+            printScript.reset()
             assertThat(
                 api
                     .detail(id.toString(), listOf(owner))
