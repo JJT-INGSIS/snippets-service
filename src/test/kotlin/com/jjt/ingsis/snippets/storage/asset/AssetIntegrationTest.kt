@@ -232,5 +232,8 @@ class AssetIntegrationTest
                         },
                     ),
                 confirmation = CreationConfirmation(metadata),
+                lint =
+                    com.jjt.ingsis.snippets.lintingrules
+                        .SavedSnippetLint { _, _, _ -> },
             )
     }

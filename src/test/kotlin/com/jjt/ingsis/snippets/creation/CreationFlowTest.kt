@@ -5,6 +5,7 @@ import com.jjt.ingsis.snippets.identity.ActorIdentity
 import com.jjt.ingsis.snippets.identity.ActorIdentityResolver
 import com.jjt.ingsis.snippets.language.Diagnostic
 import com.jjt.ingsis.snippets.language.ValidationResult
+import com.jjt.ingsis.snippets.lintingrules.SavedSnippetLint
 import com.jjt.ingsis.snippets.metadata.ContentLinkResult
 import com.jjt.ingsis.snippets.metadata.CreationLookup
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
@@ -60,6 +61,23 @@ class CreationFlowTest
             }
         private val context = ActorContext()
         private val connectionLost = MetadataPersistenceException(IllegalStateException("Connection lost"))
+
+        private val lintCalls = CopyOnWriteArrayList<UUID>()
+        private val lint =
+            SavedSnippetLint { id, _, input ->
+                assertThat(store.findConfirmed(id)).isNotNull()
+                assertThat(storedCode(id)).isEqualTo(input.code)
+                lintCalls += id
+            }
+
+        @Test
+        fun `lint runs after confirmed metadata and a compatible create retry does not run it again`() {
+            val creation = creation()
+            val key = newKey()
+            val created = create(creation, key) as CreationOutcome.Created
+            assertThat(create(creation, key)).isInstanceOf(CreationOutcome.AlreadyCreated::class.java)
+            assertThat(lintCalls).containsExactly(created.snippet.id)
+        }
 
         @Test
         fun `a valid request leaves content, confirmed metadata and ownership under one UUID`() {
@@ -251,6 +269,7 @@ class CreationFlowTest
                 content = CreationContent(storage, links),
                 owner = CreationOwner(registrar),
                 confirmation = CreationConfirmation(store),
+                lint = lint,
             )
 
         private fun preparation(

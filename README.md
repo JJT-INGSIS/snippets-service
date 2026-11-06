@@ -519,3 +519,5 @@ El procedimiento y la protección del registro están en
 
 
 Tests automáticos tras editar: [SNI-69](docs/automatic-tests.md).
+
+Configuración de lint (integración de defaults pendiente): [SNI-63](docs/linting-rules.md).
