@@ -7,6 +7,7 @@ version = "0.0.1-SNAPSHOT"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
@@ -20,6 +21,7 @@ dependencies {
 
 tasks.test {
     mustRunAfter("bootJar")
+    inputs.property("auth0LiveAcceptance", providers.environmentVariable("AUTH0_LIVE_ACCEPTANCE").orElse("false"))
     inputs.property("parserAdminTestImage", providers.environmentVariable("PARSER_ADMIN_TEST_IMAGE").orElse(""))
     inputs.property(
         "parserPrintScriptTestImage",

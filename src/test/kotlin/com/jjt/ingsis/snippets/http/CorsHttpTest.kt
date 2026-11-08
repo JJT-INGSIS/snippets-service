@@ -86,7 +86,8 @@ class CorsHttpTest
                 (listOf("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD") - methods.toSet()).forEach { method ->
                     assertThat(api.preflight(path, method, "").statusCode()).describedAs("$method $path").isEqualTo(403)
                 }
-                assertThat(api.preflight(path, methods.first(), "authorization").statusCode()).isEqualTo(403)
+                assertThat(api.preflight(path, methods.first(), "authorization").statusCode()).isEqualTo(200)
+                assertThat(api.preflight(path, methods.first(), "x-actor-id").statusCode()).isEqualTo(403)
             }
             listOf("/executions", "/executions/id/events/extra", "/internal/executions", "/api/executions/id/events")
                 .forEach { path ->
@@ -134,7 +135,7 @@ class CorsHttpTest
                 api.preflight("/users", "POST", "content-type"),
                 api.preflight("/formatting-rules/printscript/1.1", "DELETE", ""),
                 api.preflight("/snippets/123/formatted", "PUT", "content-type"),
-                api.preflight("/snippets", "POST", "authorization"),
+                api.preflight("/snippets", "POST", "x-actor-id"),
             ).forEach { response ->
                 assertThat(
                     response.statusCode(),
