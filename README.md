@@ -1,5 +1,9 @@
 # Snippets Service
 
+SNI-72 incorpora autenticación de la API mediante Auth0 y Spring Resource Server:
+[modos, configuración, decisiones y pruebas](docs/authentication.md). El despliegue
+DEV conserva el modo dev hasta coordinar la integración de login de la UI.
+
 SNI-60 agrega la capacidad de lint en Language: [contrato e integración](docs/linting.md).
 
 ## Asset Service — SNI-19
@@ -107,7 +111,12 @@ Remove-Variable databasePassword
 .\gradlew.bat bootRun
 ```
 
-El servidor arranca en el puerto 8080 predeterminado de Spring Boot. El perfil `dev` habilita la identidad de desarrollo por header; sin él, `POST /snippets` y `PUT /snippets/{id}` responden `401`. Para crear o actualizar snippets también deben estar disponibles Permissions y PrintScript en sus destinos configurados.
+El servidor arranca en el puerto 8080 predeterminado de Spring Boot. El perfil
+`dev` conserva la identidad por header con `AUTH_MODE=dev`; ese modo no se admite
+fuera del perfil dev. `AUTH_MODE=auth0` exige un access token válido y configuración
+de issuer/audience, incluso en dev. Sin identidad habilitada, las operaciones
+protegidas responden `401`. Para crear o actualizar snippets también deben estar
+disponibles Permissions y PrintScript en sus destinos configurados.
 
 ## Arranque con Docker
 

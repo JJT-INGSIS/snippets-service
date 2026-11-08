@@ -4,26 +4,32 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.core.env.Profiles
+import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
-import org.springframework.web.filter.CorsFilter
 import org.springframework.web.cors.CorsConfiguration as SpringCorsConfiguration
 
 @Configuration(proxyBeanMethods = false)
 class CorsConfiguration {
     @Bean
-    fun corsFilter(
+    fun corsConfigurationSource(
         properties: CorsProperties,
         environment: Environment,
-    ): CorsFilter {
+    ): CorsConfigurationSource {
         val source = UrlBasedCorsConfigurationSource()
         // No cross-origin grants by default. A proxy can rewrite Host while preserving Origin.
-        if (properties.allowedOrigins.isEmpty()) return CorsFilter(source)
+        if (properties.allowedOrigins.isEmpty()) return source
         val policy =
             SpringCorsConfiguration().apply {
                 allowedOrigins = properties.allowedOrigins
                 allowedHeaders =
-                    listOf("Content-Type", "Idempotency-Key") +
-                    if (environment.acceptsProfiles(Profiles.of("dev"))) listOf("X-Dev-Actor-Id") else emptyList()
+                    listOf("Content-Type", "Idempotency-Key", "Authorization") +
+                    if (environment.acceptsProfiles(Profiles.of("dev")) &&
+                        environment.getProperty("snippets.auth.mode", "disabled") == "dev"
+                    ) {
+                        listOf("X-Dev-Actor-Id")
+                    } else {
+                        emptyList()
+                    }
                 allowCredentials = false
                 maxAge = 300L
             }
@@ -44,12 +50,14 @@ class CorsConfiguration {
             "/languages" to listOf("GET"),
             "/formatting-rules/*/*" to listOf("GET", "PUT"),
             "/jobs/*" to listOf("GET"),
+            "/linting-rules/*/*" to listOf("GET", "PUT"),
+            "/snippets/*/automatic-tests" to listOf("GET"),
         ).forEach { (path, methods) ->
             source.registerCorsConfiguration(
                 path,
                 SpringCorsConfiguration(policy).apply { allowedMethods = methods },
             )
         }
-        return CorsFilter(source)
+        return source
     }
 }
