@@ -108,7 +108,12 @@ class Auth0LiveAcceptanceTest
                     .header("Authorization", "Bearer $token")
                     .GET()
                     .build()
-            assertThat(http.send(valid, HttpResponse.BodyHandlers.discarding()).statusCode()).isEqualTo(200)
+            // This security diagnostic deliberately has no Management credential.
+            // Reaching the typed directory failure proves the user JWT passed authentication.
+            val response = http.send(valid, HttpResponse.BodyHandlers.ofString())
+            assertThat(response.statusCode()).isEqualTo(502)
+            assertThat(json.readTree(response.body()).path("type").asString())
+                .isEqualTo("urn:snippets:problem:directory-unavailable")
             val forged =
                 HttpRequest
                     .newBuilder(endpoint)
