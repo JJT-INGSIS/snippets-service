@@ -49,6 +49,7 @@ class CorsConfiguration {
             "/users" to listOf("GET"),
             "/languages" to listOf("GET"),
             "/formatting-rules/*/*" to listOf("GET", "PUT"),
+            "/linting-rules/*/*" to listOf("GET", "PUT"),
             "/jobs/*" to listOf("GET"),
             "/linting-rules/*/*" to listOf("GET", "PUT"),
             "/snippets/*/automatic-tests" to listOf("GET"),

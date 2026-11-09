@@ -60,6 +60,8 @@ Wildcards, `null`, credentials, query strings and fragments fail application sta
 | `/executions/*`, `/executions/*/events` | GET |
 | `/executions/*/inputs`, `/executions/*/cancel` | POST |
 | `/users`, `/languages` | GET |
+| `/formatting-rules/*/*`, `/linting-rules/*/*` | GET, PUT |
+| `/jobs/*` | GET |
 
 OPTIONS preflight is handled by Spring before application operations and does not
 require identity. Its requested method must match this table. CORS does not create
