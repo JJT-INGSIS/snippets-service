@@ -38,6 +38,7 @@ private const val CALLBACK = "http://127.0.0.1:5173/auth/callback"
         "spring.datasource.url=jdbc:h2:mem:auth0live;DB_CLOSE_ON_EXIT=FALSE",
         "spring.datasource.username=sa", "spring.datasource.password=", "spring.flyway.enabled=false",
         "snippets.auth.mode=auth0", "snippets.auth.issuer=$ISSUER", "snippets.auth.audience=$AUDIENCE",
+        "snippets.directory.auth0.client-id=", "snippets.directory.auth0.client-secret=",
     ],
 )
 @ActiveProfiles("dev")
