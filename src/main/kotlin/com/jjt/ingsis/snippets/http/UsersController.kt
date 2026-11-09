@@ -29,6 +29,8 @@ class UsersController(
     private fun respond(outcome: UserSearchOutcome): ResponseEntity<*> =
         when (outcome) {
             is UserSearchOutcome.Found -> ResponseEntity.ok(UserPageResponse.from(outcome.page, outcome.result))
+            UserSearchOutcome.DirectoryUnavailable -> SnippetProblem.DIRECTORY_UNAVAILABLE.response()
+            UserSearchOutcome.RefineSearch -> SnippetProblem.DIRECTORY_SEARCH_TOO_BROAD.response("parameter", "name")
             UserSearchOutcome.IdentityRejected -> SnippetProblem.IDENTITY_UNAVAILABLE.response()
         }
 }

@@ -1,6 +1,9 @@
 # Compartir snippets — SNI-26, SNI-29 y SNI-32
 
 Contrato para buscar destinatarios y compartir un snippet (US7), acordado en SNI-26.
+Los ejemplos con X-Dev-Actor-Id describen modo dev. En modo auth0 se requiere un
+bearer válido según [SNI-72](authentication.md); la semántica nativa del directorio
+y los nuevos errores de SNI-74 se detallan al final.
 
 | Operación | Estado |
 | --- | --- |
@@ -17,7 +20,7 @@ política 403/404 están en [ui-integration.md](ui-integration.md).
 | Ver el snippet en la lista y su detalle | Sí | Sí |
 | Ver sus tests ([SNI-46](tests.md)) | Sí | Sí |
 | Crear tests ([SNI-46](tests.md)) | Sí | No |
-| Ejecutar sus tests (US9, futuro) | Sí | Sí |
+| Ejecutar sus tests (SNI-48) | Sí | Sí |
 | Modificarlo | Sí | No |
 | Compartirlo | Sí | No |
 
@@ -84,10 +87,13 @@ X-Dev-Actor-Id: dev-juan
 | --- | --- | --- |
 | `400` | `urn:snippets:problem:invalid-request` | Parámetro desconocido, repetido o inválido. `parameter` lo nombra. |
 | `401` | `urn:snippets:problem:identity-unavailable` | Identidad ausente, inválida o deshabilitada. |
+| `422` | `urn:snippets:problem:directory-search-too-broad` | Refine el nombre; Auth0 no permite una página completa verificable dentro de su límite. |
+| `502` | `urn:snippets:problem:directory-unavailable` | Directorio no disponible o respuesta inválida; no es una lista vacía. |
 | `500` | `urn:snippets:problem:technical-failure` | Error inesperado. |
 
-Los parámetros se validan antes que la identidad, como en el listado: un pedido
-con parámetros inválidos y sin identidad responde `400`.
+En modo dev los parámetros se validan antes que la identidad, como en el listado: un pedido
+con parámetros inválidos y sin identidad responde `400`. En auth0 primero se
+exige un bearer válido, incluso si la consulta es inválida.
 
 ### Directorio de desarrollo — SNI-29
 
@@ -243,6 +249,7 @@ X-Dev-Actor-Id: dev-juan
 | `404` | `urn:snippets:problem:snippet-not-found` | No existe, sigue pendiente o el actor no tiene acceso. | No |
 | `422` | `urn:snippets:problem:invalid-recipient` | **Nuevo.** El destinatario no está en el directorio o es el propio actor. | No |
 | `500` | `urn:snippets:problem:technical-failure` | Error inesperado. | Sí |
+| `502` | `urn:snippets:problem:directory-unavailable` | No se pudo validar el destinatario con el directorio. No se registró el share. | Sí |
 | `502` | `urn:snippets:problem:dependency-failure` | Permissions no respondió según su contrato o tardó más que el límite. El share no está confirmado. | Sí |
 | `503` | `urn:snippets:problem:metadata-unavailable` | Falló la base de Snippets. | Sí |
 
@@ -337,3 +344,120 @@ Esta verificación local no debe ejecutarse contra producción ni sustituye la a
   el tercero recibió 404. La vista de Ana mostró el editor de solo lectura y acciones deshabilitadas.
 - Captura local ignorada por Git, en el repo UI: `cypress/screenshots/sni-32-local.cy.ts/sni32-real-sharing.png`.
   El recorrido usó storage local; la aceptación integral de SNI-36 conserva su comprobación con Asset Service real.
+
+
+## Directorio Auth0 — SNI-74
+
+Decisiones de Thiago — 08/11/2026: la respuesta sobre **búsqueda nativa Auth0**
+reemplaza la selección anterior de conservar el filtrado local. Se descarta
+recuperar/enumerar todos los usuarios para ordenarlos en Snippets; la documentación
+oficial desaconseja usar la búsqueda para enumeración. La alternativa de un índice
+local sincronizado preservaría más control de consulta, con tablas, sincronización
+y tratamiento de desactualización adicionales. Se prioriza menor operación para
+este proyecto. No se copia un directorio a PostgreSQL ni se agrega otro flujo async.
+
+También aprobó que la credencial Management ausente/fallida afecte sólo búsqueda y
+sharing, con error explícito. Se descarta impedir el arranque completo: lectura y
+ejecución pueden funcionar sin directorio. En modo auth0 nunca se recurre al
+catálogo dev. Esta independencia no convierte una operación fallida en éxito.
+
+El marco de análisis es el capítulo 2 (trade-offs) y el registro de decisiones del
+capítulo 21 de *Fundamentals of Software Architecture*, 2nd ed., según el
+[índice editorial](https://www.oreilly.com/library/view/fundamentals-of-software/9781098175504/).
+La elección concreta anterior es del proyecto, no una receta atribuida al libro.
+
+### Búsqueda y compatibilidad
+
+`DirectoryConfiguration` selecciona por `snippets.auth.mode`: dev conserva el
+catálogo local y su contrato anterior; auth0 utiliza `Auth0UserDirectory`; disabled
+no expone usuarios. Un auth0 sin credencial propia disponible conserva la API
+operativa pero ambas operaciones de directorio devuelven 502.
+
+En auth0, GET /users mantiene parámetros y DTO `{page, page_size, count, users}`,
+con estas diferencias explícitas respecto al catálogo dev:
+
+- `name` es un **prefijo literal** del nombre usando la búsqueda nativa; no promete
+  coincidencias de fragmentos intermedios. La comparación de campos normalizados es
+  la de Auth0. Texto del usuario se escapa y no permite introducir campos, operadores
+  o comodines Lucene. Vacío consulta una sola página de destinatarios disponibles.
+- La consulta excluye el `sub` del actor antes de paginar y pide sólo `user_id,name`.
+  Los IDs se entregan intactos como `id`. No se identifica por email ni se unen
+  identidades o datos por nombre. No se incluye el campo email, metadata, credenciales o JWT. El nombre visible
+  es el perfil name del proveedor y puede estar configurado como correo.
+- `page`/`page_size` se envían a Auth0; cada búsqueda hace un solo GET de página.
+  Se conserva su orden determinista `name:1`, `primary_order=true`; ya no se promete
+  el desempate local por ID de dev. Los resultados pueden cambiar entre páginas
+  por cambios concurrentes o demora del índice del proveedor.
+- `count` procede del total del proveedor. Un total **mayor o igual a 1.000**, o una
+  ventana que excedería el límite recuperable, produce 422
+  `urn:snippets:problem:directory-search-too-broad`, `parameter=name`. En ese límite
+  no podemos distinguir con seguridad el total completo de un total acotado; se
+  exige refinar y no se publica un count truncado como si fuese completo.
+- El índice es eventual: un usuario recién creado puede tardar en aparecer. Validar
+  el destinatario usa GET /api/v2/users/{id}, inmediatamente consistente, nunca la
+  ausencia en una búsqueda. Sólo su 404 confirma destinatario inexistente (422
+  `invalid-recipient` público); otros errores no se convierten en ausencia.
+- Token/credencial inválidos, rate limit, timeouts, respuestas inválidas y caídas
+  producen 502 `urn:snippets:problem:directory-unavailable`. No se exponen detalles
+  internos del proveedor ni se devuelve una lista vacía ficticia. El permiso de
+  compartir sigue siendo de Permissions y no se escribe un share ante incertidumbre.
+
+No se cachean perfiles. El único cache es el token M2M en memoria, hasta antes de
+su expiración, con renovación serializada. Un 401 lo invalida; la llamada actual
+falla, sin bucles de retry. El token no tiene `toString` que muestre su valor y no
+se guarda en jobs, eventos, bases, archivos, frontend ni logs.
+
+### Configuración y credencial separada
+
+| Entrada | Uso |
+| --- | --- |
+| AUTH_MODE=auth0 | Autenticación de usuarios y selección del adaptador |
+| AUTH_ISSUER | Issuer HTTPS canónico aprobado en SNI-71; Management comparte ese tenant |
+| AUTH0_DIRECTORY_CLIENT_ID | Client ID público de una M2M **dedicada al directorio** |
+| snippets.directory.auth0.client-secret | Secreto M2M mediante configtree/almacén de secretos |
+| AUTH0_DIRECTORY_CLIENT_SECRET | Alternativa de inyección local por proceso; nunca versionar/imprimir |
+
+Timeouts `snippets.directory.auth0.connect-timeout` (2s) y `.read-timeout` (5s)
+son configurables. La respuesta remota está limitada a 1 MiB. Se solicita sólo
+`read:users`; un grant con scopes adicionales o sin confirmación de ese alcance
+se rechaza, sin usarlo para listar usuarios. No se siguen redirects con credenciales.
+
+El operador debe crear/configurar una M2M separada con permiso **read:users** para
+la audience `https://<tenant>/api/v2/`. No reutilizar la SPA ni la aplicación
+administrativa Terraform y no ampliar sus permisos para resolver un 403 a ciegas.
+No se aprovisiona esa credencial, cambia el tenant ni activa un ambiente como
+resultado de este código. Con credencial ausente, la autenticación SNI-72 continúa
+funcionando; sólo directorio/sharing fallan explícitamente.
+
+En runtime usar un secreto de Swarm/configtree, con target
+`snippets.directory.auth0.client-secret` bajo el directorio importado mediante
+`SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/`. Mantenerlo separado por
+ambiente y fuera del registro público de release/variables de UI. La configuración
+de issuer/audience de SNI-72 se conserva. Esta guía no modifica CD ni monta repos.
+
+### Conservación y aceptación
+
+Se conservan intactos los IDs `dev-*`, ownership, shares, reglas y auditoría previos.
+Usuarios Auth0 nuevos usan su `sub`; no heredan datos por coincidencia de email.
+Una eventual transición requiere inventariar todas las referencias, respaldo,
+mapeo explícito y autorización independiente. No se ejecuta ninguna migración.
+Workers usan el actor/contexto durable y no necesitan ni reciben el bearer del
+usuario ni la credencial Management. Consultar el [contrato autenticado](authentication.md).
+
+Las pruebas de adaptador usan un servidor HTTP de Management **controlado**: no
+son una aceptación del tenant real. Comprueban grant mínimo/expiración, consulta
+nativa/escape/paginación, lookup por ID, 404 frente a caídas, DTO y modos sin
+fallback. Los tests HTTP de API y seguridad comprueban los errores públicos y que
+una credencial ausente no rompe el resto de rutas autenticadas.
+
+Para cerrar SNI-74 todavía se debe integrar SNI-73 y registrar el recorrido real
+con tres usuarios, login/logout, compartir, permisos, expiración y jobs. Habilitar
+la M2M de lectura y probarlo en un entorno local aislado; usar sólo IDs de datos
+sintéticos y no capturar tokens/secretos en la evidencia. No presentar estos tests
+controlados como esa aceptación ni dar por activado Auth0 en Azure.
+
+Referencias técnicas verificadas:
+[buscar y sus límites](https://auth0.com/docs/manage-users/user-search/user-search-best-practices),
+[sintaxis nativa](https://auth0.com/docs/manage-users/user-search/user-search-query-syntax),
+[lookup por ID](https://auth0.com/docs/manage-users/user-search/get-users-by-id-or-email),
+[tokens Management](https://auth0.com/docs/secure/tokens/access-tokens/management-api-access-tokens/get-management-api-access-tokens-for-production).

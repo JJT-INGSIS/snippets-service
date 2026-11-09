@@ -8,6 +8,7 @@ import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
 import com.jjt.ingsis.snippets.metadata.SnippetMetadataStore
 import com.jjt.ingsis.snippets.permissions.ShareRegistrar
 import com.jjt.ingsis.snippets.permissions.ShareRegistration
+import com.jjt.ingsis.snippets.users.DirectoryMembership
 import com.jjt.ingsis.snippets.users.UserDirectory
 import org.springframework.stereotype.Service
 import java.util.UUID
@@ -28,7 +29,12 @@ class ShareSnippet(
         if (identity !is ActorIdentity.Identified) return ShareOutcome.IdentityRejected
         val id = canonicalUuid(snippetId) ?: return ShareOutcome.InvalidRequest("snippetId")
         if (recipientId.isNullOrBlank()) return ShareOutcome.InvalidRequest("userId")
-        if (recipientId == identity.actorId || !users.contains(recipientId)) return ShareOutcome.InvalidRecipient
+        if (recipientId == identity.actorId) return ShareOutcome.InvalidRecipient
+        when (users.contains(recipientId)) {
+            DirectoryMembership.ABSENT -> return ShareOutcome.InvalidRecipient
+            DirectoryMembership.UNAVAILABLE -> return ShareOutcome.DirectoryUnavailable
+            DirectoryMembership.PRESENT -> Unit
+        }
 
         return try {
             if (metadata.findConfirmed(id) == null) {

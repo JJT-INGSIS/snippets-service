@@ -1,9 +1,7 @@
 package com.jjt.ingsis.snippets.users
 
 import com.jjt.ingsis.snippets.metadata.PageRequest
-import org.springframework.stereotype.Component
 
-@Component
 class ConfiguredUserDirectory(
     configured: DevelopmentUsers,
 ) : UserDirectory {
@@ -14,12 +12,13 @@ class ConfiguredUserDirectory(
         name: String,
         excluding: String,
         page: PageRequest,
-    ): UserPage {
+    ): DirectorySearch.Found {
         val matching = users.filter { it.id != excluding && it.name.contains(name, ignoreCase = true) }
         val skipped = page.offset.coerceAtMost(matching.size.toLong()).toInt()
 
-        return UserPage(matching.size, matching.drop(skipped).take(page.size))
+        return DirectorySearch.Found(UserPage(matching.size, matching.drop(skipped).take(page.size)))
     }
 
-    override fun contains(id: String): Boolean = users.any { it.id == id }
+    override fun contains(id: String): DirectoryMembership =
+        if (users.any { it.id == id }) DirectoryMembership.PRESENT else DirectoryMembership.ABSENT
 }
