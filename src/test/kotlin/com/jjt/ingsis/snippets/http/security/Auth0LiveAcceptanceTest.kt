@@ -38,6 +38,7 @@ private const val CALLBACK = "http://127.0.0.1:5173/auth/callback"
         "spring.datasource.url=jdbc:h2:mem:auth0live;DB_CLOSE_ON_EXIT=FALSE",
         "spring.datasource.username=sa", "spring.datasource.password=", "spring.flyway.enabled=false",
         "snippets.auth.mode=auth0", "snippets.auth.issuer=$ISSUER", "snippets.auth.audience=$AUDIENCE",
+        "snippets.directory.auth0.client-id=", "snippets.directory.auth0.client-secret=",
     ],
 )
 @ActiveProfiles("dev")
@@ -108,7 +109,12 @@ class Auth0LiveAcceptanceTest
                     .header("Authorization", "Bearer $token")
                     .GET()
                     .build()
-            assertThat(http.send(valid, HttpResponse.BodyHandlers.discarding()).statusCode()).isEqualTo(200)
+            // This security diagnostic deliberately has no Management credential.
+            // Reaching the typed directory failure proves the user JWT passed authentication.
+            val response = http.send(valid, HttpResponse.BodyHandlers.ofString())
+            assertThat(response.statusCode()).isEqualTo(502)
+            assertThat(json.readTree(response.body()).path("type").asString())
+                .isEqualTo("urn:snippets:problem:directory-unavailable")
             val forged =
                 HttpRequest
                     .newBuilder(endpoint)

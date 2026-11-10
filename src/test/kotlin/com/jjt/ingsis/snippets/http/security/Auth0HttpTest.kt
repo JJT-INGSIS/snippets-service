@@ -223,8 +223,10 @@ class Auth0HttpTest
         }
 
         @Test
-        fun `valid signed user can query the existing directory and public catalog needs no token`() {
-            assertThat(get("/users", token()).statusCode()).isEqualTo(200)
+        fun `missing directory credentials only disable the directory and never fall back to dev users`() {
+            val answer = get("/users", token())
+            assertThat(answer.statusCode()).isEqualTo(502)
+            assertThat(answer.body()).contains("directory-unavailable").doesNotContain("dev-ana")
             assertThat(get("/languages", null).statusCode()).isEqualTo(200)
         }
 

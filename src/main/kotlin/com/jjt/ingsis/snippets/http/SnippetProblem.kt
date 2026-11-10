@@ -10,6 +10,16 @@ enum class SnippetProblem(
     val category: String,
     private val detail: String,
 ) {
+    DIRECTORY_UNAVAILABLE(
+        HttpStatus.BAD_GATEWAY,
+        "directory-unavailable",
+        "The user directory could not be consulted. No recipient or search result was confirmed.",
+    ),
+    DIRECTORY_SEARCH_TOO_BROAD(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "directory-search-too-broad",
+        "Refine the name search; the directory cannot provide a complete page within its search limit.",
+    ),
     INVALID_REQUEST(
         HttpStatus.BAD_REQUEST,
         "invalid-request",

@@ -117,6 +117,14 @@ Al terminar se cierra el callback y se elimina el archivo de URL. No usa la
 aplicación M2M administrativa. Comprueba aceptación del JWT real y rechazo del
 header dev sin bearer; no acredita todavía la integración completa de UI/sharing.
 
+Con el adaptador de SNI-74, este diagnóstico sigue sin configurar una credencial
+Management: un JWT real válido permite llegar al error específico 502
+`directory-unavailable`, mientras el header dev sin bearer recibe 401. El 502
+confirma esa frontera de autenticación, no el funcionamiento del directorio. La
+aceptación real de SNI-74 necesita además su M2M dedicada y usuarios de prueba.
+La verificación histórica del 08/11 que figura debajo corresponde al código de
+SNI-72 anterior al adaptador; no se reescribe como una prueba de la versión nueva.
+
 La activación remota necesita coordinar SNI-73/74 y la configuración de release
 de infra. Integrar este código mantiene DEV en modo dev y PROD deshabilitado.
 Este ticket no autoriza despliegues, migraciones de ownership ni cambios de tenant.

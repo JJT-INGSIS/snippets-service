@@ -24,4 +24,6 @@ sealed interface ShareOutcome {
     data object MetadataUnavailable : ShareOutcome
 
     data object PermissionsUnavailable : ShareOutcome
+
+    data object DirectoryUnavailable : ShareOutcome
 }
