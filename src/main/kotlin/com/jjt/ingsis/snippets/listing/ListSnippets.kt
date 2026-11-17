@@ -12,6 +12,7 @@ import com.jjt.ingsis.snippets.metadata.SnippetSearch
 import com.jjt.ingsis.snippets.permissions.AccessLister
 import com.jjt.ingsis.snippets.permissions.AccessListing
 import com.jjt.ingsis.snippets.permissions.SnippetAccess
+import com.newrelic.api.agent.Trace
 import org.springframework.stereotype.Service
 
 @Service
@@ -22,6 +23,7 @@ class ListSnippets(
     private val language: Language,
     private val lint: LintReadPreparation,
 ) {
+    @Trace(metricName = "Snippets/listing")
     fun list(
         query: ListingQuery,
         context: ActorContext,

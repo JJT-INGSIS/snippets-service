@@ -52,6 +52,7 @@ class CreateSnippet(
                 ?: return incomplete(snippet.id, CreationFailure.METADATA_UNAVAILABLE)
 
         lint.assess(confirmed.id, prepared.actorId, draft)
+        logger.info("The creation of snippet {} was confirmed", confirmed.id)
         return CreationOutcome.Created(confirmed)
     }
 

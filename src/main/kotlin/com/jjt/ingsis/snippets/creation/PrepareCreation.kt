@@ -9,6 +9,7 @@ import com.jjt.ingsis.snippets.metadata.CreationResult
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
 import com.jjt.ingsis.snippets.metadata.SnippetMetadata
 import com.jjt.ingsis.snippets.metadata.SnippetMetadataStore
+import com.newrelic.api.agent.Trace
 import org.springframework.stereotype.Service
 
 @Service
@@ -18,6 +19,7 @@ class PrepareCreation(
     private val metadata: SnippetMetadataStore,
     private val fingerprint: CreationFingerprint,
 ) {
+    @Trace(metricName = "Snippets/creation/prepare")
     fun prepare(
         draft: SnippetDraft,
         keyHeader: String?,
