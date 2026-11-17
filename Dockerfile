@@ -20,10 +20,11 @@ WORKDIR /app
 RUN mkdir -p /var/lib/snippets/content && chown 10001:10001 /var/lib/snippets/content
 
 COPY --from=build /app/build/libs/*.jar app.jar
+COPY --from=build /app/build/newrelic /app/newrelic
 
 ENV STORAGE_LOCAL_DIRECTORY=/var/lib/snippets/content
 VOLUME /var/lib/snippets/content
 
 USER 10001:10001
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["/app/newrelic/start-service.sh", "/app/app.jar"]

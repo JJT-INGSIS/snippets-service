@@ -10,6 +10,8 @@ import com.jjt.ingsis.snippets.permissions.ShareRegistrar
 import com.jjt.ingsis.snippets.permissions.ShareRegistration
 import com.jjt.ingsis.snippets.users.DirectoryMembership
 import com.jjt.ingsis.snippets.users.UserDirectory
+import com.newrelic.api.agent.Trace
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -20,6 +22,9 @@ class ShareSnippet(
     private val metadata: SnippetMetadataStore,
     private val shares: ShareRegistrar,
 ) {
+    private val logger = LoggerFactory.getLogger(ShareSnippet::class.java)
+
+    @Trace(metricName = "Snippets/sharing")
     fun share(
         snippetId: String?,
         recipientId: String?,
@@ -53,10 +58,25 @@ class ShareSnippet(
         recipientId: String,
     ): ShareOutcome =
         when (val result = shares.register(id, actorId, recipientId)) {
-            is ShareRegistration.Registered -> ShareOutcome.Shared(id, recipientId, result.created)
-            ShareRegistration.Denied -> ShareOutcome.Denied
-            ShareRegistration.Missing -> ShareOutcome.Missing
-            ShareRegistration.InvalidRecipient -> ShareOutcome.InvalidRecipient
-            is ShareRegistration.Failed -> ShareOutcome.PermissionsUnavailable
+            is ShareRegistration.Registered -> {
+                logger.info("Snippet {} is shared with a recipient (new share: {})", id, result.created)
+                ShareOutcome.Shared(id, recipientId, result.created)
+            }
+
+            ShareRegistration.Denied -> {
+                ShareOutcome.Denied
+            }
+
+            ShareRegistration.Missing -> {
+                ShareOutcome.Missing
+            }
+
+            ShareRegistration.InvalidRecipient -> {
+                ShareOutcome.InvalidRecipient
+            }
+
+            is ShareRegistration.Failed -> {
+                ShareOutcome.PermissionsUnavailable
+            }
         }
 }
