@@ -1,5 +1,7 @@
 package com.jjt.ingsis.snippets.telemetry
 
+import com.jjt.ingsis.snippets.background.NewBackgroundJob
+import com.newrelic.api.agent.NewRelic
 import org.slf4j.MDC
 import java.util.UUID
 
@@ -12,3 +14,10 @@ fun requestCorrelationId(requestId: String?): UUID? =
     }
 
 fun currentCorrelationId(): UUID = requestCorrelationId(MDC.get(REQUEST_ID)) ?: UUID.randomUUID()
+
+fun attributedToRequest(job: NewBackgroundJob): NewBackgroundJob {
+    NewRelic.addCustomParameter(EVENT_ID, job.event.eventId.toString())
+    NewRelic.addCustomParameter(JOB_ID, job.event.jobId.toString())
+    NewRelic.addCustomParameter(CORRELATION_ID, job.event.correlationId.toString())
+    return job
+}
