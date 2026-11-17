@@ -450,11 +450,64 @@ nativa/escape/paginación, lookup por ID, 404 frente a caídas, DTO y modos sin
 fallback. Los tests HTTP de API y seguridad comprueban los errores públicos y que
 una credencial ausente no rompe el resto de rutas autenticadas.
 
-Para cerrar SNI-74 todavía se debe integrar SNI-73 y registrar el recorrido real
-con tres usuarios, login/logout, compartir, permisos, expiración y jobs. Habilitar
-la M2M de lectura y probarlo en un entorno local aislado; usar sólo IDs de datos
-sintéticos y no capturar tokens/secretos en la evidencia. No presentar estos tests
-controlados como esa aceptación ni dar por activado Auth0 en Azure.
+### Primera aceptación local, parcial — 17/11/2026
+
+SNI-73 ya está integrado. Se usó el tenant real y su M2M dedicada, con scope
+exacto `read:users`, contra tres aplicaciones y dos PostgreSQL nuevos en un
+laboratorio local aislado. La [evidencia](evidence/sni74-auth0-local-2026-11-17.json)
+registra resultados reales separados de las pruebas controladas del adaptador.
+No contiene bearer, secreto Management ni perfiles del directorio.
+
+Se comprobaron creación confirmada/reintento con el mismo UUID, contenido exacto,
+consulta del directorio, sharing idempotente y permisos del lector: lectura/listado
+permitidos, edición/resharing/creación de tests denegados. También se observaron
+el rechazo 401 de un JWT vencido, la recuperación por ingreso interactivo y el
+logout con eliminación de la vista privada. La renovación silenciosa no está
+garantizada: localhost pidió consentimiento interactivo; no se modificaron grants
+ni protecciones para evitarlo.
+
+Un worker separado, sin bearer ni credencial Management, procesó un job real
+pendiente y obtuvo `PASSED` en PrintScript. Su arranque fue posterior al vencimiento
+registrado del token original. No se registró la expiración del token exacto usado
+para la actualización posterior: esto prueba independencia de credenciales del
+worker, pero no acredita esa correlación temporal específica. El outbox inspeccionado
+no contenía campos de credenciales ni cadenas con formato JWT.
+
+**Esta primera ejecución quedó parcial:** el usuario pospuso la prueba con el tercero por no
+disponer de su contraseña. Faltan sus denegaciones/aislamiento, ejecución interactiva
+autenticada y la correlación exacta de expiración/job. No se activó OAuth en DEV/PROD,
+no se migraron datos previos y no se sustituyeron esas pruebas por identidades dev.
+La herramienta temporal del navegador se retiró del código de UI al terminar.
+
+### Aceptación local completada con cuenta alternativa — 17/11/2026
+
+El usuario completó el ingreso de otra cuenta, con un subject distinto del propietario
+y del lector. La [ejecución complementaria](evidence/sni74-auth0-supplement-2026-11-17.json)
+acredita sus denegaciones: detalle/tests/inicios de ejecución ocultos con 404,
+listado sin el fixture y rechazo de header dev forjado. Consultar, leer eventos o
+cancelar una ejecución de otro actor devuelve 403 `execution-actor-mismatch`.
+La nueva cuenta sí pudo crear contenido propio y ejecutarlo con solicitud de input
+y output real, sin heredar ownership por email.
+
+También pasaron ejecución autenticada INTERACTIVE y TEST con eventos incrementales.
+Un update admitido registró ahora la expiración del JWT exacto usado; su job quedó
+pendiente y un worker sin bearer ni credencial Management lo completó después de
+esa expiración más 70 segundos. La auditoría confirmó el actor original y resultado
+`PASSED`. Esto acredita procesamiento después del vencimiento, no una interrupción
+del JWT a mitad de una ejecución. No se encontraron credenciales/JWT en el outbox.
+
+La aceptación local combina dos laboratorios aislados: propietario/lector/logout
+y expiración de la primera ejecución, más el tercero alternativo, ejecución y job
+de la complementaria. No se reescribe la evidencia parcial histórica como si todos
+los casos hubieran ocurrido en la misma sesión. No se migraron datos existentes.
+
+**La activación de la VM DEV tiene una aceptación separada:** este recorrido local
+no acredita el login público. El 17/11 Thiago autorizó preparar y aplicar ese corte
+una vez terminadas las pruebas de Juanchi. El procedimiento, preservación de New Relic
+y recuperación se documentan en
+[infra SNI-74](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-74-dev-auth0.md).
+La evidencia local no cambia por el resultado de ese despliegue ni declara PROD activado.
+La herramienta temporal de UI se retiró al finalizar las comprobaciones.
 
 Referencias técnicas verificadas:
 [buscar y sus límites](https://auth0.com/docs/manage-users/user-search/user-search-best-practices),

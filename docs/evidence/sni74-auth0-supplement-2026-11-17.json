@@ -1,0 +1,252 @@
+{
+  "status": "LOCAL_ACCEPTANCE_PASS",
+  "startedAt": "2026-11-17T14:33:32.871028+00:00",
+  "environment": "local-isolated",
+  "realAuth0": true,
+  "tests": [
+    {
+      "name": "directory-real-provider",
+      "role": "owner",
+      "status": 200,
+      "result": "PASS",
+      "at": "2026-11-17T14:33:34.407189+00:00"
+    },
+    {
+      "name": "new-owner-fixture-created",
+      "role": "owner",
+      "status": 201,
+      "result": "PASS",
+      "at": "2026-11-17T14:33:35.327815+00:00"
+    },
+    {
+      "name": "owner-reads-fixture",
+      "role": "owner",
+      "status": 200,
+      "result": "PASS",
+      "at": "2026-11-17T14:33:35.635285+00:00"
+    },
+    {
+      "name": "fixture-shared-only-with-known-reader",
+      "role": "owner",
+      "status": 201,
+      "result": "PASS",
+      "at": "2026-11-17T14:33:36.861780+00:00"
+    },
+    {
+      "name": "test-created",
+      "role": "owner",
+      "status": 201,
+      "result": "PASS",
+      "at": "2026-11-17T14:33:37.782548+00:00"
+    },
+    {
+      "name": "authenticated-interactive-output",
+      "role": "owner",
+      "result": "PASS",
+      "at": "2026-11-17T14:33:39.002880+00:00",
+      "execution": {
+        "phase": "COMPLETED",
+        "phases": [
+          "STARTING",
+          "RUNNING",
+          "COMPLETED"
+        ],
+        "outputs": [
+          "75"
+        ],
+        "terminal": {
+          "outcome": "COMPLETED",
+          "reason": "program-completed",
+          "diagnostics": [],
+          "unusedInputs": 0
+        },
+        "executionId": "1391b7d3-d82e-4e16-9557-cf6b0263ccb9",
+        "lastSeq": 3
+      }
+    },
+    {
+      "name": "authenticated-test-output",
+      "role": "owner",
+      "result": "PASS",
+      "at": "2026-11-17T14:33:39.612188+00:00",
+      "execution": {
+        "phase": "COMPLETED",
+        "phases": [
+          "STARTING",
+          "RUNNING",
+          "COMPLETED"
+        ],
+        "outputs": [
+          "75"
+        ],
+        "terminal": {
+          "outcome": "COMPLETED",
+          "reason": "program-completed",
+          "diagnostics": [],
+          "unusedInputs": 0,
+          "comparison": "PASSED"
+        },
+        "executionId": "7ad1a2e6-d2fc-49bf-a646-46527c8fe535",
+        "lastSeq": 3
+      }
+    },
+    {
+      "name": "update-queued-with-exact-request-token-expiry",
+      "role": "owner",
+      "status": 200,
+      "result": "PASS",
+      "at": "2026-11-17T14:33:40.843798+00:00"
+    },
+    {
+      "name": "third-cannot-read-owner-content",
+      "role": "third",
+      "status": 404,
+      "expected": 404,
+      "result": "PASS",
+      "at": "2026-11-17T15:16:01.635894+00:00"
+    },
+    {
+      "name": "third-list-hides-shared-fixture",
+      "role": "third",
+      "status": 200,
+      "expected": 200,
+      "result": "PASS",
+      "at": "2026-11-17T15:16:01.636177+00:00"
+    },
+    {
+      "name": "third-cannot-read-tests",
+      "role": "third",
+      "status": 404,
+      "expected": 404,
+      "result": "PASS",
+      "at": "2026-11-17T15:16:01.636185+00:00"
+    },
+    {
+      "name": "third-cannot-start-interactive-execution",
+      "role": "third",
+      "status": 404,
+      "expected": 404,
+      "result": "PASS",
+      "at": "2026-11-17T15:16:01.636190+00:00"
+    },
+    {
+      "name": "third-cannot-start-test-execution",
+      "role": "third",
+      "status": 404,
+      "expected": 404,
+      "result": "PASS",
+      "at": "2026-11-17T15:16:01.636195+00:00"
+    },
+    {
+      "name": "third-cannot-impersonate-with-dev-header",
+      "role": "third",
+      "status": 404,
+      "expected": 404,
+      "result": "PASS",
+      "at": "2026-11-17T15:16:01.636201+00:00"
+    },
+    {
+      "name": "third-cannot-read-owner-execution",
+      "role": "third",
+      "result": "PASS",
+      "status": 403,
+      "at": "2026-11-17T15:16:01.708879+00:00"
+    },
+    {
+      "name": "third-cannot-read-owner-event-stream",
+      "role": "third",
+      "result": "PASS",
+      "status": 403,
+      "at": "2026-11-17T15:16:01.708997+00:00"
+    },
+    {
+      "name": "third-cannot-cancel-owner-execution",
+      "role": "third",
+      "result": "PASS",
+      "status": 403,
+      "at": "2026-11-17T15:16:01.709000+00:00"
+    },
+    {
+      "name": "replacement-third-owns-new-fixture-and-can-execute-own-input",
+      "role": "third",
+      "result": "PASS",
+      "execution": {
+        "phase": "COMPLETED",
+        "phases": [
+          "STARTING",
+          "RUNNING",
+          "WAITING_INPUT",
+          "COMPLETED"
+        ],
+        "outputs": [
+          "Hola, prueba-sni74"
+        ],
+        "terminal": {
+          "outcome": "COMPLETED",
+          "reason": "program-completed",
+          "diagnostics": [],
+          "unusedInputs": 0
+        },
+        "executionId": "e69e620b-1eed-4c1d-a8ba-216871b9bf6e",
+        "lastSeq": 5
+      },
+      "at": "2026-11-17T15:16:06.258310+00:00"
+    }
+  ],
+  "roleSubjectHashes": {
+    "owner": "e6a09b19bf31",
+    "reader": "1df1de694602",
+    "third": "4b0f7b0e4219"
+  },
+  "fixtureId": "6086f562-c19a-48c5-a9b6-2e4de46c39d6",
+  "testId": "f9758a96-2a55-4409-b4e4-1e3baf0fe9e2",
+  "updateRequestTokenExpiresAt": 1794926879,
+  "requestUsesOriginalToken": true,
+  "thirdIdentityVerifiedByBackend": true,
+  "inputFixtureId": "d36ffe6d-ce2a-4f81-9af7-406ddedc0f0c",
+  "worker": {
+    "environment": "local-isolated",
+    "jobId": "23e8ce32-a4a4-4aac-bf61-d435890d9bfd",
+    "userBearerPresent": false,
+    "directoryCredentialsPresent": false,
+    "startedAt": "2026-11-17T14:49:10.016894+00:00",
+    "status": "PASS",
+    "expiryScope": "Exact JWT expiry was recorded for the successful update. Job was queued before expiry and processed after expiry plus 70 seconds, without passing that JWT to the worker. This proves processing after expiry, not interruption mid-execution.",
+    "requestTokenExpiresAt": 1794926879,
+    "startAfterExpiryWithSkew": true,
+    "initialState": "PENDING",
+    "finalState": "COMPLETED",
+    "finishedAt": "2026-11-17T14:49:45.809037+00:00",
+    "executionAudit": {
+      "comparison": "PASSED",
+      "actorSubjectHash": "e6a09b19bf31",
+      "finishedAt": "2026-11-17T14:49:44.349981+00:00"
+    }
+  },
+  "outboxCredentialMatches": 0,
+  "finishedAt": "2026-11-17T15:24:34.519368+00:00",
+  "previousEvidence": "sni74-auth0-local-2026-11-17.json",
+  "scope": "Supplementary local run with a replacement third identity. Combine with the previous actual owner/reader/logout/expiry results; this is not a single three-browser run.",
+  "devLoginActivation": {
+    "status": "NOT_ACTIVATED_BY_THIS_RUN",
+    "coordination": "Thiago confirmed his teammate takes DEV activation; no parallel activation implementation or VM operation was performed."
+  },
+  "sourceRevisions": {
+    "snippets": "9b8be24a818684319fc378d96302867849385280",
+    "ui": "c714e1f0f29fdaaad161cf3ea4f7343d2ef75a2c",
+    "permissions": "93e1f2dc0a75a5e9a755e6ec76a6e03dbb53985a",
+    "printscript": "ba9632d541e04dee22464c18050aa5764d174e3b"
+  },
+  "cleanup": {
+    "labStopped": true,
+    "applicationProcessesStopped": true,
+    "ownedContainersStopped": [
+      "sni74-lab-884e61da-snippets-db",
+      "sni74-lab-884e61da-permissions-db",
+      "sni74-lab-884e61da-redis"
+    ],
+    "volumesDeleted": false,
+    "sharedDatabasesTouched": false,
+    "vmsStarted": false
+  }
+}
