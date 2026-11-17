@@ -46,11 +46,11 @@ class RequestTelemetryFilter(
         status: Int,
         started: Long,
     ) {
-        val route = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE) as? String
-        if (route == null) {
-            if (request.requestURI == HEALTHCHECK_PATH) attributes.ignoreCurrent()
+        if (request.requestURI == HEALTHCHECK_PATH) {
+            attributes.ignoreCurrent()
             return
         }
+        val route = request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE) as? String ?: return
         val outcome = RequestOutcome.of(status).label
         attributes.add(OUTCOME, outcome)
         MDC.put(OPERATION, request.method + " " + route)

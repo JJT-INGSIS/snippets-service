@@ -91,11 +91,15 @@ class RequestTelemetryFilterTest {
     }
 
     @Test
-    fun `the healthcheck probe is not recorded`() {
-        run(request("/", null), 404)
+    fun `the healthcheck probe is not recorded even when the catch-all resource route answers it`() {
+        listOf(null, "/**").forEach { route ->
+            val recorded = RecordedAttributes()
 
-        assertThat(attributes.ignored).isTrue()
-        assertThat(attributes.values).doesNotContainKey(OUTCOME)
+            RequestTelemetryFilter(recorded).doFilter(request("/", route), MockHttpServletResponse(), MockFilterChain())
+
+            assertThat(recorded.ignored).describedAs(route ?: "no route").isTrue()
+            assertThat(recorded.values).doesNotContainKey(OUTCOME)
+        }
     }
 
     @Test
