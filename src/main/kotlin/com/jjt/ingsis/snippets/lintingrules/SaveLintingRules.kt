@@ -5,6 +5,7 @@ import com.jjt.ingsis.snippets.identity.ActorContext
 import com.jjt.ingsis.snippets.identity.ActorIdentity
 import com.jjt.ingsis.snippets.identity.ActorIdentityResolver
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
+import com.jjt.ingsis.snippets.telemetry.attributedToRequest
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -58,10 +59,12 @@ class SaveLintingRules(
         accepted: RulesAcceptance.Accepted,
         configurationId: UUID,
     ): NewBackgroundJob =
-        LintingRulesChangedJob.of(
-            scope = scope,
-            configurationId = configurationId,
-            selection = accepted.selection,
-            processor = accepted.processor,
+        attributedToRequest(
+            LintingRulesChangedJob.of(
+                scope = scope,
+                configurationId = configurationId,
+                selection = accepted.selection,
+                processor = accepted.processor,
+            ),
         )
 }
