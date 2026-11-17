@@ -1,5 +1,5 @@
 plugins {
-    id("jjt.spring-service") version "0.2.0"
+    id("jjt.spring-service") version "0.3.0"
 }
 
 group = "com.jjt.ingsis"
@@ -12,6 +12,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("tools.jackson.module:jackson-module-kotlin")
+    implementation("com.newrelic.agent.java:newrelic-api:9.5.0")
 
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("org.flywaydb:flyway-database-postgresql")

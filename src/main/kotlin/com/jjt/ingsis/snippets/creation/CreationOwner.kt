@@ -2,6 +2,7 @@ package com.jjt.ingsis.snippets.creation
 
 import com.jjt.ingsis.snippets.permissions.OwnershipRegistrar
 import com.jjt.ingsis.snippets.permissions.OwnershipRegistration
+import com.newrelic.api.agent.Trace
 import org.springframework.stereotype.Component
 import java.util.UUID
 
@@ -9,6 +10,7 @@ import java.util.UUID
 class CreationOwner(
     private val registrar: OwnershipRegistrar,
 ) {
+    @Trace(metricName = "Snippets/creation/owner")
     fun register(
         snippetId: UUID,
         ownerId: String,
