@@ -4,6 +4,7 @@ import com.jjt.ingsis.snippets.background.DomainEvent
 import com.jjt.ingsis.snippets.background.EventType
 import com.jjt.ingsis.snippets.background.NewBackgroundJob
 import com.jjt.ingsis.snippets.language.ProcessorRevision
+import com.jjt.ingsis.snippets.telemetry.currentCorrelationId
 import java.time.Instant
 import java.util.UUID
 
@@ -22,7 +23,7 @@ object FormattingRulesChangedJob {
                     eventId = UUID.randomUUID(),
                     jobId = UUID.randomUUID(),
                     eventType = EventType.FormattingRulesChanged,
-                    correlationId = UUID.randomUUID(),
+                    correlationId = currentCorrelationId(),
                     occurredAt = Instant.now(),
                     scope =
                         mapOf(
