@@ -1,5 +1,7 @@
 package com.jjt.ingsis.snippets.background
 
+import com.jjt.ingsis.snippets.telemetry.BackgroundContext
+import com.newrelic.api.agent.Trace
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import tools.jackson.core.JacksonException
@@ -69,9 +71,12 @@ class JobConsumer(
         }
     }
 
+    @Trace(dispatcher = true, metricName = "Snippets/background/job")
+    private fun execute(job: StoredJob): Boolean = BackgroundContext.open(job.event, job.attempts).use { turn(job) }
+
     // This is the plugin boundary: unexpected handler bugs must become durable retry/UNKNOWN, not drop deliveries.
     @Suppress("TooGenericExceptionCaught")
-    private fun execute(job: StoredJob): Boolean {
+    private fun turn(job: StoredJob): Boolean {
         val handler = handlers[job.event.eventType]
         if (handler == null) {
             jobs.defer(job.event.jobId)

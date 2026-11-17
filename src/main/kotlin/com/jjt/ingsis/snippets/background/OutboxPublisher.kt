@@ -1,5 +1,7 @@
 package com.jjt.ingsis.snippets.background
 
+import com.jjt.ingsis.snippets.telemetry.BackgroundContext
+import com.newrelic.api.agent.Trace
 import org.slf4j.LoggerFactory
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
@@ -35,7 +37,11 @@ class OutboxPublisher(
         return published
     }
 
-    private fun publish(delivery: EventDelivery): Boolean {
+    @Trace(dispatcher = true, metricName = "Snippets/background/publish")
+    private fun publish(delivery: EventDelivery): Boolean =
+        BackgroundContext.open(delivery.event, delivery.attempt).use { deliver(delivery) }
+
+    private fun deliver(delivery: EventDelivery): Boolean {
         val event = delivery.event
         val recordId =
             try {
