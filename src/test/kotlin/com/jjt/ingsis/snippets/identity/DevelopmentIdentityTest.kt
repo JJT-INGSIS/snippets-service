@@ -7,7 +7,7 @@ import org.springframework.mock.env.MockEnvironment
 class DevelopmentIdentityTest {
     @Test
     fun `development identity is disabled unless dev profile is explicitly active`() {
-        val resolver = DevelopmentActorIdentityResolver(MockEnvironment())
+        val resolver = ConfiguredActorIdentityResolver(MockEnvironment())
         assertEquals(ActorIdentity.Disabled, resolver.resolve(ActorContext(listOf("dev-thiago"))))
     }
 
@@ -25,6 +25,40 @@ class DevelopmentIdentityTest {
         assertEquals(ActorIdentity.Identified(actor), resolver().resolve(ActorContext(listOf(actor))))
     }
 
-    private fun resolver(): DevelopmentActorIdentityResolver =
-        DevelopmentActorIdentityResolver(MockEnvironment().apply { setActiveProfiles("dev") })
+    @Test
+    fun `auth0 ignores every dev header and accepts only the authenticated subject`() {
+        val environment =
+            MockEnvironment().apply {
+                setActiveProfiles("dev")
+                setProperty("snippets.auth.mode", "auth0")
+            }
+        val resolver = ConfiguredActorIdentityResolver(environment)
+        assertEquals(ActorIdentity.Missing, resolver.resolve(ActorContext(listOf("forged"))))
+        assertEquals(
+            ActorIdentity.Identified("auth0|real"),
+            resolver.resolve(ActorContext(listOf("forged", "other"), "auth0|real")),
+        )
+    }
+
+    @Test
+    fun `explicit disabled mode rejects identity even in dev and dev ignores authenticated context`() {
+        val environment =
+            MockEnvironment().apply {
+                setActiveProfiles("dev")
+                setProperty("snippets.auth.mode", "disabled")
+            }
+        assertEquals(
+            ActorIdentity.Disabled,
+            ConfiguredActorIdentityResolver(environment).resolve(ActorContext(listOf("dev-juan"), "auth0|real")),
+        )
+        assertEquals(ActorIdentity.Missing, resolver().resolve(ActorContext(authenticatedActorId = "auth0|real")))
+    }
+
+    private fun resolver(): ConfiguredActorIdentityResolver =
+        ConfiguredActorIdentityResolver(
+            MockEnvironment().apply {
+                setActiveProfiles("dev")
+                setProperty("snippets.auth.mode", "dev")
+            },
+        )
 }

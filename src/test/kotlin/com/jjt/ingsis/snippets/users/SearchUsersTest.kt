@@ -16,12 +16,12 @@ private class RecordingDirectory(
         name: String,
         excluding: String,
         page: PageRequest,
-    ): UserPage {
+    ): DirectorySearch {
         check(name == query.name && excluding == "dev-juan" && page == query.page)
-        return answer
+        return DirectorySearch.Found(answer)
     }
 
-    override fun contains(id: String): Boolean = error("Searching never checks a single id")
+    override fun contains(id: String): DirectoryMembership = error("Searching never checks a single id")
 }
 
 class SearchUsersTest {
@@ -44,12 +44,33 @@ class SearchUsersTest {
                     name: String,
                     excluding: String,
                     page: PageRequest,
-                ): UserPage = error("The directory must not be searched")
+                ): DirectorySearch = error("The directory must not be searched")
 
-                override fun contains(id: String): Boolean = error("The directory must not be consulted")
+                override fun contains(id: String): DirectoryMembership = error("The directory must not be consulted")
             }
 
         assertThat(SearchUsers(rejected, untouched).search(query, ActorContext()))
             .isEqualTo(UserSearchOutcome.IdentityRejected)
+    }
+
+    @Test
+    fun `directory failure and broad searches remain distinct from an empty successful page`() {
+        listOf(
+            DirectorySearch.Unavailable to UserSearchOutcome.DirectoryUnavailable,
+            DirectorySearch.RefineSearch to UserSearchOutcome.RefineSearch,
+        ).forEach { (answer, expected) ->
+            val directory =
+                object : UserDirectory {
+                    override fun search(
+                        name: String,
+                        excluding: String,
+                        page: PageRequest,
+                    ): DirectorySearch = answer
+
+                    override fun contains(id: String): DirectoryMembership = error("not a membership request")
+                }
+            val actor = ActorIdentityResolver { ActorIdentity.Identified("auth0|alice") }
+            assertThat(SearchUsers(actor, directory).search(query, ActorContext())).isEqualTo(expected)
+        }
     }
 }

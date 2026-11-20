@@ -12,12 +12,24 @@ data class UserPage(
     val users: List<DirectoryUser>,
 )
 
+sealed interface DirectorySearch {
+    data class Found(
+        val page: UserPage,
+    ) : DirectorySearch
+
+    data object Unavailable : DirectorySearch
+
+    data object RefineSearch : DirectorySearch
+}
+
+enum class DirectoryMembership { PRESENT, ABSENT, UNAVAILABLE }
+
 interface UserDirectory {
     fun search(
         name: String,
         excluding: String,
         page: PageRequest,
-    ): UserPage
+    ): DirectorySearch
 
-    fun contains(id: String): Boolean
+    fun contains(id: String): DirectoryMembership
 }

@@ -18,6 +18,10 @@ sealed interface UserSearchOutcome {
     ) : UserSearchOutcome
 
     data object IdentityRejected : UserSearchOutcome
+
+    data object DirectoryUnavailable : UserSearchOutcome
+
+    data object RefineSearch : UserSearchOutcome
 }
 
 @Service
@@ -32,6 +36,10 @@ class SearchUsers(
         val identity = identityResolver.resolve(context)
         if (identity !is ActorIdentity.Identified) return UserSearchOutcome.IdentityRejected
 
-        return UserSearchOutcome.Found(query.page, directory.search(query.name, identity.actorId, query.page))
+        return when (val result = directory.search(query.name, identity.actorId, query.page)) {
+            is DirectorySearch.Found -> UserSearchOutcome.Found(query.page, result.page)
+            DirectorySearch.Unavailable -> UserSearchOutcome.DirectoryUnavailable
+            DirectorySearch.RefineSearch -> UserSearchOutcome.RefineSearch
+        }
     }
 }

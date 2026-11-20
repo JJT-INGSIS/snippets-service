@@ -8,7 +8,10 @@ import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
 import com.jjt.ingsis.snippets.metadata.SnippetMetadataStore
 import com.jjt.ingsis.snippets.permissions.ShareRegistrar
 import com.jjt.ingsis.snippets.permissions.ShareRegistration
+import com.jjt.ingsis.snippets.users.DirectoryMembership
 import com.jjt.ingsis.snippets.users.UserDirectory
+import com.newrelic.api.agent.Trace
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -19,6 +22,9 @@ class ShareSnippet(
     private val metadata: SnippetMetadataStore,
     private val shares: ShareRegistrar,
 ) {
+    private val logger = LoggerFactory.getLogger(ShareSnippet::class.java)
+
+    @Trace(metricName = "Snippets/sharing")
     fun share(
         snippetId: String?,
         recipientId: String?,
@@ -28,7 +34,12 @@ class ShareSnippet(
         if (identity !is ActorIdentity.Identified) return ShareOutcome.IdentityRejected
         val id = canonicalUuid(snippetId) ?: return ShareOutcome.InvalidRequest("snippetId")
         if (recipientId.isNullOrBlank()) return ShareOutcome.InvalidRequest("userId")
-        if (recipientId == identity.actorId || !users.contains(recipientId)) return ShareOutcome.InvalidRecipient
+        if (recipientId == identity.actorId) return ShareOutcome.InvalidRecipient
+        when (users.contains(recipientId)) {
+            DirectoryMembership.ABSENT -> return ShareOutcome.InvalidRecipient
+            DirectoryMembership.UNAVAILABLE -> return ShareOutcome.DirectoryUnavailable
+            DirectoryMembership.PRESENT -> Unit
+        }
 
         return try {
             if (metadata.findConfirmed(id) == null) {
@@ -47,10 +58,25 @@ class ShareSnippet(
         recipientId: String,
     ): ShareOutcome =
         when (val result = shares.register(id, actorId, recipientId)) {
-            is ShareRegistration.Registered -> ShareOutcome.Shared(id, recipientId, result.created)
-            ShareRegistration.Denied -> ShareOutcome.Denied
-            ShareRegistration.Missing -> ShareOutcome.Missing
-            ShareRegistration.InvalidRecipient -> ShareOutcome.InvalidRecipient
-            is ShareRegistration.Failed -> ShareOutcome.PermissionsUnavailable
+            is ShareRegistration.Registered -> {
+                logger.info("Snippet {} is shared with a recipient (new share: {})", id, result.created)
+                ShareOutcome.Shared(id, recipientId, result.created)
+            }
+
+            ShareRegistration.Denied -> {
+                ShareOutcome.Denied
+            }
+
+            ShareRegistration.Missing -> {
+                ShareOutcome.Missing
+            }
+
+            ShareRegistration.InvalidRecipient -> {
+                ShareOutcome.InvalidRecipient
+            }
+
+            is ShareRegistration.Failed -> {
+                ShareOutcome.PermissionsUnavailable
+            }
         }
 }

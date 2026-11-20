@@ -8,6 +8,7 @@ import com.jjt.ingsis.snippets.storage.ContentReference
 import com.jjt.ingsis.snippets.storage.SnippetContentStorage
 import com.jjt.ingsis.snippets.storage.StorageUnavailable
 import com.jjt.ingsis.snippets.storage.StoreResult
+import com.newrelic.api.agent.Trace
 import org.springframework.stereotype.Component
 import java.util.UUID
 
@@ -16,6 +17,7 @@ class CreationContent(
     private val storage: SnippetContentStorage,
     private val links: SnippetContentLinks,
 ) {
+    @Trace(metricName = "Snippets/creation/content")
     fun store(
         snippetId: UUID,
         code: String,

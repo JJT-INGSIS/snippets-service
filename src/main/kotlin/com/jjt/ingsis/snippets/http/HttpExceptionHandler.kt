@@ -12,6 +12,10 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 @RestControllerAdvice
 class HttpExceptionHandler : ResponseEntityExceptionHandler() {
+    @ExceptionHandler(ExecutionHttpFailure::class)
+    internal fun execution(failure: ExecutionHttpFailure): ResponseEntity<ProblemDetail> =
+        executionProblem(failure.failure)
+
     override fun handleExceptionInternal(
         ex: Exception,
         body: Any?,

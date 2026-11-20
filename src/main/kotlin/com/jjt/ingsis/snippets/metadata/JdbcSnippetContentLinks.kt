@@ -22,7 +22,7 @@ class JdbcSnippetContentLinks(
         id: UUID,
         details: SnippetDetails,
         reference: ContentReference,
-    ): ContentReplacementResult = transaction.commit { replace(id, details, reference) }
+    ): ContentReplacementResult = transaction.join { replace(id, details, reference) }
 
     private fun link(
         id: UUID,

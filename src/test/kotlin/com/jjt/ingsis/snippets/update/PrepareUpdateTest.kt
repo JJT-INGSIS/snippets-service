@@ -43,7 +43,7 @@ class PrepareUpdateTest {
             language.validate(replacement.language, replacement.version, replacement.code),
         ).thenReturn(ValidationResult.Valid)
         assertEquals(
-            UpdatePreparationResult.Prepared(UpdateCandidate(existing.id, replacement)),
+            UpdatePreparationResult.Prepared(UpdateCandidate(existing.id, replacement, "dev-thiago")),
             prepare().prepare(replacement, existing.id.toString(), context),
         )
         verify(store).findMetadata(existing.id)
@@ -142,6 +142,15 @@ class PrepareUpdateTest {
         ).thenThrow(MetadataPersistenceException(IllegalStateException("private SQL")))
         assertEquals(UpdatePreparationResult.Rejected(PreparationRejection.TechnicalFailure("metadata")), attempt())
         verifyNoInteractions(checker, language)
+    }
+
+    @Test
+    fun `empty replacement is rejected before lookup permissions Language or persistence`() {
+        assertEquals(
+            UpdatePreparationResult.Rejected(PreparationRejection.InvalidRequest("code")),
+            prepare().prepare(draft().copy(code = ""), existing.id.toString(), context),
+        )
+        verifyNoInteractions(store, checker, language)
     }
 
     private fun prepare(): PrepareUpdate =

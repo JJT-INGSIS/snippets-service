@@ -9,6 +9,7 @@ import org.springframework.mock.env.MockEnvironment
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.web.filter.CorsFilter
 
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -43,7 +44,7 @@ class ProductionCorsTest
 
         @Test
         fun `empty origins grant no browser access without breaking internal or proxy requests`() {
-            val filter = CorsConfiguration().corsFilter(CorsProperties(), MockEnvironment())
+            val filter = CorsFilter(CorsConfiguration().corsConfigurationSource(CorsProperties(), MockEnvironment()))
             listOf(null, "http://localhost", "https://untrusted.example").forEach { origin ->
                 val request = MockHttpServletRequest("GET", "/languages")
                 if (origin != null) request.addHeader("Origin", origin)

@@ -22,7 +22,7 @@ class ConfiguredUserDirectoryTest {
 
     @Test
     fun `part of a name finds only matching users ignoring case`() {
-        val found = team.search("AN", excluding = "nobody", page = firstPage)
+        val found = team.search("AN", excluding = "nobody", page = firstPage).page
 
         assertThat(found.users.map { it.id }).containsExactly("dev-ana", "dev-juan", "dev-juanfran")
         assertThat(found.count).isEqualTo(3)
@@ -30,7 +30,7 @@ class ConfiguredUserDirectoryTest {
 
     @Test
     fun `the requester never appears among the recipients`() {
-        val found = team.search("", excluding = "dev-juan", page = firstPage)
+        val found = team.search("", excluding = "dev-juan", page = firstPage).page
 
         assertThat(found.users.map { it.id }).containsExactly("dev-ana", "dev-bruno", "dev-juanfran", "dev-thiago")
     }
@@ -44,33 +44,35 @@ class ConfiguredUserDirectoryTest {
                 DirectoryUser("dev-c", "alex"),
             )
 
-        val found = twins.search("", excluding = "nobody", page = firstPage)
+        val found = twins.search("", excluding = "nobody", page = firstPage).page
 
         assertThat(found.users.map { it.id }).containsExactly("dev-c", "dev-a", "dev-b")
     }
 
     @Test
     fun `pages split the ordered result and keep the total count`() {
-        val pages = (0..3).map { number -> team.search("", excluding = "nobody", page = PageRequest(number, 2)) }
+        val pages = (0..3).map { number -> team.search("", excluding = "nobody", page = PageRequest(number, 2)).page }
 
         assertThat(pages.map { it.count }).containsOnly(5)
         assertThat(pages.flatMap { it.users }.map { it.name })
             .containsExactly("Ana", "Bruno", "Juan", "Juan Francisco", "Thiago")
         assertThat(pages.last().users).isEmpty()
-        assertThat(team.search("", "nobody", PageRequest(Int.MAX_VALUE, 100)).users).isEmpty()
+        assertThat(team.search("", "nobody", PageRequest(Int.MAX_VALUE, 100)).page.users).isEmpty()
     }
 
     @Test
     fun `no matches is an empty page with zero count`() {
-        assertThat(team.search("zzz", excluding = "nobody", page = firstPage)).isEqualTo(UserPage(0, emptyList()))
+        assertThat(
+            team.search("zzz", excluding = "nobody", page = firstPage),
+        ).isEqualTo(DirectorySearch.Found(UserPage(0, emptyList())))
     }
 
     @Test
     fun `only configured ids are known recipients`() {
-        assertThat(team.contains("dev-ana")).isTrue()
-        assertThat(team.contains("DEV-ANA")).isFalse()
-        assertThat(team.contains("dev-unknown")).isFalse()
-        assertThat(directory().contains("dev-ana")).isFalse()
+        assertThat(team.contains("dev-ana")).isEqualTo(DirectoryMembership.PRESENT)
+        assertThat(team.contains("DEV-ANA")).isEqualTo(DirectoryMembership.ABSENT)
+        assertThat(team.contains("dev-unknown")).isEqualTo(DirectoryMembership.ABSENT)
+        assertThat(directory().contains("dev-ana")).isEqualTo(DirectoryMembership.ABSENT)
     }
 
     @Test

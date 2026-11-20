@@ -14,6 +14,7 @@ data class LockedSnippet(
 @Component
 class SnippetContentRows(
     private val jdbc: JdbcTemplate,
+    private val retention: ContentRetention,
 ) {
     fun lock(id: UUID): LockedSnippet? =
         jdbc
@@ -40,6 +41,7 @@ class SnippetContentRows(
         id: UUID,
         reference: ContentReference,
     ) {
+        retention.retain(reference)
         jdbc.update("UPDATE snippets SET content_reference = ? WHERE id = ?", reference.value, id)
     }
 
@@ -48,6 +50,7 @@ class SnippetContentRows(
         details: SnippetDetails,
         reference: ContentReference,
     ) {
+        retention.retain(reference)
         jdbc.update(
             "UPDATE snippets SET name = ?, description = ?, language = ?, version = ?, content_reference = ? " +
                 "WHERE id = ?",

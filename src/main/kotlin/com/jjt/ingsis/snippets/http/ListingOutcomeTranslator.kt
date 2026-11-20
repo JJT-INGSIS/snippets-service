@@ -11,6 +11,7 @@ class ListingOutcomeTranslator {
             is ListingOutcome.Listed -> ResponseEntity.ok(SnippetPageResponse.from(outcome.page))
             ListingOutcome.IdentityRejected -> SnippetProblem.IDENTITY_UNAVAILABLE.response()
             ListingOutcome.PermissionsUnavailable -> SnippetProblem.DEPENDENCY_FAILURE.response()
+            ListingOutcome.LanguageUnavailable -> SnippetProblem.DEPENDENCY_FAILURE.response()
             ListingOutcome.MetadataUnavailable -> SnippetProblem.METADATA_UNAVAILABLE.response()
         }
 }

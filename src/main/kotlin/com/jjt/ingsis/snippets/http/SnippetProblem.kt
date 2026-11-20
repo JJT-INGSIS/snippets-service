@@ -10,6 +10,16 @@ enum class SnippetProblem(
     val category: String,
     private val detail: String,
 ) {
+    DIRECTORY_UNAVAILABLE(
+        HttpStatus.BAD_GATEWAY,
+        "directory-unavailable",
+        "The user directory could not be consulted. No recipient or search result was confirmed.",
+    ),
+    DIRECTORY_SEARCH_TOO_BROAD(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "directory-search-too-broad",
+        "Refine the name search; the directory cannot provide a complete page within its search limit.",
+    ),
     INVALID_REQUEST(
         HttpStatus.BAD_REQUEST,
         "invalid-request",
@@ -30,6 +40,11 @@ enum class SnippetProblem(
         "share-denied",
         "Only the owner can share this snippet.",
     ),
+    ACCESS_DENIED(
+        HttpStatus.FORBIDDEN,
+        "access-denied",
+        "Only the owner of this snippet can do this.",
+    ),
     INVALID_RECIPIENT(
         HttpStatus.UNPROCESSABLE_CONTENT,
         "invalid-recipient",
@@ -39,6 +54,11 @@ enum class SnippetProblem(
         HttpStatus.NOT_FOUND,
         "snippet-not-found",
         "There is no snippet with that id.",
+    ),
+    PAYLOAD_TOO_LARGE(
+        HttpStatus.CONTENT_TOO_LARGE,
+        "payload-too-large",
+        "The request exceeds a size limit. The limit property names which one.",
     ),
     CREATION_CONFLICT(
         HttpStatus.CONFLICT,
@@ -64,6 +84,31 @@ enum class SnippetProblem(
         HttpStatus.UNPROCESSABLE_CONTENT,
         "invalid-code",
         "The code is not valid for the requested language and version.",
+    ),
+    INVALID_LINTING_RULES(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "invalid-linting-rules",
+        "Some linting rules are not valid for this language version. The violations property lists them.",
+    ),
+    INVALID_FORMATTING_RULES(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "invalid-formatting-rules",
+        "Some formatting rules are not valid for this language version. The violations property lists them.",
+    ),
+    UNFORMATTABLE_CODE(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "unformattable-code",
+        "The saved code has a lexical error that prevents formatting it. See diagnostics.",
+    ),
+    FORMATTING_LIMIT_EXCEEDED(
+        HttpStatus.UNPROCESSABLE_CONTENT,
+        "formatting-limit-exceeded",
+        "The code or its formatted result exceeds the processor limit. The limit property names which one.",
+    ),
+    FORMATTING_STALE(
+        HttpStatus.CONFLICT,
+        "formatting-stale",
+        "The snippet changed while its formatted variant was prepared. Repeating the same request is safe.",
     ),
     UNSUPPORTED_LANGUAGE(
         HttpStatus.UNPROCESSABLE_CONTENT,

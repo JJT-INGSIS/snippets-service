@@ -3,7 +3,6 @@ package com.jjt.ingsis.snippets.http
 import com.jjt.ingsis.snippets.creation.CreateSnippet
 import com.jjt.ingsis.snippets.creation.DraftInput
 import com.jjt.ingsis.snippets.creation.DraftJsonDecoder
-import com.jjt.ingsis.snippets.creation.SnippetDraft
 import com.jjt.ingsis.snippets.update.UpdateSnippet
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
@@ -29,28 +28,38 @@ class SnippetsController(
     fun create(
         @RequestBody body: String,
         @RequestHeader headers: HttpHeaders,
-    ): ResponseEntity<*> {
-        val draft = draftIn(body) ?: return SnippetProblem.INVALID_REQUEST.response()
-        val outcome = createSnippet.create(draft, headers.idempotencyKey(), headers.actorContext())
+    ): ResponseEntity<*> =
+        when (val input = decoder.decode(body)) {
+            is DraftInput.Accepted -> {
+                creationTranslator.toResponse(
+                    createSnippet.create(input.draft, headers.idempotencyKey(), headers.actorContext()),
+                )
+            }
 
-        return creationTranslator.toResponse(outcome)
-    }
+            is DraftInput.Rejected -> {
+                invalid(input)
+            }
+        }
 
     @PutMapping("/{snippetId}", consumes = [MediaType.APPLICATION_JSON_VALUE])
     fun update(
         @PathVariable snippetId: String,
         @RequestBody body: String,
         @RequestHeader headers: HttpHeaders,
-    ): ResponseEntity<*> {
-        val draft = draftIn(body) ?: return SnippetProblem.INVALID_REQUEST.response()
-        val outcome = updateSnippet.update(draft, snippetId, headers.actorContext())
-
-        return updateTranslator.toResponse(outcome)
-    }
-
-    private fun draftIn(body: String): SnippetDraft? =
+    ): ResponseEntity<*> =
         when (val input = decoder.decode(body)) {
-            is DraftInput.Accepted -> input.draft
-            DraftInput.Rejected -> null
+            is DraftInput.Accepted -> {
+                updateTranslator.toResponse(
+                    updateSnippet.update(input.draft, snippetId, headers.actorContext()),
+                )
+            }
+
+            is DraftInput.Rejected -> {
+                invalid(input)
+            }
         }
+
+    private fun invalid(input: DraftInput.Rejected): ResponseEntity<*> =
+        input.field?.let { SnippetProblem.INVALID_REQUEST.response("field", it) }
+            ?: SnippetProblem.INVALID_REQUEST.response()
 }

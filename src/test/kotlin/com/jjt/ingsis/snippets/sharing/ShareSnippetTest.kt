@@ -10,6 +10,7 @@ import com.jjt.ingsis.snippets.metadata.SnippetState
 import com.jjt.ingsis.snippets.permissions.PermissionsFailure
 import com.jjt.ingsis.snippets.permissions.ShareRegistrar
 import com.jjt.ingsis.snippets.permissions.ShareRegistration
+import com.jjt.ingsis.snippets.users.DirectoryMembership
 import com.jjt.ingsis.snippets.users.UserDirectory
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -78,6 +79,7 @@ class ShareSnippetTest {
 
     @Test
     fun `self and unknown recipients cannot grant access`() {
+        `when`(users.contains(RECIPIENT)).thenReturn(DirectoryMembership.ABSENT)
         assertThat(sharing().share(id.toString(), OWNER, ActorContext())).isEqualTo(ShareOutcome.InvalidRecipient)
         assertThat(sharing().share(id.toString(), RECIPIENT, ActorContext())).isEqualTo(ShareOutcome.InvalidRecipient)
         verifyNoInteractions(metadata)
@@ -85,13 +87,13 @@ class ShareSnippetTest {
 
     @Test
     fun `a missing or unconfirmed snippet cannot reach permissions`() {
-        `when`(users.contains(RECIPIENT)).thenReturn(true)
+        `when`(users.contains(RECIPIENT)).thenReturn(DirectoryMembership.PRESENT)
         assertThat(sharing().share(id.toString(), RECIPIENT, ActorContext())).isEqualTo(ShareOutcome.Missing)
     }
 
     @Test
     fun `a metadata failure is never absence or success`() {
-        `when`(users.contains(RECIPIENT)).thenReturn(true)
+        `when`(users.contains(RECIPIENT)).thenReturn(DirectoryMembership.PRESENT)
         `when`(
             metadata.findConfirmed(id),
         ).thenThrow(MetadataPersistenceException(IllegalStateException("database down")))
@@ -125,8 +127,16 @@ class ShareSnippetTest {
         }
     }
 
+    @Test
+    fun `directory failure is never an unknown recipient and cannot write a share`() {
+        `when`(users.contains(RECIPIENT)).thenReturn(DirectoryMembership.UNAVAILABLE)
+        assertThat(sharing().share(id.toString(), RECIPIENT, ActorContext()))
+            .isEqualTo(ShareOutcome.DirectoryUnavailable)
+        verifyNoInteractions(metadata)
+    }
+
     private fun ready() {
-        `when`(users.contains(RECIPIENT)).thenReturn(true)
+        `when`(users.contains(RECIPIENT)).thenReturn(DirectoryMembership.PRESENT)
         `when`(metadata.findConfirmed(id)).thenReturn(confirmed)
     }
 

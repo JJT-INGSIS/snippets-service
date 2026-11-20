@@ -67,7 +67,7 @@ class PrepareUpdate(
     ): UpdatePreparationResult =
         when (permissions.check(id, actorId)) {
             ModificationPermission.Allowed -> {
-                validate(id, draft)
+                validate(id, actorId, draft)
             }
 
             ModificationPermission.Denied -> {
@@ -85,11 +85,12 @@ class PrepareUpdate(
 
     private fun validate(
         id: UUID,
+        actorId: String,
         draft: SnippetDraft,
     ): UpdatePreparationResult {
         val rejection = language.validate(draft.language, draft.version, draft.code).rejection()
         return if (rejection == null) {
-            UpdatePreparationResult.Prepared(UpdateCandidate(id, draft))
+            UpdatePreparationResult.Prepared(UpdateCandidate(id, draft, actorId))
         } else {
             UpdatePreparationResult.Rejected(rejection)
         }

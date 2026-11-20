@@ -37,6 +37,7 @@ class ListingHttpTest
         @BeforeEach
         fun restorePermissions() {
             permissions.reset()
+            lintCatalog.reset()
         }
 
         @Test
@@ -95,7 +96,7 @@ class ListingHttpTest
             assertThat(item.get("ownerId").asString()).isEqualTo(owner)
             assertThat(item.get("relation").asString()).isEqualTo("shared")
             assertThat(item.get("extension").asString()).isEqualTo("prs")
-            assertThat(item.get("lint").get("status").asString()).isEqualTo("not-implemented")
+            assertThat(item.get("lint").get("status").asString()).isEqualTo("pending")
             assertThat(item.has("code")).isFalse()
         }
 
@@ -104,17 +105,35 @@ class ListingHttpTest
             val (actor, other) = actors()
             val beta = stored("beta", owner = actor)
             val alpha = stored("Alpha", owner = other, recipients = listOf(actor))
-            val gamma = stored("gamma", owner = actor, language = "python")
+            val gamma = stored("gamma", owner = actor)
             stored("alphabet", owner = other)
 
             assertThat(ids(actor, "all&name=ALP")).containsExactly(alpha)
-            assertThat(ids(actor, "all&language=python")).containsExactly(gamma)
+            assertThat(ids(actor, "all&language=printscript&name=gamma")).containsExactly(gamma)
             assertThat(ids(actor, "all&direction=desc")).containsExactly(gamma, beta, alpha)
             assertThat(ids(actor, "all&page=1&page_size=2")).containsExactly(gamma)
             val empty = api.list("?name=zzz", listOf(actor))
             assertThat(empty.status).isEqualTo(200)
             assertThat(empty.body.get("count").asLong()).isZero()
             assertThat(empty.body.get("snippets").isEmpty).isTrue()
+        }
+
+        @Test
+        fun `an unavailable processor is an explicit failure rather than empty results or cached compliance`() {
+            val (actor, _) = actors()
+            stored("known", owner = actor)
+            assertThat(api.list("", listOf(actor)).status).isEqualTo(200)
+            lintCatalog.answerWith { StubResponse(503, "{}") }
+            val failed = api.list("?lint=compliant", listOf(actor))
+            assertThat(failed.status).isEqualTo(502)
+            assertThat(failed.body.has("snippets")).isFalse()
+        }
+
+        @Test
+        fun `an accessible language without a verified linter cannot silently skip verification`() {
+            val (actor, _) = actors()
+            stored("legacy", owner = actor, language = "python")
+            assertThat(api.list("?language=python", listOf(actor)).status).isEqualTo(502)
         }
 
         @Test
@@ -226,11 +245,13 @@ class ListingHttpTest
         companion object {
             private val slow = Duration.ofSeconds(1)
             private val ledger = AccessLedger()
+            private val lintCatalog = verifiedLintCatalog()
             private val permissions = ScriptedHttpService { request -> ledger.answer(request) }
 
             @JvmStatic
             @DynamicPropertySource
             fun dependencies(registry: DynamicPropertyRegistry) {
+                registry.add("language.printscript.base-url") { lintCatalog.baseUrl }
                 registry.add("permissions.base-url") { permissions.baseUrl }
             }
 
@@ -238,6 +259,7 @@ class ListingHttpTest
             @AfterAll
             fun stopDependencies() {
                 permissions.close()
+                lintCatalog.close()
             }
         }
     }

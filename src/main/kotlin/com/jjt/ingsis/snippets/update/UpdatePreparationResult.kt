@@ -7,6 +7,7 @@ import java.util.UUID
 data class UpdateCandidate(
     val snippetId: UUID,
     val replacement: SnippetDraft,
+    val actorId: String,
 )
 
 sealed interface UpdatePreparationResult {

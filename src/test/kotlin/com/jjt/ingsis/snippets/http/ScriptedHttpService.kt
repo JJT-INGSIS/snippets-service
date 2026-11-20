@@ -21,6 +21,7 @@ internal data class StubResponse(
     val body: String,
     val contentType: String = "application/json",
     val delay: Duration = Duration.ZERO,
+    val headers: Map<String, String> = emptyMap(),
 )
 
 internal class ScriptedHttpService(
@@ -69,6 +70,7 @@ internal class ScriptedHttpService(
             Thread.sleep(response.delay.toMillis())
             val bytes = response.body.toByteArray(Charsets.UTF_8)
             exchange.responseHeaders.add("Content-Type", response.contentType)
+            response.headers.forEach { (name, value) -> exchange.responseHeaders.add(name, value) }
             exchange.sendResponseHeaders(response.status, bytes.size.toLong())
             exchange.responseBody.use { output -> output.write(bytes) }
         } catch (_: IOException) {

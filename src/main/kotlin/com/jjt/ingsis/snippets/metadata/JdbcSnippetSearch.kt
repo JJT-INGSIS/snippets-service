@@ -6,7 +6,6 @@ import org.springframework.stereotype.Repository
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.TransactionDefinition
 import org.springframework.transaction.support.TransactionTemplate
-import java.sql.PreparedStatement
 import java.util.UUID
 
 @Repository
@@ -29,16 +28,44 @@ class JdbcSnippetSearch(
     ): MetadataPage =
         transaction.read {
             snapshot.execute {
-                MetadataPage(count(ids, filter), rows(ids = ids, filter = filter, order = order, page = page))
+                if (filter.lintBasis != null &&
+                    !verified(ids, filter)
+                ) {
+                    return@execute MetadataPage(0, emptyList(), lintVerified = false)
+                }
+                val found = rows(ids = ids, filter = filter, order = order, page = page)
+                MetadataPage(
+                    count(ids, filter),
+                    found.map { pair -> pair.first },
+                    found.associate { pair ->
+                        pair.first.id to
+                            pair.second
+                    },
+                )
             }
         }
+
+    private fun verified(
+        ids: Set<UUID>,
+        filter: SnippetFilter,
+    ): Boolean =
+        jdbc
+            .query(
+                LintProjectionSql.CANDIDATES +
+                    "SELECT NOT EXISTS (SELECT 1 FROM candidates WHERE NOT lint_verified)",
+                LintQueryParameters.of(ids, filter, includeLintFilter = false),
+            ) { row, _ -> row.getBoolean(1) }
+            .single()
 
     private fun count(
         ids: Set<UUID>,
         filter: SnippetFilter,
     ): Long =
         jdbc
-            .query("SELECT COUNT(*) FROM snippets $WHERE", conditions(ids, filter)) { row, _ -> row.getLong(1) }
+            .query(
+                LintProjectionSql.CANDIDATES + "SELECT COUNT(*) FROM candidates " + LintProjectionSql.FILTER,
+                LintQueryParameters.of(ids, filter),
+            ) { row, _ -> row.getLong(1) }
             .single()
 
     private fun rows(
@@ -46,11 +73,13 @@ class JdbcSnippetSearch(
         filter: SnippetFilter,
         order: SnippetOrder,
         page: PageRequest,
-    ): List<SnippetMetadata> {
-        val sql = "SELECT * FROM snippets $WHERE ORDER BY ${orderBy(order)} LIMIT ? OFFSET ?"
+    ): List<Pair<SnippetMetadata, com.jjt.ingsis.snippets.lintquery.LintFinding>> {
+        val sql =
+            LintProjectionSql.CANDIDATES + "SELECT * FROM candidates " + LintProjectionSql.FILTER +
+                " ORDER BY ${orderBy(order)} LIMIT ? OFFSET ?"
         val setter =
             PreparedStatementSetter { statement ->
-                conditions(ids, filter).setValues(statement)
+                LintQueryParameters.of(ids, filter).setValues(statement)
                 statement.setInt(LIMIT_INDEX, page.size)
                 statement.setLong(OFFSET_INDEX, page.offset)
             }
@@ -62,27 +91,16 @@ class JdbcSnippetSearch(
                 language = row.getString("language"),
                 version = row.getString("version"),
                 state = SnippetState.valueOf(row.getString("state")),
-            )
+            ) to LintProjectionSql.finding(row)
         }
     }
-
-    private fun conditions(
-        ids: Set<UUID>,
-        filter: SnippetFilter,
-    ): PreparedStatementSetter =
-        PreparedStatementSetter { statement: PreparedStatement ->
-            statement.setArray(1, statement.connection.createArrayOf("uuid", ids.toTypedArray()))
-            statement.setString(NAME_INDEX, filter.name)
-            statement.setString(NAME_INDEX + 1, filter.name)
-            statement.setString(LANGUAGE_INDEX, filter.language)
-            statement.setString(LANGUAGE_INDEX + 1, filter.language)
-        }
 
     private fun orderBy(order: SnippetOrder): String {
         val column =
             when (order.field) {
                 SortField.NAME -> "lower(name)"
                 SortField.LANGUAGE -> "lower(language)"
+                SortField.LINT -> "lint_status"
             }
         val direction =
             when (order.direction) {
@@ -93,13 +111,7 @@ class JdbcSnippetSearch(
     }
 
     private companion object {
-        const val WHERE =
-            "WHERE id = ANY(?) AND state = 'CONFIRMED' " +
-                "AND (? = '' OR strpos(lower(name), lower(?)) > 0) " +
-                "AND (? = '' OR language = ?)"
-        const val NAME_INDEX = 2
-        const val LANGUAGE_INDEX = 4
-        const val LIMIT_INDEX = 6
-        const val OFFSET_INDEX = 7
+        const val LIMIT_INDEX = 10
+        const val OFFSET_INDEX = 11
     }
 }

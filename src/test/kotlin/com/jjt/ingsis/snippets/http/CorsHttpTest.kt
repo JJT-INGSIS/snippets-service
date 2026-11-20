@@ -35,6 +35,11 @@ class CorsHttpTest
                 Triple("/snippets/123/shares/recipient", "PUT", "x-dev-actor-id"),
                 Triple("/languages", "GET", ""),
                 Triple("/users", "GET", "x-dev-actor-id"),
+                Triple("/formatting-rules/printscript/1.1", "GET", "x-dev-actor-id"),
+                Triple("/formatting-rules/printscript/1.1", "PUT", "content-type,x-dev-actor-id"),
+                Triple("/snippets/123/formatted", "GET", "x-dev-actor-id"),
+                Triple("/linting-rules/printscript/1.1", "GET", "x-dev-actor-id"),
+                Triple("/linting-rules/printscript/1.1", "PUT", "content-type,x-dev-actor-id"),
             ).forEach { (path, method, headers) ->
                 val response = api.preflight(path, method, headers)
                 assertThat(response.statusCode()).isEqualTo(200)
@@ -83,7 +88,8 @@ class CorsHttpTest
                 (listOf("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD") - methods.toSet()).forEach { method ->
                     assertThat(api.preflight(path, method, "").statusCode()).describedAs("$method $path").isEqualTo(403)
                 }
-                assertThat(api.preflight(path, methods.first(), "authorization").statusCode()).isEqualTo(403)
+                assertThat(api.preflight(path, methods.first(), "authorization").statusCode()).isEqualTo(200)
+                assertThat(api.preflight(path, methods.first(), "x-actor-id").statusCode()).isEqualTo(403)
             }
             listOf("/executions", "/executions/id/events/extra", "/internal/executions", "/api/executions/id/events")
                 .forEach { path ->
@@ -129,16 +135,26 @@ class CorsHttpTest
                 api.preflight(path = "/snippets", method = "POST", headers = "content-type", origin = "null"),
                 api.preflight("/snippets", "DELETE", ""),
                 api.preflight("/users", "POST", "content-type"),
-                api.preflight("/snippets", "POST", "authorization"),
+                api.preflight("/formatting-rules/printscript/1.1", "DELETE", ""),
+                api.preflight("/snippets/123/formatted", "PUT", "content-type"),
+                api.preflight("/linting-rules/printscript/1.1", "DELETE", ""),
+                api.preflight("/snippets", "POST", "x-actor-id"),
             ).forEach { response ->
                 assertThat(
                     response.statusCode(),
                 ).describedAs(response.request().toString() + response.request().headers()).isEqualTo(403)
                 assertThat(response.headers().firstValue("Access-Control-Allow-Origin")).isEmpty()
             }
-            assertThat(
-                api.preflight("/internal", "GET", "").headers().firstValue("Access-Control-Allow-Origin"),
-            ).isEmpty()
+            listOf(
+                "/internal" to "GET",
+                "/formatting-rules/printscript" to "PUT",
+                "/linting-rules/printscript" to "PUT",
+            ).forEach { (path, method) ->
+                assertThat(
+                    api.preflight(path, method, "").headers().firstValue("Access-Control-Allow-Origin"),
+                ).describedAs("$method $path grants no CORS permission")
+                    .isEmpty()
+            }
         }
 
         @Test

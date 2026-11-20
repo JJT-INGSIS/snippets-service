@@ -163,6 +163,20 @@ class CreationHttpTest
         }
 
         @Test
+        fun `empty code is a field error without reservations content writes or dependency calls`() {
+            val key = newKey()
+            val files = Files.list(contentDirectory).use { it.toList() }
+            val answer = api.create(requestBody(code = ""), keys = listOf(key))
+            assertThat(answer.status).isEqualTo(400)
+            assertThat(answer.type).isEqualTo("urn:snippets:problem:invalid-request")
+            assertThat(answer.body.path("field").asString()).isEqualTo("code")
+            assertThat(metadata.findCreation(UUID.fromString(key), ACTOR)).isEqualTo(CreationLookup.Missing)
+            assertThat(printScript.received).isEmpty()
+            assertThat(permissions.received).isEmpty()
+            assertThat(Files.list(contentDirectory).use { it.toList() }).containsExactlyInAnyOrderElementsOf(files)
+        }
+
+        @Test
         fun `unsupported languages and versions are rejected without reserving`() {
             val key = newKey()
 

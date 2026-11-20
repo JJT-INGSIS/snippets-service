@@ -1,5 +1,6 @@
 package com.jjt.ingsis.snippets.listing
 
+import com.jjt.ingsis.snippets.lintquery.LintFinding
 import com.jjt.ingsis.snippets.metadata.PageRequest
 import com.jjt.ingsis.snippets.metadata.SnippetFilter
 import com.jjt.ingsis.snippets.metadata.SnippetMetadata
@@ -18,6 +19,7 @@ data class ListedSnippet(
     val metadata: SnippetMetadata,
     val access: SnippetAccess,
     val extension: String?,
+    val lint: LintFinding = LintFinding.NOT_EVALUATED,
 )
 
 data class SnippetPage(
@@ -34,6 +36,8 @@ sealed interface ListingOutcome {
     data object IdentityRejected : ListingOutcome
 
     data object PermissionsUnavailable : ListingOutcome
+
+    data object LanguageUnavailable : ListingOutcome
 
     data object MetadataUnavailable : ListingOutcome
 }

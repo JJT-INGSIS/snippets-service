@@ -171,10 +171,12 @@ class SharingHttpTest
 
         companion object {
             private val ledger = AccessLedger()
+            private val lintCatalog = verifiedLintCatalog()
             private val permissions = ScriptedHttpService { ledger.answer(it) }
 
             @JvmStatic @DynamicPropertySource
             fun dependencies(registry: DynamicPropertyRegistry) {
+                registry.add("language.printscript.base-url") { lintCatalog.baseUrl }
                 registry.add("permissions.base-url") { permissions.baseUrl }
                 registry.add("storage.local.directory") { Files.createTempDirectory("sharing-http").toString() }
             }
@@ -182,6 +184,7 @@ class SharingHttpTest
             @JvmStatic @AfterAll
             fun stopDependencies() {
                 permissions.close()
+                lintCatalog.close()
             }
         }
     }

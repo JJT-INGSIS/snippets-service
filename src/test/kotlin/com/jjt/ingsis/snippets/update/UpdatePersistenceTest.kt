@@ -43,7 +43,7 @@ class UpdatePersistenceTest
             val replacement = draft().copy(name = "Renamed", description = "", version = "1.1", code = "println(2);")
             val allowed = preparation(ModificationPermission.Allowed)
             assertEquals(
-                UpdatePreparationResult.Prepared(UpdateCandidate(existing.id, replacement)),
+                UpdatePreparationResult.Prepared(UpdateCandidate(existing.id, replacement, "dev-thiago")),
                 allowed.prepare(replacement, existing.id.toString(), ActorContext()),
             )
             assertEquals(

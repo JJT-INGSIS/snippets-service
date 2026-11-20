@@ -1,5 +1,11 @@
 # Snippets Service
 
+SNI-72 incorpora autenticación de la API mediante Auth0 y Spring Resource Server:
+[modos, configuración, decisiones y pruebas](docs/authentication.md). El despliegue
+DEV conserva el modo dev hasta coordinar la integración de login de la UI.
+
+SNI-60 agrega la capacidad de lint en Language: [contrato e integración](docs/linting.md).
+
 ## Asset Service — SNI-19
 
 El storage se selecciona con `STORAGE_PROVIDER=local|asset`; `local` sigue siendo
@@ -105,7 +111,12 @@ Remove-Variable databasePassword
 .\gradlew.bat bootRun
 ```
 
-El servidor arranca en el puerto 8080 predeterminado de Spring Boot. El perfil `dev` habilita la identidad de desarrollo por header; sin él, `POST /snippets` y `PUT /snippets/{id}` responden `401`. Para crear o actualizar snippets también deben estar disponibles Permissions y PrintScript en sus destinos configurados.
+El servidor arranca en el puerto 8080 predeterminado de Spring Boot. El perfil
+`dev` conserva la identidad por header con `AUTH_MODE=dev`; ese modo no se admite
+fuera del perfil dev. `AUTH_MODE=auth0` exige un access token válido y configuración
+de issuer/audience, incluso en dev. Sin identidad habilitada, las operaciones
+protegidas responden `401`. Para crear o actualizar snippets también deben estar
+disponibles Permissions y PrintScript en sus destinos configurados.
 
 ## Arranque con Docker
 
@@ -180,6 +191,8 @@ Para PrintScript, `PrintScriptValidator` llama por HTTP a `POST /validate` de [p
 
 No hay reintentos. Si `printscript-service` no está disponible, este servicio arranca igual y cada validación devuelve `Failed`.
 
+`language.validateAttributed(...)` devuelve además qué build de PrintScript contestó (header `Processor-Revision`). Ver [revisión del procesador — SNI-76](docs/processor-revision.md).
+
 Los tests usan un servidor HTTP local. Para comprobar además contra el servicio real, levantarlo y definir su dirección:
 
 ```bash
@@ -187,6 +200,46 @@ PRINTSCRIPT_SERVICE_URL=http://localhost:8082 ./gradlew test
 ```
 
 Sin esa variable, `PrintScriptServiceLiveTest` se omite.
+
+## Language: formato — SNI-59
+
+`language.formattingCatalog(...)` devuelve las reglas de formato de una versión y
+`language.format(...)` formatea código, cada uno con la revisión del procesador
+que contestó. Para PrintScript lo resuelve `PrintScriptFormatter` contra
+`printscript-service`. `language.checkFormattingRules(...)` valida una selección
+contra el catálogo real (SNI-61). Ver
+[resultados, diseño y decisiones](docs/formatting-language.md).
+
+## Reglas de formato del owner — SNI-61
+
+`GET` y `PUT /formatting-rules/{language}/{version}` leen y reemplazan las reglas
+del actor, validadas contra el catálogo real de PrintScript. Un cambio confirmado
+guarda configuración, revisión, trabajo `format-owned-snippets` y el evento
+`FormattingRulesChanged` en un único commit (outbox de SNI-57); un `PUT` sin
+cambios no crea trabajo. `FormatSavedSnippet` formatea un snippet guardado con
+las reglas de su owner, sin escribir nada, y solo entrega un resultado vigente;
+lo expone SNI-66. Ver [contrato, casos, decisiones y evidencia](docs/formatting-rules.md).
+
+## Reprocesar formato al cambiar reglas — SNI-62
+
+`FormattingRulesChangedHandler` procesa en segundo plano el trabajo que deja
+SNI-61: recorre en páginas estables los snippets propios del owner para ese
+lenguaje y esa versión, formatea uno por turno con el permiso de fondo compartido
+y guarda un derivado separado del original (`formatted_snippets`, V12). Solo lo
+publica si código, reglas y procesador siguen vigentes; reglas más nuevas superan
+el lote viejo. Retoma sin repetir lo terminado, y un snippet que falla no frena a
+los demás. El progreso se consulta con `GET /jobs/{id}`. Ver
+[diseño, casos, decisiones y evidencia](docs/formatting-reprocessing.md).
+
+## Descarga formateada — SNI-66
+
+`GET /snippets/{id}/formatted` devuelve el código guardado formateado con las
+reglas del owner, para el owner o un lector autorizado; un tercero recibe `404`.
+Usa el derivado del lote de SNI-62 solo si toda su base sigue vigente, incluida la
+revisión `format` actual de PrintScript; si no, formatea en el momento con
+`FormatSavedSnippet`, sin guardar nada. Nunca entrega un resultado viejo como
+actual y no modifica el original. Ver
+[contrato, casos, decisiones y evidencia](docs/formatted-download.md).
 
 ## Responsabilidad prevista
 
@@ -283,6 +336,7 @@ implementados, al igual que el catálogo de lenguajes (SNI-54) y sharing (SNI-32
 | [docs/ui-integration.md](docs/ui-integration.md) | Representación común, traducción de los tipos de la UI, lint, capacidades, identidad y usuarios de dev, 403/404, operaciones conectadas y deshabilitadas |
 | [docs/reading.md](docs/reading.md) | `GET /snippets`, `GET /snippets/{id}` y `GET /languages` |
 | [docs/sharing.md](docs/sharing.md) | `GET /users` y `PUT /snippets/{id}/shares/{userId}` |
+| [docs/tests.md](docs/tests.md) | `POST` y `GET /snippets/{id}/tests` (SNI-46) |
 
 El listado obtiene de Permissions los IDs accesibles y después filtra, ordena y
 pagina en la base de Snippets, sin leer código. El detalle lee un solo contenido,
@@ -341,6 +395,33 @@ Todavía no hay usuarios reales. Los destinatarios salen de
 mismos `id` que se usan en `X-Dev-Actor-Id`. Sin ese perfil el catálogo queda vacío
 y la identidad de desarrollo está deshabilitada. Auth0 reemplazará la fuente
 implementando `UserDirectory`, sin cambiar el contrato.
+
+## Tests de un snippet — SNI-46
+
+`POST /snippets/{id}/tests` guarda un test (`inputs` y `expectedOutputs`) y
+`GET /snippets/{id}/tests` lista los del snippet en orden de creación. Solo el owner
+crea; owner y usuarios compartidos listan; cualquier otro, o un snippet pendiente,
+recibe `404`. Crear un test **no lo ejecuta** ni llama a PrintScript (eso es US9).
+El [contrato](docs/tests.md) documenta body, límites, secuencia, errores y
+decisiones, con ejemplos que `TestCasesHttpTest` ejecuta.
+
+```bash
+curl -i -X POST 'http://localhost:8080/snippets/<id>/tests' \
+  -H 'X-Dev-Actor-Id: dev-juan' -H 'Content-Type: application/json' \
+  -d '{"inputs":["Ana"],"expectedOutputs":["Hola, Ana"]}'
+```
+
+```bash
+curl -i 'http://localhost:8080/snippets/<id>/tests' -H 'X-Dev-Actor-Id: dev-juan'
+```
+
+Los tests viven en PostgreSQL (`snippet_test_cases`, migración V3) como arrays JSONB:
+se conservan exactos el orden, los duplicados, los strings vacíos y el Unicode, y
+sobreviven a un reinicio. El acceso lo decide `ReadGate`, el mismo chequeo que usa
+el detalle. Un compartido que intenta crear recibe `403 access-denied`; superar un
+límite (100 items, 8 KiB por string, 50 tests por snippet) responde
+`413 payload-too-large`. Si Permissions o la base fallan responde `502`/`503`,
+nunca un test creado ni `{"items":[]}`.
 
 ## CI/CD y branches — SNI-23 / SNI-25
 
@@ -407,6 +488,15 @@ dev → prod quedan pendientes de la configuración y pruebas con VMs encendidas
 
 ## Acceso desde navegador y CORS
 
+SNI-47 agrega la capacidad de ejecución y el cliente HTTP incremental en Language.
+Ver [decisiones, configuración y prueba con PrintScript real](docs/execution-language.md).
+SNI-48 agrega ejecución de un test guardado, comparación exacta y auditoría durable.
+Ver [contrato, decisiones, recuperación y verificación](docs/test-execution.md).
+SNI-49 agrega la ejecución interactiva: arrancar sin test y mandar inputs mientras corre.
+Ver [contrato, decisiones y verificación](docs/interactive-execution.md).
+SNI-76 registra qué build de PrintScript contestó cada validación y ejecución, y no acepta una sesión que cambia de build.
+Ver [revisión del procesador](docs/processor-revision.md).
+
 La UI utiliza `/api` en el mismo origen mediante Vite o NGINX. Para autorizar
 acceso desde otros orígenes, configurar `SNIPPETS_CORS_ALLOWED_ORIGINS` en el backend.
 El valor por defecto es vacío; Spring administra la política y NGINX no debe duplicarla.
@@ -415,15 +505,30 @@ SNI-52 amplía esa política exactamente a las rutas/métodos públicos de tests
 ejecución de SNI-45. La aceptación local del transporte NGINX/NDJSON usa un upstream
 controlado; la ejecución funcional con el intérprete se verifica posteriormente.
 
+## Procesamiento en segundo plano
+
+La base de trabajos durables, outbox y publicación recuperable por Redis Streams
+está descrita en [SNI-57: configuración y recuperación](docs/background-outbox.md).
+El publicador está desactivado por defecto; no activa todavía las historias asíncronas.
+
+SNI-58 agrega consumo recuperable, leases, cupos compartidos con ejecuciones
+manuales y `GET /jobs/{jobId}`. Ver [consumo, autorización y operación](docs/background-consumer.md).
+El consumidor también está desactivado por defecto; su habilitación operativa es explícita.
+
+SNI-70 agrega activación administrativa de una referencia del parser y revalidación
+por eventos: [contrato, comando y recuperación](docs/parser-revalidation.md).
+
+Snapshots y retención por actualización (SNI-68): [contrato y recuperación](docs/automatic-update-snapshots.md).
+
 ## SNI-43 — actualización de herramientas de CD
 
-El caller preparado usa `github-workflows@v0.6.0`. Integrar únicamente después de
-publicar y verificar esa versión central con el SHA definitivo de infra. La versión
-nueva admite el stack anterior; actualizar los tres callers del ambiente antes de
-incorporar NGINX/Asset/UI. No reejecutar versiones antiguas para operar el stack ampliado.
+El caller usa `github-workflows@v0.6.2`, con la revisión fija de infra que corrige el doble escape de healthchecks. Antes de reaplicar infraestructura o probar reconciliación, actualizar los cuatro callers del ambiente y esperar que no haya ejecuciones activas. No reejecutar herramientas antiguas sobre el stack ampliado.
 El procedimiento y la protección del registro están en
 [rollout SNI-43](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-43-cd.md).
 
-## Herramientas de CD — SNI-44
 
-El caller usa workflows centrales `v0.6.2`, con la revisión fija de infra que corrige el doble escape de healthchecks. Este mantenimiento cambia sólo herramientas y documentación: no promueve funcionalidades nuevas de dev ni cambia la imagen en producción. Antes de reaplicar infraestructura, actualizar los cuatro callers del ambiente y esperar ejecuciones activas; no reejecutar herramientas antiguas sobre el stack ampliado.
+Tests automáticos tras editar: [SNI-69](docs/automatic-tests.md).
+
+Configuración de lint (integración de defaults pendiente): [SNI-63](docs/linting-rules.md).
+
+Consulta de lint vigente y alcance pendiente de US15: [SNI-64](docs/lint-query-results.md).

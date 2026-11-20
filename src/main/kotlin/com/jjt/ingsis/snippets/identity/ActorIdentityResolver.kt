@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component
 
 data class ActorContext(
     val developmentActorHeaders: List<String> = emptyList(),
+    val authenticatedActorId: String? = null,
 )
 
 sealed interface ActorIdentity {
@@ -25,10 +26,17 @@ fun interface ActorIdentityResolver {
 }
 
 @Component
-class DevelopmentActorIdentityResolver(
+class ConfiguredActorIdentityResolver(
     private val environment: Environment,
 ) : ActorIdentityResolver {
     override fun resolve(context: ActorContext): ActorIdentity {
+        val mode = environment.getProperty("snippets.auth.mode", "disabled")
+        if (mode == "auth0") {
+            return context.authenticatedActorId
+                ?.takeIf { it.isNotBlank() }
+                ?.let { ActorIdentity.Identified(it) } ?: ActorIdentity.Missing
+        }
+        if (mode != "dev") return ActorIdentity.Disabled
         if (!environment.acceptsProfiles(Profiles.of("dev"))) return ActorIdentity.Disabled
         val headers = context.developmentActorHeaders
         return when {

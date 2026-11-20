@@ -1,14 +1,19 @@
 package com.jjt.ingsis.snippets.language.printscript
 
+import com.jjt.ingsis.snippets.language.Attributed
 import com.jjt.ingsis.snippets.language.LanguageValidator
+import com.jjt.ingsis.snippets.language.PROCESSOR_REVISION_HEADER
+import com.jjt.ingsis.snippets.language.ProcessorIdentity
 import com.jjt.ingsis.snippets.language.ValidationResult
 import org.slf4j.LoggerFactory
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Component
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestClientException
-import org.springframework.web.client.body
+import org.springframework.web.client.toEntity
 
 @Component
 class PrintScriptValidator(
@@ -24,29 +29,52 @@ class PrintScriptValidator(
 
     override val supportedVersions: Set<String> = setOf("1.0", "1.1")
 
+    override fun validationProcessor(): ProcessorIdentity =
+        try {
+            val manifest =
+                client
+                    .get()
+                    .uri("/processor")
+                    .retrieve()
+                    .toEntity<ProcessorManifest>()
+                    .body
+            ProcessorIdentity.of(manifest?.capabilities?.get("validate"))
+        } catch (_: RestClientException) {
+            ProcessorIdentity.Missing
+        }
+
     override fun validate(
         version: String,
         code: String,
-    ): ValidationResult {
+    ): ValidationResult = validateAttributed(version, code).result
+
+    override fun validateAttributed(
+        version: String,
+        code: String,
+    ): Attributed<ValidationResult> {
         val request = PrintScriptValidationRequest(code = code, version = version)
 
         return try {
-            resultOf(send(request))
+            val response = send(request)
+            Attributed(resultOf(response.body), processorOf(response.headers))
         } catch (rejection: HttpClientErrorException) {
-            resultOf(rejection, version)
+            Attributed(resultOf(rejection, version), processorOf(rejection.responseHeaders))
         } catch (failure: RestClientException) {
-            failed(failure)
+            Attributed(failed(failure), ProcessorIdentity.Missing)
         }
     }
 
-    private fun send(request: PrintScriptValidationRequest): PrintScriptValidationResponse? =
+    private fun send(request: PrintScriptValidationRequest): ResponseEntity<PrintScriptValidationResponse> =
         client
             .post()
             .uri("/validate")
             .contentType(MediaType.APPLICATION_JSON)
             .body(request)
             .retrieve()
-            .body<PrintScriptValidationResponse>()
+            .toEntity<PrintScriptValidationResponse>()
+
+    private fun processorOf(headers: HttpHeaders?): ProcessorIdentity =
+        ProcessorIdentity.of(headers?.getFirst(PROCESSOR_REVISION_HEADER))
 
     private fun resultOf(response: PrintScriptValidationResponse?): ValidationResult {
         if (response == null) {
@@ -76,3 +104,7 @@ class PrintScriptValidator(
         return ValidationResult.Failed("The PrintScript service is unavailable or did not answer as its contract says")
     }
 }
+
+private data class ProcessorManifest(
+    val capabilities: Map<String, String?> = emptyMap(),
+)

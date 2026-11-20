@@ -54,10 +54,17 @@ class ParsedListingTest {
     }
 
     @Test
+    fun `lint status and lexical lint sort use the existing public state names`() {
+        val parsed = parse("lint" to "not-compliant", "sort" to "lint") as ParsedListing.Valid
+        assertThat(parsed.query.filter.lintStatus).isEqualTo(com.jjt.ingsis.snippets.lintquery.LintStatus.NON_COMPLIANT)
+        assertThat(parsed.query.order.field).isEqualTo(SortField.LINT)
+    }
+
+    @Test
     fun `invalid values name the parameter that caused them`() {
         mapOf(
             "relation" to listOf("ALL", "mine", ""),
-            "sort" to listOf("lint", "NAME", ""),
+            "sort" to listOf("compliance", "NAME", ""),
             "direction" to listOf("up", "ASC"),
             "page" to listOf("-1", "+1", "1.5", "", "abc", "9999999999"),
             "page_size" to listOf("0", "101", "500", "", "ten"),
@@ -70,7 +77,7 @@ class ParsedListingTest {
 
     @Test
     fun `unknown and repeated parameters are rejected instead of ignored`() {
-        assertThat(parse("lint" to "compliant")).isEqualTo(ParsedListing.Invalid("lint"))
+        assertThat(parse("lint" to "success")).isEqualTo(ParsedListing.Invalid("lint"))
         assertThat(parse("compliance" to "")).isEqualTo(ParsedListing.Invalid("compliance"))
         assertThat(parse("pageSize" to "5")).isEqualTo(ParsedListing.Invalid("pageSize"))
         assertThat(parse("page" to "0", "page" to "1")).isEqualTo(ParsedListing.Invalid("page"))

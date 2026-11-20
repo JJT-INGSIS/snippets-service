@@ -46,6 +46,10 @@ class ShareOutcomeTranslator {
                 SnippetProblem.METADATA_UNAVAILABLE.response()
             }
 
+            ShareOutcome.DirectoryUnavailable -> {
+                SnippetProblem.DIRECTORY_UNAVAILABLE.response()
+            }
+
             ShareOutcome.PermissionsUnavailable -> {
                 SnippetProblem.DEPENDENCY_FAILURE.response()
             }

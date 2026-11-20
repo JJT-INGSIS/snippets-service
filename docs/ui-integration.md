@@ -76,26 +76,12 @@ Los parámetros y campos de paginación usan `page_size` como la UI
 
 ## Lint
 
-El linting no está implementado. Toda respuesta lo informa sin simular un resultado:
-
-```json
-{"status":"not-implemented"}
-```
-
-| `status` | Significado | Disponible |
-| --- | --- | --- |
-| `not-implemented` | No existe evaluación de lint en el sistema. | Ahora |
-| `pending` | Hay una evaluación pedida que todavía no terminó. | Futuro |
-| `compliant` | La última evaluación vigente no encontró infracciones. | Futuro |
-| `not-compliant` | La última evaluación vigente encontró infracciones. | Futuro |
-| `failed` | La evaluación no pudo completarse por una falla técnica. No significa incumplimiento. | Futuro |
-
-- No se devuelve `pending`, `compliant` ni `failed` mientras no exista el lint.
-- La validez del parser no es lint. Todo snippet guardado ya pasó la validación de
-  Language: ese dato no se informa como cumplimiento.
-- Filtrar u ordenar por lint responde `400` hasta que exista la evaluación. No se
-  ignora el parámetro, para no mostrar un resultado que parece filtrado sin estarlo.
-- Las infracciones del detalle se agregan cuando exista el lint (US14–15).
+El contrato de consulta vigente está en [reading.md](reading.md#lint-vigente--sni-64).
+Estados: `compliant`, `not-compliant`, `pending` y `failed`. Un resultado
+superado se representa como `pending` con reason `SUPERSEDED`, sin sus
+diagnósticos anteriores. La UI ya reconoce estos estados; SNI-67 integra
+la configuración y presentación completa. Lote recuperable y defaults
+conservan sus dependencias y no se dan por aceptados sólo por esta consulta.
 
 ## Capacidades
 
@@ -112,7 +98,7 @@ El detalle informa qué acciones puede hacer el actor que consulta.
 
 La UI usa estas capacidades para ocultar o deshabilitar acciones. **El backend
 vuelve a verificar cada permiso**: ocultar un botón no autoriza ni impide nada.
-Compartir concede lectura del snippet y, cuando existan, de sus tests. No concede
+Compartir concede lectura del snippet y de sus tests ([tests.md](tests.md)). No concede
 edición ni volver a compartir.
 
 ## Identidad en desarrollo
@@ -198,6 +184,10 @@ Reintentar una lectura o un share es seguro: no modifica nada o es idempotente.
 | `getUserFriends` | US7 | `GET /users` | Implementado (SNI-29) |
 | `shareSnippet` | US7 | `PUT /snippets/{id}/shares/{userId}` | Implementado (SNI-32), lectura sin edición ni resharing |
 
+El panel Output (`SnippetExecution`, US10) no pasa por `SnippetOperations`: usa
+las rutas de ejecución de [SNI-49](interactive-execution.md) y de
+[SNI-48](test-execution.md).
+
 ### Funciones que quedan deshabilitadas
 
 No tienen backend en esta tanda. La UI deshabilita el botón o el adaptador
@@ -210,8 +200,7 @@ falsos** de `FakeSnippetStore`.
 | `formatSnippet`, botón Format | Formatear | US11–13, tanda posterior |
 | `getFormatRules`, `modifyFormatRule` | Reglas de formato | US11–12, tanda posterior |
 | `getLintingRules`, `modifyLintingRule` | Reglas de lint | US14–15, tanda posterior |
-| `getTestCases`, `postTestCase`, `removeTestCase`, `testSnippet`, botón Test | Tests | US8–9, tanda posterior |
-| Panel Output (`SnippetExecution`) | Ejecutar | US10, tanda posterior |
+| `getTestCases`, `postTestCase`, `removeTestCase`, `testSnippet`, botón Test | Tests | El backend de crear y listar ([SNI-46](tests.md)) y el de ejecutar ([SNI-48](test-execution.md)) ya existen; falta conectar la UI. Borrar queda para después |
 
 ## Conexión de la UI con el backend
 

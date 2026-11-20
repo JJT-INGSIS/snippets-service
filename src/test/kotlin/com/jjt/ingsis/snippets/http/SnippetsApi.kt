@@ -85,6 +85,43 @@ internal class SnippetsApi(
             ).PUT(HttpRequest.BodyPublishers.noBody()),
         )
 
+    fun createTestCase(
+        snippetId: String,
+        body: String,
+        actors: List<String> = listOf(ACTOR),
+    ): HttpAnswer {
+        val request = request("/snippets/$snippetId/tests", "application/json", actors)
+
+        return send(request.POST(HttpRequest.BodyPublishers.ofString(body)))
+    }
+
+    fun testCases(
+        snippetId: String,
+        actors: List<String> = listOf(ACTOR),
+    ): HttpAnswer = send(request("/snippets/$snippetId/tests", "application/json", actors).GET())
+
+    fun formatted(
+        snippetId: String,
+        actors: List<String> = listOf(ACTOR),
+    ): HttpAnswer = send(request("/snippets/$snippetId/formatted", "application/json", actors).GET())
+
+    fun formattingRules(
+        language: String,
+        version: String,
+        actors: List<String> = listOf(ACTOR),
+    ): HttpAnswer = send(request("/formatting-rules/$language/$version", "application/json", actors).GET())
+
+    fun saveFormattingRules(
+        language: String,
+        version: String,
+        body: String,
+        actors: List<String> = listOf(ACTOR),
+    ): HttpAnswer {
+        val request = request("/formatting-rules/$language/$version", "application/json", actors)
+
+        return send(request.PUT(HttpRequest.BodyPublishers.ofString(body)))
+    }
+
     fun users(
         query: String,
         actors: List<String> = listOf(ACTOR),
