@@ -16,17 +16,13 @@ class UpdateSnippet(
         snippetId: String?,
         context: ActorContext,
     ): UpdateOutcome =
-        when (val prepared = preparation.prepare(draft, snippetId, context)) {
+        when (val preparationResult = preparation.prepare(draft, snippetId, context)) {
             is UpdatePreparationResult.Prepared -> {
-                val outcome = replacement.apply(prepared.candidate)
-                if (outcome is UpdateOutcome.Updated) {
-                    lint.assess(outcome.snippet.id, prepared.candidate.actorId, draft)
-                }
-                outcome
+                replaceCodeAndAssessLint(preparationResult.candidate, draft)
             }
 
             is UpdatePreparationResult.Rejected -> {
-                UpdateOutcome.Rejected(prepared.reason)
+                UpdateOutcome.Rejected(preparationResult.reason)
             }
 
             UpdatePreparationResult.Missing -> {
@@ -45,4 +41,15 @@ class UpdateSnippet(
                 UpdateOutcome.OwnershipMissing
             }
         }
+
+    private fun replaceCodeAndAssessLint(
+        candidate: UpdateCandidate,
+        draft: SnippetDraft,
+    ): UpdateOutcome {
+        val replacementOutcome = replacement.apply(candidate)
+        if (replacementOutcome is UpdateOutcome.Updated) {
+            lint.assess(replacementOutcome.snippet.id, candidate.actorId, draft)
+        }
+        return replacementOutcome
+    }
 }
