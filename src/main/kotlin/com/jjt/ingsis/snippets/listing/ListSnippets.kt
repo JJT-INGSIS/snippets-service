@@ -3,8 +3,8 @@ package com.jjt.ingsis.snippets.listing
 import com.jjt.ingsis.snippets.identity.ActorContext
 import com.jjt.ingsis.snippets.identity.ActorIdentity
 import com.jjt.ingsis.snippets.identity.ActorIdentityResolver
-import com.jjt.ingsis.snippets.language.Language
 import com.jjt.ingsis.snippets.lintquery.LintFinding
+import com.jjt.ingsis.snippets.lintquery.LintReadBasis
 import com.jjt.ingsis.snippets.lintquery.LintReadPreparation
 import com.jjt.ingsis.snippets.lintquery.PreparedLintRead
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
@@ -20,7 +20,7 @@ class ListSnippets(
     private val identityResolver: ActorIdentityResolver,
     private val accessLister: AccessLister,
     private val search: SnippetSearch,
-    private val language: Language,
+    private val assembler: ListedSnippetAssembler,
     private val lint: LintReadPreparation,
 ) {
     @Trace(metricName = "Snippets/listing")
@@ -40,39 +40,38 @@ class ListSnippets(
     private fun page(
         query: ListingQuery,
         accesses: List<SnippetAccess>,
+    ): ListingOutcome =
+        try {
+            when (val prepared = lint.prepare(accesses, query.filter)) {
+                is PreparedLintRead.Ready -> pageOfAuthorizedSnippets(query, accesses, prepared.basis)
+                PreparedLintRead.Unavailable -> ListingOutcome.LanguageUnavailable
+            }
+        } catch (_: MetadataPersistenceException) {
+            ListingOutcome.MetadataUnavailable
+        }
+
+    private fun pageOfAuthorizedSnippets(
+        query: ListingQuery,
+        accesses: List<SnippetAccess>,
+        lintBasis: LintReadBasis,
     ): ListingOutcome {
         val accessById = accesses.associateBy { it.snippetId }
         val found =
-            try {
-                when (val prepared = lint.prepare(accesses, query.filter)) {
-                    is PreparedLintRead.Ready -> {
-                        search.search(
-                            ids = accessById.keys,
-                            filter = query.filter.copy(lintBasis = prepared.basis),
-                            order = query.order,
-                            page = query.page,
-                        )
-                    }
-
-                    PreparedLintRead.Unavailable -> {
-                        return ListingOutcome.LanguageUnavailable
-                    }
-                }
-            } catch (_: MetadataPersistenceException) {
-                return ListingOutcome.MetadataUnavailable
-            }
+            search.search(
+                ids = accessById.keys,
+                filter = query.filter.copy(lintBasis = lintBasis),
+                order = query.order,
+                page = query.page,
+            )
         if (!found.lintVerified) return ListingOutcome.LanguageUnavailable
         val snippets =
             found.snippets.map { metadata ->
-                ListedSnippet(
+                assembler.assemble(
                     metadata = metadata,
                     access = accessById.getValue(metadata.id),
-                    extension = language.extensionOf(metadata.language),
-                    lint =
-                        found.lint[metadata.id] ?: LintFinding.NOT_EVALUATED,
+                    lint = found.lint[metadata.id] ?: LintFinding.NOT_EVALUATED,
                 )
             }
-
         return ListingOutcome.Listed(SnippetPage(query.page, found.count, snippets))
     }
 }
