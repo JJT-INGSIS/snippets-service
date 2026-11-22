@@ -1,5 +1,6 @@
 package com.jjt.ingsis.snippets.http
 
+import com.jjt.ingsis.snippets.identity.AuthenticationModes
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
@@ -16,29 +17,25 @@ class CorsConfiguration {
         environment: Environment,
     ): CorsConfigurationSource {
         val source = UrlBasedCorsConfigurationSource()
-        // No cross-origin grants by default. A proxy can rewrite Host while preserving Origin.
         if (properties.allowedOrigins.isEmpty()) return source
         val policy =
             SpringCorsConfiguration().apply {
                 allowedOrigins = properties.allowedOrigins
                 allowedHeaders =
                     listOf("Content-Type", "Idempotency-Key", "Authorization") +
-                    if (environment.acceptsProfiles(Profiles.of("dev")) &&
-                        environment.getProperty("snippets.auth.mode", "disabled") == "dev"
-                    ) {
+                    if (developmentIdentityEnabled(environment)) {
                         listOf("X-Dev-Actor-Id")
                     } else {
                         emptyList()
                     }
                 allowCredentials = false
-                maxAge = 300L
+                maxAge = CORS_PREFLIGHT_MAX_AGE_SECONDS
             }
         mapOf(
             "/snippets" to listOf("GET", "POST"),
             "/snippets/*" to listOf("GET", "PUT"),
             "/snippets/*/shares/*" to listOf("PUT"),
             "/snippets/*/formatted" to listOf("GET"),
-            // Public SNI-45 contract; /executions POST belongs only to PrintScript.
             "/snippets/*/tests" to listOf("GET", "POST"),
             "/snippets/*/tests/*/executions" to listOf("POST"),
             "/snippets/*/executions" to listOf("POST"),
@@ -51,7 +48,6 @@ class CorsConfiguration {
             "/formatting-rules/*/*" to listOf("GET", "PUT"),
             "/linting-rules/*/*" to listOf("GET", "PUT"),
             "/jobs/*" to listOf("GET"),
-            "/linting-rules/*/*" to listOf("GET", "PUT"),
             "/snippets/*/automatic-tests" to listOf("GET"),
         ).forEach { (path, methods) ->
             source.registerCorsConfiguration(
@@ -62,3 +58,11 @@ class CorsConfiguration {
         return source
     }
 }
+
+private fun developmentIdentityEnabled(environment: Environment): Boolean {
+    val developmentProfileActive = environment.acceptsProfiles(Profiles.of(AuthenticationModes.DEVELOPMENT_PROFILE))
+    val configuredMode = environment.getProperty(AuthenticationModes.PROPERTY, AuthenticationModes.DISABLED)
+    return developmentProfileActive && configuredMode == AuthenticationModes.DEVELOPMENT
+}
+
+private const val CORS_PREFLIGHT_MAX_AGE_SECONDS = 300L

@@ -34,25 +34,40 @@ class ShareSnippet(
         if (identity !is ActorIdentity.Identified) return ShareOutcome.IdentityRejected
         val id = canonicalUuid(snippetId) ?: return ShareOutcome.InvalidRequest("snippetId")
         if (recipientId.isNullOrBlank()) return ShareOutcome.InvalidRequest("userId")
-        if (recipientId == identity.actorId) return ShareOutcome.InvalidRecipient
-        when (users.contains(recipientId)) {
-            DirectoryMembership.ABSENT -> return ShareOutcome.InvalidRecipient
-            DirectoryMembership.UNAVAILABLE -> return ShareOutcome.DirectoryUnavailable
-            DirectoryMembership.PRESENT -> Unit
+        return recipientRejection(identity.actorId, recipientId)
+            ?: shareConfirmedSnippet(id, identity.actorId, recipientId)
+    }
+
+    private fun recipientRejection(
+        actorId: String,
+        recipientId: String,
+    ): ShareOutcome? =
+        if (recipientId == actorId) {
+            ShareOutcome.InvalidRecipient
+        } else {
+            when (users.contains(recipientId)) {
+                DirectoryMembership.ABSENT -> ShareOutcome.InvalidRecipient
+                DirectoryMembership.UNAVAILABLE -> ShareOutcome.DirectoryUnavailable
+                DirectoryMembership.PRESENT -> null
+            }
         }
 
-        return try {
+    private fun shareConfirmedSnippet(
+        id: UUID,
+        actorId: String,
+        recipientId: String,
+    ): ShareOutcome =
+        try {
             if (metadata.findConfirmed(id) == null) {
                 ShareOutcome.Missing
             } else {
-                register(id, identity.actorId, recipientId)
+                registerShareInPermissions(id, actorId, recipientId)
             }
         } catch (_: MetadataPersistenceException) {
             ShareOutcome.MetadataUnavailable
         }
-    }
 
-    private fun register(
+    private fun registerShareInPermissions(
         id: UUID,
         actorId: String,
         recipientId: String,

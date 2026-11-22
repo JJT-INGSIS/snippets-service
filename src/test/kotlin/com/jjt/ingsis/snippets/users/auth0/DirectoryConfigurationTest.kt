@@ -50,4 +50,10 @@ class DirectoryConfigurationTest {
             )
         assertThat(directory.contains("auth0|bob")).isEqualTo(DirectoryMembership.UNAVAILABLE)
     }
+
+    @Test fun `the directory credential never appears when its properties are printed`() {
+        val printed = Auth0DirectoryProperties(clientId = "read-client", clientSecret = "read-secret").toString()
+
+        assertThat(printed).contains("read-client").doesNotContain("read-secret")
+    }
 }
