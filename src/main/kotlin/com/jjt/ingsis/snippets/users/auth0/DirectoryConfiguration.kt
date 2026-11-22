@@ -1,6 +1,7 @@
 package com.jjt.ingsis.snippets.users.auth0
 
 import com.jjt.ingsis.snippets.http.security.AuthProperties
+import com.jjt.ingsis.snippets.identity.AuthenticationModes
 import com.jjt.ingsis.snippets.metadata.PageRequest
 import com.jjt.ingsis.snippets.users.ConfiguredUserDirectory
 import com.jjt.ingsis.snippets.users.DevelopmentUsers
@@ -16,14 +17,17 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.time.Duration
 
-// Not a data class: default toString must never expose the client secret.
 @ConfigurationProperties("snippets.directory.auth0")
 class Auth0DirectoryProperties(
     val clientId: String = "",
     val clientSecret: String = "",
     val connectTimeout: Duration = Duration.ofSeconds(CONNECT_SECONDS),
     val readTimeout: Duration = Duration.ofSeconds(READ_SECONDS),
-)
+) {
+    override fun toString(): String =
+        "Auth0DirectoryProperties(clientId=$clientId, clientSecret=$HIDDEN_SECRET, " +
+            "connectTimeout=$connectTimeout, readTimeout=$readTimeout)"
+}
 
 @Configuration(proxyBeanMethods = false)
 class DirectoryConfiguration {
@@ -34,8 +38,8 @@ class DirectoryConfiguration {
         properties: Auth0DirectoryProperties,
     ): UserDirectory =
         when (auth.mode) {
-            "dev" -> ConfiguredUserDirectory(development)
-            "auth0" -> auth0Directory(auth.issuer, properties)
+            AuthenticationModes.DEVELOPMENT -> ConfiguredUserDirectory(development)
+            AuthenticationModes.AUTH0 -> auth0Directory(auth.issuer, properties)
             else -> UnavailableDirectory
         }
 
@@ -43,44 +47,53 @@ class DirectoryConfiguration {
         issuer: String,
         properties: Auth0DirectoryProperties,
     ): UserDirectory {
-        val credentials = properties.clientId.isNotBlank() && properties.clientSecret.isNotBlank()
-        val timeouts = properties.connectTimeout > Duration.ZERO && properties.readTimeout > Duration.ZERO
-        if (!credentials || !timeouts) {
-            return UnavailableDirectory
-        }
+        if (!hasUsableCredentialsAndTimeouts(properties) || !isSafeHttpsOrigin(issuer)) return UnavailableDirectory
+        val managementApi =
+            ManagementTransport(
+                client = managementClient(issuer, properties),
+                credential = ManagementCredential(properties.clientId, properties.clientSecret),
+                audience = issuer.removeSuffix("/") + MANAGEMENT_API_PATH,
+            )
+        return Auth0UserDirectory(managementApi, ManagementTokens(managementApi))
+    }
+
+    private fun hasUsableCredentialsAndTimeouts(properties: Auth0DirectoryProperties): Boolean {
+        val credentialsPresent = properties.clientId.isNotBlank() && properties.clientSecret.isNotBlank()
+        val timeoutsPositive = properties.connectTimeout > Duration.ZERO && properties.readTimeout > Duration.ZERO
+        return credentialsPresent && timeoutsPositive
+    }
+
+    private fun isSafeHttpsOrigin(issuer: String): Boolean {
         val uri =
             try {
                 URI.create(issuer)
             } catch (_: IllegalArgumentException) {
-                return UnavailableDirectory
+                return false
             }
-        val httpsOrigin = uri.scheme == "https" && !uri.host.isNullOrBlank() && uri.rawUserInfo == null
-        val noExtras = uri.rawQuery == null && uri.rawFragment == null && uri.rawPath in listOf("", "/")
-        if (!httpsOrigin || !noExtras) return UnavailableDirectory
-        val client =
-            RestClient
-                .builder()
-                .baseUrl(issuer.removeSuffix("/"))
-                .requestFactory(
-                    JdkClientHttpRequestFactory(
-                        HttpClient
-                            .newBuilder()
-                            .followRedirects(
-                                HttpClient.Redirect.NEVER,
-                            ).connectTimeout(properties.connectTimeout)
-                            .build(),
-                    ).apply {
-                        setReadTimeout(properties.readTimeout)
-                    },
-                ).build()
-        val transport =
-            ManagementTransport(
-                client = client,
-                credential = ManagementCredential(properties.clientId, properties.clientSecret),
-                audience = issuer.removeSuffix("/") + "/api/v2/",
-            )
-        return Auth0UserDirectory(transport, ManagementTokens(transport))
+        val httpsOrigin = uri.scheme == HTTPS_SCHEME && !uri.host.isNullOrBlank() && uri.rawUserInfo == null
+        val originWithoutExtras = uri.rawQuery == null && uri.rawFragment == null && uri.rawPath in listOf("", "/")
+        return httpsOrigin && originWithoutExtras
     }
+
+    private fun managementClient(
+        issuer: String,
+        properties: Auth0DirectoryProperties,
+    ): RestClient =
+        RestClient
+            .builder()
+            .baseUrl(issuer.removeSuffix("/"))
+            .requestFactory(
+                JdkClientHttpRequestFactory(
+                    HttpClient
+                        .newBuilder()
+                        .followRedirects(
+                            HttpClient.Redirect.NEVER,
+                        ).connectTimeout(properties.connectTimeout)
+                        .build(),
+                ).apply {
+                    setReadTimeout(properties.readTimeout)
+                },
+            ).build()
 }
 
 internal object UnavailableDirectory : UserDirectory {
@@ -95,3 +108,6 @@ internal object UnavailableDirectory : UserDirectory {
 
 private const val CONNECT_SECONDS = 2L
 private const val READ_SECONDS = 5L
+private const val HIDDEN_SECRET = "[hidden]"
+private const val HTTPS_SCHEME = "https"
+private const val MANAGEMENT_API_PATH = "/api/v2/"

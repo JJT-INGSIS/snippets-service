@@ -29,15 +29,21 @@ fun interface ActorIdentityResolver {
 class ConfiguredActorIdentityResolver(
     private val environment: Environment,
 ) : ActorIdentityResolver {
-    override fun resolve(context: ActorContext): ActorIdentity {
-        val mode = environment.getProperty("snippets.auth.mode", "disabled")
-        if (mode == "auth0") {
-            return context.authenticatedActorId
-                ?.takeIf { it.isNotBlank() }
-                ?.let { ActorIdentity.Identified(it) } ?: ActorIdentity.Missing
+    override fun resolve(context: ActorContext): ActorIdentity =
+        when (environment.getProperty(AuthenticationModes.PROPERTY, AuthenticationModes.DISABLED)) {
+            AuthenticationModes.AUTH0 -> authenticatedIdentity(context)
+            AuthenticationModes.DEVELOPMENT -> developmentIdentity(context)
+            else -> ActorIdentity.Disabled
         }
-        if (mode != "dev") return ActorIdentity.Disabled
-        if (!environment.acceptsProfiles(Profiles.of("dev"))) return ActorIdentity.Disabled
+
+    private fun authenticatedIdentity(context: ActorContext): ActorIdentity =
+        context.authenticatedActorId
+            ?.takeIf { it.isNotBlank() }
+            ?.let { ActorIdentity.Identified(it) } ?: ActorIdentity.Missing
+
+    private fun developmentIdentity(context: ActorContext): ActorIdentity {
+        val developmentProfileActive = environment.acceptsProfiles(Profiles.of(AuthenticationModes.DEVELOPMENT_PROFILE))
+        if (!developmentProfileActive) return ActorIdentity.Disabled
         val headers = context.developmentActorHeaders
         return when {
             headers.isEmpty() -> ActorIdentity.Missing
