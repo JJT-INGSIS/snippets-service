@@ -20,6 +20,10 @@ dependencies {
     testRuntimeOnly("com.h2database:h2")
 }
 
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    archiveFileName.set("app.jar")
+}
+
 tasks.test {
     mustRunAfter("bootJar")
     inputs.property("auth0LiveAcceptance", providers.environmentVariable("AUTH0_LIVE_ACCEPTANCE").orElse("false"))
@@ -30,7 +34,16 @@ tasks.test {
     )
     inputs.property("printScriptLintUrl", providers.environmentVariable("PRINTSCRIPT_LINT_URL").orElse(""))
     inputs.property("printScriptExecutionUrl", providers.environmentVariable("PRINTSCRIPT_EXECUTION_URL").orElse(""))
-    inputs.dir("docs")
+    inputs.files(
+        "docs/creation.md",
+        "docs/formatted-download.md",
+        "docs/formatting-rules.md",
+        "docs/linting-rules.md",
+        "docs/reading.md",
+        "docs/sharing.md",
+        "docs/tests.md",
+        "docs/update.md",
+    )
     inputs.property("printScriptServiceUrl", providers.environmentVariable("PRINTSCRIPT_SERVICE_URL").orElse(""))
     inputs.property("permissionsServiceUrl", providers.environmentVariable("PERMISSIONS_SERVICE_URL").orElse(""))
 }

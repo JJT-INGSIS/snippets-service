@@ -5,9 +5,9 @@ WORKDIR /app
 
 COPY gradlew build.gradle.kts settings.gradle.kts ./
 COPY gradle ./gradle
-COPY src ./src
+COPY src/main ./src/main
 
-RUN --mount=type=cache,target=/root/.gradle \
+RUN --mount=type=cache,id=snippets-gradle,target=/root/.gradle,sharing=locked \
     --mount=type=secret,id=github_actor,required=true \
     --mount=type=secret,id=github_token,required=true \
     GITHUB_ACTOR="$(cat /run/secrets/github_actor)" \
@@ -19,7 +19,7 @@ WORKDIR /app
 
 RUN mkdir -p /var/lib/snippets/content && chown 10001:10001 /var/lib/snippets/content
 
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY --from=build /app/build/libs/app.jar app.jar
 COPY --from=build /app/build/newrelic /app/newrelic
 
 ENV STORAGE_LOCAL_DIRECTORY=/var/lib/snippets/content

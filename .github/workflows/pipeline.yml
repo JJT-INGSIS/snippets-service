@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: Publicar una imagen de bootstrap despuÃƒÂ©s de CI; solo desde dev.
+        description: Publicar manualmente una imagen después de CI (solo desde dev).
         required: false
         default: false
         type: boolean
@@ -28,7 +28,7 @@ jobs:
     uses: JJT-INGSIS/github-workflows/.github/workflows/kotlin-service-pipeline.yml@v0.6.8
     with:
       publish: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/dev') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
-      deploy: ${{ vars.CD_ENABLED == 'true' }}
+      deploy: ${{ vars.CD_ENABLED == 'true' && (github.ref == 'refs/heads/dev' || (github.ref == 'refs/heads/main' && vars.PROD_DEPLOY_ENABLED == 'true')) }}
       image-name: ghcr.io/jjt-ingsis/snippets-service
       platforms: ${{ vars.DOCKER_PLATFORMS || 'linux/amd64' }}
     secrets:
