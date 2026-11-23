@@ -68,7 +68,6 @@ class ExecutionAuditPersistenceTest
             assertThat(loaded.completed).isEqualTo(result)
             assertThat(loaded.finishedAt).isNotNull()
             assertThat(loaded.reserved).isFalse()
-            // A late retry must not replace the result already fixed.
             audit.complete(run.id, result.copy(comparison = Comparison.FAILED))
             assertThat(audit.find(run.id)?.completed).isEqualTo(result)
             assertThat(

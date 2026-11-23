@@ -83,7 +83,6 @@ class TestExecutionHttpTest
                 assertThat(output.path("data").path("text").asString()).isEqualTo("early")
                 assertThat(output.path("executionId").asString()).isEqualTo(id)
                 assertThat(audit.find(UUID.fromString(id))?.completed).isNull()
-                // A later edit does not replace the historical code or expectations being executed.
                 jdbc.update("UPDATE snippets SET version = '1.0' WHERE id = ?", fixture.snippetId)
                 jdbc.update(
                     "UPDATE snippet_test_cases SET expected_outputs = '[\"changed\"]' WHERE id = ?",

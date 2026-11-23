@@ -28,16 +28,14 @@ class RedisStreamInbox(
 
     override fun initialize() {
         try {
-            redis.execute(
-                RedisCallback { connection ->
-                    connection.streamCommands().xGroupCreate(
-                        outbox.stream.toByteArray(),
-                        settings.group,
-                        ReadOffset.from("0-0"),
-                        true,
-                    )
-                },
-            )
+            redis.execute { connection ->
+                connection.streamCommands().xGroupCreate(
+                    outbox.stream.toByteArray(),
+                    settings.group,
+                    ReadOffset.from("0-0"),
+                    true,
+                )
+            }
         } catch (failure: DataAccessException) {
             if (generateSequence<Throwable>(
                     failure,

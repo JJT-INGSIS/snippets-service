@@ -13,7 +13,6 @@ import com.jjt.ingsis.snippets.language.linting.LintResult
 import org.springframework.stereotype.Service
 
 @Service
-// Keep capability selection in the existing facade rather than adding another registry.
 @Suppress("TooManyFunctions")
 class Language(
     private val validators: List<LanguageValidator>,
