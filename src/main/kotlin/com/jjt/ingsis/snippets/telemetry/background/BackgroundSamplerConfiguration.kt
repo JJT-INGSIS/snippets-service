@@ -9,12 +9,20 @@ import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import javax.sql.DataSource
 
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "snippets.telemetry.background", name = ["enabled"], havingValue = "true")
 @EnableScheduling
 class BackgroundSamplerConfiguration {
+    @Bean(defaultCandidate = false)
+    fun backgroundTelemetryScheduler(): ThreadPoolTaskScheduler =
+        ThreadPoolTaskScheduler().apply {
+            poolSize = 1
+            setThreadNamePrefix("background-telemetry-")
+        }
+
     @Bean
     fun backgroundSampler(
         dataSource: DataSource,
@@ -43,6 +51,7 @@ class BackgroundSampleSchedule(
     @Scheduled(
         initialDelayString = "\${snippets.telemetry.background.interval:60s}",
         fixedDelayString = "\${snippets.telemetry.background.interval:60s}",
+        scheduler = "backgroundTelemetryScheduler",
     )
     fun sample() = sampler.sample()
 }
