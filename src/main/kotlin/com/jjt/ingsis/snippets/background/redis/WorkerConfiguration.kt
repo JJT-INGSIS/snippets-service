@@ -17,7 +17,6 @@ import java.util.UUID
 @EnableScheduling
 @ConditionalOnProperty(prefix = "snippets.worker", name = ["enabled"], havingValue = "true")
 class WorkerConfiguration {
-    // With two schedulers Spring routes unqualified maintenance tasks to this conventional bean name.
     @Bean
     fun taskScheduler(): ThreadPoolTaskScheduler =
         ThreadPoolTaskScheduler().apply {
@@ -61,7 +60,6 @@ class WorkerSchedule(
 ) {
     @Scheduled(fixedDelayString = "\${snippets.worker.poll-delay:1s}", scheduler = "backgroundScheduler")
     fun cycle() {
-        // Spring reports failures and retries the next cycle; no ACK is fabricated.
         consumer.cycle(inbox)
     }
 }

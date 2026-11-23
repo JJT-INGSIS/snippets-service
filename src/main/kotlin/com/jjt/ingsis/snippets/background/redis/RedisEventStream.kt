@@ -23,7 +23,7 @@ class RedisEventStream(
                 ).withStreamKey(settings.stream)
         return try {
             val id = redis.opsForStream<String, String>().add(record)
-            checkNotNull(id) { "Redis did not acknowledge the append" }.value
+            id?.value ?: throw EventStreamUnavailable(IllegalStateException("Redis did not acknowledge the append"))
         } catch (failure: DataAccessException) {
             throw EventStreamUnavailable(failure)
         }

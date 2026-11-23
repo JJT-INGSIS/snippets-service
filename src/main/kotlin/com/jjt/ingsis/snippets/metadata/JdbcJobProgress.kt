@@ -20,7 +20,6 @@ import tools.jackson.databind.json.JsonMapper
 import java.sql.ResultSet
 import java.util.UUID
 
-// One cohesive implementation of the job persistence boundary; SQL does not enter handlers.
 @Suppress("TooManyFunctions")
 @Repository
 class JdbcJobProgress(

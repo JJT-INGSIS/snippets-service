@@ -109,7 +109,6 @@ class UpdateSnapshotsIntegrationTest
                     id.toString(),
                 ),
             ).isZero()
-            // An uncertain write is retained, never deleted speculatively.
             assertThat(storage.read(reference)).isEqualTo(ReadResult.Found("println(9);"))
         }
 
