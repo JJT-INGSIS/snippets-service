@@ -45,8 +45,12 @@ class LocalSnippetContentStorage(
         val file = directory.fileOf(reference) ?: return InvalidContentReference
 
         return try {
-            Files.deleteIfExists(file)
-            DeleteResult.Deleted
+            val deleted = Files.deleteIfExists(file)
+            if (deleted || directory.isAvailable()) {
+                DeleteResult.Deleted
+            } else {
+                unavailable(NoSuchFileException(file.toString()))
+            }
         } catch (failure: IOException) {
             unavailable(failure)
         }
