@@ -1,5 +1,8 @@
 # SNI-69 — Tests automáticos después de editar
 
+Revisión del flujo, responsabilidades, decisiones y recuperación de historial:
+[SNI-111](sni-111-review.md).
+
 `SnippetUpdated` consume el snapshot confirmado por SNI-68: código, hash y
 conjunto exacto de tests del update. No consulta el blob más reciente para
 reconstruir ejecuciones anteriores. El guardado confirmado no depende de que

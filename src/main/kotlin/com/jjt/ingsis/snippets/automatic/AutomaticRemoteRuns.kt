@@ -6,6 +6,7 @@ import com.jjt.ingsis.snippets.background.JobWork
 import com.jjt.ingsis.snippets.background.RemoteExecution
 import com.jjt.ingsis.snippets.background.RemotePermit
 import com.jjt.ingsis.snippets.execution.AuditedRun
+import com.jjt.ingsis.snippets.execution.RunFailure
 import com.jjt.ingsis.snippets.execution.RunProgress
 import com.jjt.ingsis.snippets.execution.RunResult
 import com.jjt.ingsis.snippets.execution.terminalStates
@@ -140,7 +141,13 @@ class AutomaticRemoteRuns(
             }
 
             is ExecutionResult.Rejected -> {
-                if (opened.reason in setOf("execution-not-found", "history-unavailable")) {
+                if (opened.reason in
+                    setOf(
+                        "execution-not-found",
+                        RunFailure.HISTORY_UNAVAILABLE.category,
+                        "history-unavailable",
+                    )
+                ) {
                     if (remote.state in terminalStates) {
                         unavailable(work, permit, "RESULT_UNKNOWN_HISTORY_EXPIRED")
                     } else {
