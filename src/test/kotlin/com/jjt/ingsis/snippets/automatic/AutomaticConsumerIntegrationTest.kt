@@ -192,6 +192,41 @@ class AutomaticConsumerIntegrationTest
         }
 
         @Test
+        fun `lost event history releases capacity only after the remote terminal is confirmed`() {
+            val id = snippet()
+            tests.create(id, TestCaseDefinition(emptyList(), emptyList()), 10)
+            controlled.script.set(ExecutionScript(release = java.util.concurrent.CountDownLatch(1)))
+            controlled.openFailure.set("event-history-unavailable")
+            val job = update(id, "println(1);")
+            repeat(10) { if (controlled.requests.isEmpty()) tick(job) }
+            tick(job)
+            assertThat(state(job)).isEqualTo("UNKNOWN")
+            assertThat(held(job)).isEqualTo(1)
+            assertThat(controlled.requests).hasSize(1)
+
+            val remote =
+                controlled.runs.values.single().descriptor.copy(
+                    state = ExecutionState.COMPLETED,
+                    processor = processor,
+                )
+            controlled.describeFailure.set(ExecutionResult.Success(remote))
+            finish(job)
+
+            assertThat(state(job)).isEqualTo("PARTIAL")
+            assertThat(held(job)).isZero()
+            assertThat(controlled.requests).hasSize(1)
+            assertThat(comparisons(job)).containsExactlyElementsOf(listOf<String?>(null))
+            assertThat(
+                jdbc.queryForObject(
+                    "SELECT a.failure FROM snippet_execution_audit a JOIN execution_permits p " +
+                        "ON p.id = a.background_permit_id WHERE p.job_id = ?",
+                    String::class.java,
+                    job,
+                ),
+            ).isEqualTo("RESULT_UNKNOWN_HISTORY_EXPIRED")
+        }
+
+        @Test
         fun `program errors are distinct from assertion failures`() {
             val id = snippet()
             tests.create(id, TestCaseDefinition(emptyList(), emptyList()), 10)
