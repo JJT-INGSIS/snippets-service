@@ -135,6 +135,23 @@ class LocalSnippetContentStorageTest(
     }
 
     @Test
+    fun `does not confirm deletion while the storage directory is unavailable`() {
+        val storage = storageIn("content")
+        val reference = stored(storage, "println(1);")
+        val root = workspace.resolve("content")
+        val detached = workspace.resolve("detached-content")
+
+        Files.move(root, detached)
+
+        assertThat(storage.delete(reference)).isEqualTo(StorageUnavailable)
+
+        Files.move(detached, root)
+        assertThat(storage.read(reference)).isEqualTo(ReadResult.Found("println(1);"))
+        assertThat(storage.delete(reference)).isEqualTo(DeleteResult.Deleted)
+        assertThat(storage.delete(reference)).isEqualTo(DeleteResult.Deleted)
+    }
+
+    @Test
     fun `content that cannot be read or deleted is a failure`() {
         val storage = storageIn("content")
         val reference = ContentReference(UUID.randomUUID().toString())

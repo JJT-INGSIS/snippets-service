@@ -46,6 +46,10 @@ No hay conflictos que informar: como nada se sobrescribe, dos operaciones nunca 
 - `AtomicTextFile` escribe en un archivo temporal, lo fuerza a disco y lo renombra.
 
 Si el directorio completo deja de existir, por ejemplo por un volumen desmontado, las lecturas devuelven `StorageUnavailable` y no `Missing`.
+Los borrados también devuelven `StorageUnavailable` si no pudieron borrar el
+archivo y el directorio ya no está disponible. La idempotencia sólo confirma
+ausencia dentro de un directorio disponible; no convierte la pérdida del storage
+en éxito. La revisión y su prueba están en [sni-100-review.md](sni-100-review.md).
 
 ## Configuración
 
