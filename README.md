@@ -4,7 +4,7 @@ API de Snippet Searcher. Gestiona el ciclo de vida de los snippets, coordina el 
 
 ## Arquitectura
 
-- **PostgreSQL** almacena metadatos, reglas, casos de prueba y estado de los trabajos. Flyway aplica las migraciones. El código fuente se guarda mediante el adaptador local o Asset Service, según `STORAGE_PROVIDER`. [Almacenamiento de contenido](docs/asset-storage.md)
+- **PostgreSQL** almacena metadatos, reglas, casos de prueba y estado de los trabajos. Flyway aplica las migraciones. El código fuente se guarda mediante el adaptador local o Asset Service, según `STORAGE_PROVIDER`. [Almacenamiento de contenido](docs/storage.md)
 - **Permissions Service** registra la propiedad y las relaciones de acceso compartido. **PrintScript Service** valida, formatea, analiza y ejecuta código. Snippets consume ambos por HTTP.
 - **Auth0** autentica las solicitudes en modo `AUTH_MODE=auth0`. Snippets valida issuer y audience, y usa el `sub` como identidad del actor. El directorio para compartir usa una credencial de backend separada. El modo `dev` admite identidad por header únicamente con el perfil Spring `dev`. [Autenticación y configuración](docs/authentication.md)
 - **Redis Streams** transporta eventos de un outbox transaccional. El consumidor procesa cambios de formato, lint, pruebas automáticas y revalidación del parser. El estado de los trabajos queda en PostgreSQL y su progreso se consulta en `GET /jobs/{jobId}`. [Outbox](docs/background-outbox.md) · [Consumidor y recuperación](docs/background-consumer.md) · [Revalidación del parser](docs/parser-revalidation.md)
@@ -17,7 +17,9 @@ API de Snippet Searcher. Gestiona el ciclo de vida de los snippets, coordina el 
 | Buscar destinatarios y compartir | `GET /users`, `PUT /snippets/{id}/shares/{userId}` | [Acceso compartido](docs/sharing.md) |
 | Configurar formato y lint, y descargar el resultado formateado | `GET` y `PUT /formatting-rules/{language}/{version}`, `GET` y `PUT /linting-rules/{language}/{version}`, `GET /snippets/{id}/formatted` | [Formato](docs/formatting-rules.md) · [Lint](docs/linting-rules.md) · [Descarga](docs/formatted-download.md) |
 | Administrar casos de prueba y consultar resultados automáticos | `GET` y `POST /snippets/{id}/tests`, `GET /snippets/{id}/automatic-tests` | [Casos de prueba](docs/tests.md) · [Resultados automáticos](docs/automatic-tests.md) |
-| Ejecutar código y pruebas, enviar entradas, leer eventos NDJSON y cancelar | `POST /snippets/{id}/executions`, `POST /snippets/{id}/tests/{testId}/executions`, `GET /executions/{executionId}/events` | [Ejecución interactiva](docs/interactive-execution.md) · [Ejecución de pruebas](docs/test-execution.md) |
+| Ejecutar código y pruebas, enviar entradas, leer eventos NDJSON y cancelar | `POST /snippets/{id}/executions`, `POST /snippets/{id}/tests/{testId}/executions`, `GET /executions/{executionId}/events` | [Ejecución interactiva](docs/interactive-execution.md) |
+
+Integración del navegador, prefijo `/api` y transporte NDJSON. [Contrato con la UI](docs/ui-integration.md)
 
 ## Desarrollo local
 
@@ -35,4 +37,4 @@ En Linux y macOS usá `./gradlew check`. `check` ejecuta los tests, ktlint y Det
 
 El [Dockerfile](Dockerfile) construye `build/libs/app.jar` con Temurin JDK 21, caché de Gradle y secretos de BuildKit para GitHub Packages. La imagen final usa Temurin JRE 21, corre como `10001:10001` y conserva el directorio de almacenamiento local `/var/lib/snippets/content`. El script de arranque carga el agente de New Relic cuando se habilita en el ambiente.
 
-El [pipeline](.github/workflows/pipeline.yml) usa el workflow reutilizable `v0.6.8`. Las PRs a `dev` y `main` corren CI. Un push a `dev` publica la imagen después de CI y despliega DEV si `CD_ENABLED=true`. Las ejecuciones manuales en `dev` también pueden pedir publicación con `publish`. En `main`, el despliegue requiere además `PROD_DEPLOY_ENABLED=true` y promueve por digest la imagen verificada en DEV para el mismo árbol Git. [Manual de despliegue y recuperación](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-25-cd.md)
+El [pipeline](.github/workflows/pipeline.yml) usa el workflow reutilizable `v0.6.8`. Las PRs a `dev` y `main` corren CI. Un push a `dev` publica la imagen después de CI y despliega DEV si `CD_ENABLED=true`. Las ejecuciones manuales en `dev` también pueden pedir publicación con `publish`. En `main`, el despliegue requiere además `PROD_DEPLOY_ENABLED=true` y promueve por digest la imagen verificada en DEV para el mismo árbol Git. [Infraestructura y manual de operación](https://github.com/JJT-INGSIS/snippet-searcher-infra#readme)

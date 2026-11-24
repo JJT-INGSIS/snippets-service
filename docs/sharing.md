@@ -1,61 +1,42 @@
-# Compartir snippets — SNI-26, SNI-29 y SNI-32
+# Compartir snippets
 
-Contrato para buscar destinatarios y compartir un snippet (US7), acordado en SNI-26.
-Los ejemplos con X-Dev-Actor-Id describen modo dev. En modo auth0 se requiere un
-bearer válido según [SNI-72](authentication.md); la semántica nativa del directorio
-y los nuevos errores de SNI-74 se detallan al final.
-
-| Operación | Estado |
-| --- | --- |
-| `GET /users` | **Implementado en SNI-29.** Sus ejemplos son tests: `UsersHttpTest` envía cada pedido y compara la respuesta completa. |
-| `PUT /snippets/{id}/shares/{userId}` | **Implementado en SNI-32.** `SharingHttpTest` verifica sus ejemplos HTTP, permisos y reintentos. |
-
-La identidad, el directorio de usuarios de desarrollo, las capacidades y la
-política 403/404 están en [ui-integration.md](ui-integration.md).
-
-## Qué concede un share
-
-| Puede | El owner | Un usuario compartido |
-| --- | --- | --- |
-| Ver el snippet en la lista y su detalle | Sí | Sí |
-| Ver sus tests ([SNI-46](tests.md)) | Sí | Sí |
-| Crear tests ([SNI-46](tests.md)) | Sí | No |
-| Ejecutar sus tests (SNI-48) | Sí | Sí |
-| Modificarlo | Sí | No |
-| Compartirlo | Sí | No |
-
-El contenido y los tests no se copian: el usuario compartido lee el mismo snippet.
-No existe dejar de compartir; US7 no lo pide.
-
-Permissions verifica el ownership y guarda el share en una sola operación
-([access.md de Permissions](https://github.com/JJT-INGSIS/permissions-service/blob/dev/docs/access.md)).
-Comprobar en Snippets que el snippet existe no reemplaza esa verificación.
+Sólo el propietario puede otorgar acceso. Un lector compartido puede leer el mismo código, descargar su formato y consultar o ejecutar sus tests. Permissions verifica la propiedad y registra el share. [Contrato de acceso de Permissions](https://github.com/JJT-INGSIS/permissions-service/blob/dev/docs/access.md)
 
 ## Buscar destinatarios
 
-`GET /users`
+`GET /users?name=…&page=0&page_size=10` devuelve `page`, `page_size`, `count` y `users` (cada usuario con `id` y `name`). La página empieza en cero y el tamaño admite de 1 a 100. La búsqueda excluye al actor. El directorio local busca un fragmento, sin distinguir mayúsculas. Auth0 usa un prefijo literal del nombre y devuelve una página del proveedor. Si el total llega a 1.000 o la ventana excede el límite recuperable, devuelve `422 directory-search-too-broad`.
 
-Reemplaza a `getUserFriends(name, page, pageSize)` de la UI.
+Auth0 entrega `user_id` como ID opaco. El índice de búsqueda es eventual. Para compartir se verifica al destinatario por ID con la Management API; sólo su `404` acredita que no existe. Un error del directorio devuelve `502` sin degradar al catálogo local. [Configuración del directorio](authentication.md#directorio-de-usuarios)
 
-| Header | Obligatorio | Descripción |
+## Dar acceso
+
+`PUT /snippets/{id}/shares/{userId}` no lleva body. Usá el UUID del snippet y el `id` del directorio codificado como segmento de URL. Devuelve `201` para un share nuevo y `200` si ya existía, ambos con `snippetId` y `userId`. Repetir un pedido es seguro. Una dependencia caída se informa como error y el cliente puede verificar el resultado al reintentar.
+
+## Errores de búsqueda
+
+| Status | `type` | Cuándo |
 | --- | --- | --- |
-| `X-Dev-Actor-Id` | Sí | Identidad de desarrollo. Solo con el perfil Spring `dev`. |
+| `400` | `urn:snippets:problem:invalid-request` | Parámetro desconocido, repetido o inválido. `parameter` lo nombra. |
+| `401` | `urn:snippets:problem:identity-unavailable` | Identidad ausente, inválida o deshabilitada. |
+| `422` | `urn:snippets:problem:directory-search-too-broad` | Refine el nombre; Auth0 no permite una página completa verificable dentro de su límite. |
+| `502` | `urn:snippets:problem:directory-unavailable` | Directorio no disponible o respuesta inválida; no es una lista vacía. |
+| `500` | `urn:snippets:problem:technical-failure` | Error inesperado. |
 
-| Parámetro | Default | Valores | Descripción |
-| --- | --- | --- | --- |
-| `name` | sin filtro | texto | El nombre contiene el texto, sin distinguir mayúsculas. Vacío equivale a no filtrar. |
-| `page` | `0` | entero `>= 0` | La primera página es `0`. |
-| `page_size` | `10` | entero de `1` a `100` | Tamaño de página. |
+## Errores al compartir
 
-- La fuente es el directorio de usuarios de desarrollo. Con Auth0 cambia la
-  fuente, no esta respuesta.
-- No incluye al actor que pregunta: nadie se comparte un snippet a sí mismo.
-- Ordena por `name` y desempata por `id`, sin distinguir mayúsculas.
-- `count` es el total de usuarios que cumplen el filtro, sumando todas las páginas.
-- Los parámetros siguen las mismas reglas que el listado de snippets: un valor
-  repetido, fuera de rango o desconocido responde `400`.
+| Status | `type` | Cuándo |
+| --- | --- | --- |
+| `400` | `urn:snippets:problem:invalid-request` | `{id}` no es un UUID canónico o `{userId}` está en blanco. |
+| `401` | `urn:snippets:problem:identity-unavailable` | Identidad ausente, inválida o deshabilitada. |
+| `403` | `urn:snippets:problem:share-denied` | El actor ve el snippet pero no es su owner. |
+| `404` | `urn:snippets:problem:snippet-not-found` | No existe, sigue pendiente o el actor no tiene acceso. |
+| `422` | `urn:snippets:problem:invalid-recipient` | El destinatario no está en el directorio o es el propio actor. |
+| `500` | `urn:snippets:problem:technical-failure` | Error inesperado. |
+| `502` | `urn:snippets:problem:directory-unavailable` | No se pudo validar el destinatario con el directorio. No se registró el share. |
+| `502` | `urn:snippets:problem:dependency-failure` | Permissions no respondió según su contrato o tardó más que el límite. El share no está confirmado. |
+| `503` | `urn:snippets:problem:metadata-unavailable` | Falló la base de Snippets. |
 
-### Ejemplos
+## Ejemplos
 
 #### `200` Usuarios que contienen «an»
 
@@ -68,8 +49,6 @@ X-Dev-Actor-Id: dev-juan
 {"page":0,"page_size":5,"count":2,"users":[{"id":"dev-ana","name":"Ana"},{"id":"dev-juanfran","name":"Juan Francisco"}]}
 ```
 
-`dev-juan` también contiene «an», pero no aparece porque es quien pregunta.
-
 #### `200` Sin coincidencias
 
 ```http
@@ -80,109 +59,6 @@ X-Dev-Actor-Id: dev-juan
 ```json
 {"page":0,"page_size":5,"count":0,"users":[]}
 ```
-
-### Errores
-
-| Status | `type` | Significado |
-| --- | --- | --- |
-| `400` | `urn:snippets:problem:invalid-request` | Parámetro desconocido, repetido o inválido. `parameter` lo nombra. |
-| `401` | `urn:snippets:problem:identity-unavailable` | Identidad ausente, inválida o deshabilitada. |
-| `422` | `urn:snippets:problem:directory-search-too-broad` | Refine el nombre; Auth0 no permite una página completa verificable dentro de su límite. |
-| `502` | `urn:snippets:problem:directory-unavailable` | Directorio no disponible o respuesta inválida; no es una lista vacía. |
-| `500` | `urn:snippets:problem:technical-failure` | Error inesperado. |
-
-En modo dev los parámetros se validan antes que la identidad, como en el listado: un pedido
-con parámetros inválidos y sin identidad responde `400`. En auth0 primero se
-exige un bearer válido, incluso si la consulta es inválida.
-
-### Directorio de desarrollo — SNI-29
-
-Todavía no hay usuarios reales: Auth0 queda para una entrega posterior. Mientras
-tanto, los destinatarios salen de un catálogo de desarrollo explícito.
-
-| Pieza | Qué hace |
-| --- | --- |
-| `application-dev.properties` | Declara los usuarios (`development.users[i].id` y `.name`). Spring lo carga solo con el perfil `dev`. |
-| `DevelopmentUsers` | Lee esa lista. Si un `id` o un `name` está en blanco, o un `id` se repite, el servicio no arranca. |
-| `UserDirectory` | Puerto: `search(name, excluding, page)` y `contains(id)`. Es el punto de reemplazo por un directorio real. |
-| `ConfiguredUserDirectory` | Implementación en memoria sobre el catálogo: filtra, excluye al actor, ordena y pagina. |
-| `SearchUsers` | Caso de uso: resuelve la identidad y busca excluyendo al actor. |
-| `UsersController` | `GET /users`: valida parámetros (`ParsedUserSearch`) y responde `{page, page_size, count, users}`. |
-
-- El catálogo contiene los cinco usuarios de [ui-integration.md](ui-integration.md#usuarios-de-desarrollo).
-  Sus `id` son los mismos que se envían en `X-Dev-Actor-Id` y que guarda Permissions.
-- Los `id` no cambian entre reinicios mientras la configuración sea la misma. Se
-  pueden reemplazar sin recompilar con variables de entorno, por ejemplo
-  `DEVELOPMENT_USERS_0_ID` y `DEVELOPMENT_USERS_0_NAME`.
-- Sin el perfil `dev` el catálogo queda vacío y `GET /users` responde `401`, como el
-  resto de la API: el catálogo nunca autentica a nadie.
-- La respuesta solo expone `id` y `name`. No hay contraseñas, tokens ni perfiles.
-- `contains(id)` indica si un destinatario existe. Lo usa la operación de compartir
-  (SNI-32) para que un destinatario desconocido nunca reciba un share.
-- Cuando se integre Auth0 se escribe otra implementación de `UserDirectory`. El caso
-  de uso, el controller y la respuesta no cambian.
-
-### Decisiones — SNI-29
-
-Propuestas en el plan de SNI-29 y aprobadas por Juan el 24/10/2026 («todas las
-recomendadas, dale armalo»). Estado: implementadas y verificadas por los tests.
-
-| Decisión | Alternativa descartada | Beneficio | Costo aceptado |
-| --- | --- | --- | --- |
-| Catálogo en `application-dev.properties` | Lista fija en Kotlin con `@Profile("dev")`; archivo JSON | Configurable sin recompilar y solo activo en `dev` | Datos de prueba visibles en el repositorio |
-| Sin perfil `dev`: catálogo vacío y `401` | Endpoint solo en `dev` (404 afuera) | Igual que el resto de la API, sin cableado condicional | El bean existe aunque esté vacío |
-| Catálogo inválido impide arrancar | Descartar entradas inválidas | Ningún destinatario ambiguo | Un error de configuración frena el servicio |
-| Búsqueda en memoria | Tabla en la base | Sin migración ni perfiles persistidos | Solo sirve para catálogos chicos |
-| `contains(id)` en el puerto | Que SNI-32 lo agregue | El directorio decide quién existe | Un método sin uso hasta SNI-32 |
-| Reglas de parámetros en `QueryParameters` | Copiarlas | Mismas reglas en listado y usuarios | `ParsedListing` cambia de lugar sus helpers, sin cambiar comportamiento |
-| Reusar `PageRequest` del paquete `metadata` | Moverlo o duplicarlo | Un solo concepto de página | `users` depende de un tipo de `metadata` |
-
-## Compartir
-
-`PUT /snippets/{id}/shares/{userId}`
-
-Reemplaza a `shareSnippet(snippetId, userId)` de la UI. No lleva body.
-
-| Parte | Obligatorio | Descripción |
-| --- | --- | --- |
-| `{id}` en la ruta | Sí | UUID canónico del snippet. |
-| `{userId}` en la ruta | Sí | `id` del destinatario, tal como lo devuelve `GET /users`. Se codifica como segmento de URL. |
-| `X-Dev-Actor-Id` | Sí | Identidad de desarrollo. Solo con el perfil Spring `dev`. |
-
-Es `PUT` porque el resultado no depende de cuántas veces se repita: el mismo
-destinatario queda con un solo share. Por eso no necesita `Idempotency-Key`.
-
-### Secuencia
-
-| Paso | Qué hace | Si falla |
-| --- | --- | --- |
-| 1 | Resuelve la identidad. | `401` |
-| 2 | Valida `{id}` y `{userId}`. | `400` |
-| 3 | Comprueba que el destinatario esté en el directorio y no sea el actor. | `422 invalid-recipient` |
-| 4 | Comprueba que el snippet exista y esté confirmado. | Inexistente o pendiente: `404`. Base caída: `503 metadata-unavailable`. |
-| 5 | Pide a Permissions que registre el share en nombre del actor. Permissions verifica que sea owner. | Sin acceso: `404`. Usuario compartido: `403 share-denied`. Permissions caído: `502`. |
-| 6 | Responde el share confirmado. | — |
-
-No se modifica ningún acceso salvo en el paso 5, y solo si Permissions confirma.
-Si Permissions no responde, el share no se informa como hecho. Repetir el mismo
-pedido es seguro y resuelve el resultado sin duplicar accesos.
-
-### Respuesta
-
-| Status | Significado |
-| --- | --- |
-| `201 Created` | El share se registró en este pedido. |
-| `200 OK` | El destinatario ya tenía el share. No cambia nada. |
-
-```json
-{"snippetId":"0f8b3c1e-4a2d-4d3b-9b7a-2c6e5f1a9d40","userId":"dev-thiago"}
-```
-
-La respuesta no trae el snippet. El adaptador de la UI devuelve el acknowledgment
-`{snippetId,userId}` y los hooks invalidan las consultas afectadas por separado.
-Una falla del refresco posterior no convierte un share confirmado en fallido.
-
-### Ejemplos
 
 #### `201` Compartir por primera vez
 
@@ -238,279 +114,3 @@ X-Dev-Actor-Id: dev-juan
 ```json
 {"type":"urn:snippets:problem:invalid-recipient","title":"Unprocessable Content","status":422,"detail":"The recipient is not a known user other than the requester.","instance":"/snippets/0f8b3c1e-4a2d-4d3b-9b7a-2c6e5f1a9d40/shares/dev-juan"}
 ```
-
-### Errores
-
-| Status | `type` | Significado | ¿Sirve reintentar? |
-| --- | --- | --- | --- |
-| `400` | `urn:snippets:problem:invalid-request` | `{id}` no es un UUID canónico o `{userId}` está en blanco. | No |
-| `401` | `urn:snippets:problem:identity-unavailable` | Identidad ausente, inválida o deshabilitada. | No |
-| `403` | `urn:snippets:problem:share-denied` | **Nuevo.** El actor ve el snippet pero no es su owner. | No |
-| `404` | `urn:snippets:problem:snippet-not-found` | No existe, sigue pendiente o el actor no tiene acceso. | No |
-| `422` | `urn:snippets:problem:invalid-recipient` | **Nuevo.** El destinatario no está en el directorio o es el propio actor. | No |
-| `500` | `urn:snippets:problem:technical-failure` | Error inesperado. | Sí |
-| `502` | `urn:snippets:problem:directory-unavailable` | No se pudo validar el destinatario con el directorio. No se registró el share. | Sí |
-| `502` | `urn:snippets:problem:dependency-failure` | Permissions no respondió según su contrato o tardó más que el límite. El share no está confirmado. | Sí |
-| `503` | `urn:snippets:problem:metadata-unavailable` | Falló la base de Snippets. | Sí |
-
-`share-denied` e `invalid-recipient` forman parte del catálogo `SnippetProblem`.
-
-### Por qué así
-
-| Decisión | Motivo | Descartado |
-| --- | --- | --- |
-| `PUT` con el destinatario en la ruta | Repetirlo deja el mismo estado; no requiere clave de idempotencia. | `POST /snippets/{id}/shares` con body: necesitaría una clave para no duplicar. |
-| Permissions verifica el owner al registrar | Un solo lugar decide el ownership y no hay ventana entre comprobar y guardar. | Que Snippets pregunte `can-modify` y después registre: son dos pedidos y otra regla. |
-| Directorio de usuarios en Snippets | Snippets es el backend de la UI y la búsqueda es temporal hasta Auth0. | Guardar perfiles en Permissions: no le corresponde. |
-| Validar el destinatario contra el directorio | Evita shares a identidades inexistentes que nadie podría usar. | Aceptar cualquier texto. |
-
-## Implementación y decisiones — SNI-32
-
-Plan aprobado por Juan Francisco el 2026-10-24 con «bueno me parece bien el plan, podes implementar».
-El contrato SNI-26 ya fija el endpoint PUT, estados, orden de validaciones y permiso de solo lectura.
-
-| Pieza | Responsabilidad |
-| --- | --- |
-| `SnippetSharingController` / `ShareOutcomeTranslator` | Ruta sin body, identidad del request y traducción a HTTP |
-| `ShareSnippet` / `ShareOutcome` | Coordinar identidad, destinatario, metadatos confirmados y registro remoto |
-| `ShareRegistrar` / `HttpShareRegistrar` | Capacidad acotada de registrar un share; cliente HTTP real de Permissions |
-| `PermissionsHttpTransport` / `PermissionsResponseDecoder` | Transporte existente, timeouts, JSON y validación estricta de confirmaciones/errores |
-
-- Se sigue la separación y composición existentes: resultados explícitos e inmutables, sin HTTP en el caso de uso,
-  sin herencia de comportamiento ni nuevas dependencias/migraciones/tablas de permisos en Snippets.
-- La identidad del solicitante no viene del body público. El directorio comprueba el destinatario; Permissions conserva
-  la comprobación atómica de ownership y la unicidad del share. No se consulta primero can-modify para autorizar una escritura posterior.
-- El share concede acceso al mismo recurso, no copia código ni congela una versión. El lector sigue viendo actualizaciones
-  autorizadas del propietario a través del listado/detalle existentes.
-- Un 200/201 de Permissions solo confirma si el JSON y los identificadores coinciden. Un 403 solo se traduce a rechazo
-  conocido si es Problem Details válido y su relación es shared/none; errores inválidos son dependencia fallida.
-- **Reintento explícito aprobado:** no hay reintentos automáticos ni borrado compensatorio ante un timeout. Beneficio:
-  flujo visible y sin escrituras ocultas. Costo: el usuario debe reintentar cuando falta confirmación. La alternativa de
-  reintentos automáticos acotados agregaría intentos/esperas; puede incorporarse posteriormente sin cambiar el contrato PUT.
-  Un share puede haberse guardado aunque se pierda la respuesta: repetirlo devuelve 200 sin duplicar accesos.
-- No se leen ni modifican archivos de storage para compartir. La aceptación con Asset Service real es SNI-36; Auth0,
-  revocación, edición compartida y ejecución de tests siguen fuera de alcance.
-
-## Pruebas reproducibles — SNI-32
-
-Con JDK 21, credenciales de Packages y Docker disponibles:
-
-```powershell
-.\gradlew.bat build
-```
-
-- `ShareSnippetTest`: reglas y secuencia sin servidor/base, incluidos ausencia de identidad, destinatario inválido,
-  metadatos ausentes/indisponibles y resultados de Permissions sin reintentos.
-- `ShareRegistrationTest`: cliente HTTP y contratos de confirmación/error, codificación de destinatarios como un segmento,
-  actor exacto en JSON, timeout y servidor inaccesible.
-- `SharingHttpTest`: HTTP de Snippets + PostgreSQL/storage reales con respuestas controladas de Permissions solo en tests.
-  Cubre ejemplos de esta página, Unicode/CRLF, lectura compartida, bloqueo de edición/resharing, tercero sin acceso,
-  PENDING, fallas y reintento tras un registro cuya confirmación se demoró hasta el timeout.
-- `src/test/ui/sharing.cy.ts`: prueba optativa de UI + servicios locales reales, sin simular respuestas de API.
-  Requiere UI SNI-35, Vite en 5173 con `UI_DEV_ACTOR=dev-juanfran`, `API_PROXY_TARGET` al Snippets recién compilado,
-  y Permissions/PrintScript/PostgreSQL disponibles. Crea un snippet identificado `SNI-32 browser ...` y un share a Ana.
-  Para verificar la vista de Ana solo reemplaza la configuración pública de identidad dev en el navegador del test;
-  conserva respuestas reales en todas las rutas `/api`. Comprueba editor de solo lectura y acciones deshabilitadas,
-  además del rechazo HTTP real a editar/volver a compartir y del 404 para un tercero.
-
-Para correr el spec desde el repo UI sin incorporarlo a sus pruebas de contrato:
-
-```powershell
-$sharingSpec = Join-Path $PWD 'cypress/e2e/sni-32-local.cy.ts'
-if (Test-Path -LiteralPath $sharingSpec) { throw 'El spec temporal ya existe' }
-Copy-Item -LiteralPath '../snippets-service/src/test/ui/sharing.cy.ts' -Destination $sharingSpec
-try {
-    npm.cmd exec -- cypress run --config 'baseUrl=http://127.0.0.1:5173,specPattern=cypress/e2e/sni-32-local.cy.ts' --spec 'cypress/e2e/sni-32-local.cy.ts'
-    if ($LASTEXITCODE -ne 0) { throw 'Falló la verificación de sharing' }
-} finally {
-    Remove-Item -LiteralPath $sharingSpec
-}
-```
-
-Esta verificación local no debe ejecutarse contra producción ni sustituye la aceptación integral con Asset Service oficial.
-
-### Evidencia ejecutada — 2026-10-24
-
-- `gradlew.bat build --no-daemon` con `PRINTSCRIPT_SERVICE_URL=http://127.0.0.1:8082` y
-  `PERMISSIONS_SERVICE_URL=http://127.0.0.1:8081`: **305 tests, 0 fallos, 0 errores, 0 omitidos**;
-  ktlint, detekt y empaquetado correctos. La suite incluye 18 pruebas nuevas de SNI-32.
-- Cypress 13.8.1 / Electron 118: **1 recorrido aprobado, 0 fallos**, UI SNI-35 real en 5173,
-  backend de esta rama compilado en 18080, Permissions de dev `949885c` en 8081, PrintScript en 8082 y PostgreSQL locales.
-  No se modificaron código de UI, Permissions ni infra. El spec temporal del repo UI se eliminó al terminar.
-- Registro creado para la prueba: `0deec4cf-d332-4ac9-aad3-72586cdf9aff`, nombre `SNI-32 browser 1792880145617`.
-  Actor owner `dev-juanfran`, destinatario `dev-ana` y tercero `dev-bruno`.
-- El navegador confirmó share 201 y cierre del modal; el mismo PUT respondió 200. Ana listó el recurso una sola vez,
-  leyó `println(32);\r\n` exacto y recibió capacidades de solo lectura. Actualizar y volver a compartir respondieron 403;
-  el tercero recibió 404. La vista de Ana mostró el editor de solo lectura y acciones deshabilitadas.
-- Captura local ignorada por Git, en el repo UI: `cypress/screenshots/sni-32-local.cy.ts/sni32-real-sharing.png`.
-  El recorrido usó storage local; la aceptación integral de SNI-36 conserva su comprobación con Asset Service real.
-
-
-## Directorio Auth0 — SNI-74
-
-Decisiones de Thiago — 08/11/2026: la respuesta sobre **búsqueda nativa Auth0**
-reemplaza la selección anterior de conservar el filtrado local. Se descarta
-recuperar/enumerar todos los usuarios para ordenarlos en Snippets; la documentación
-oficial desaconseja usar la búsqueda para enumeración. La alternativa de un índice
-local sincronizado preservaría más control de consulta, con tablas, sincronización
-y tratamiento de desactualización adicionales. Se prioriza menor operación para
-este proyecto. No se copia un directorio a PostgreSQL ni se agrega otro flujo async.
-
-También aprobó que la credencial Management ausente/fallida afecte sólo búsqueda y
-sharing, con error explícito. Se descarta impedir el arranque completo: lectura y
-ejecución pueden funcionar sin directorio. En modo auth0 nunca se recurre al
-catálogo dev. Esta independencia no convierte una operación fallida en éxito.
-
-El marco de análisis es el capítulo 2 (trade-offs) y el registro de decisiones del
-capítulo 21 de *Fundamentals of Software Architecture*, 2nd ed., según el
-[índice editorial](https://www.oreilly.com/library/view/fundamentals-of-software/9781098175504/).
-La elección concreta anterior es del proyecto, no una receta atribuida al libro.
-
-### Búsqueda y compatibilidad
-
-`DirectoryConfiguration` selecciona por `snippets.auth.mode`: dev conserva el
-catálogo local y su contrato anterior; auth0 utiliza `Auth0UserDirectory`; disabled
-no expone usuarios. Un auth0 sin credencial propia disponible conserva la API
-operativa pero ambas operaciones de directorio devuelven 502.
-
-En auth0, GET /users mantiene parámetros y DTO `{page, page_size, count, users}`,
-con estas diferencias explícitas respecto al catálogo dev:
-
-- `name` es un **prefijo literal** del nombre usando la búsqueda nativa; no promete
-  coincidencias de fragmentos intermedios. La comparación de campos normalizados es
-  la de Auth0. Texto del usuario se escapa y no permite introducir campos, operadores
-  o comodines Lucene. Vacío consulta una sola página de destinatarios disponibles.
-- La consulta excluye el `sub` del actor antes de paginar y pide sólo `user_id,name`.
-  Los IDs se entregan intactos como `id`. No se identifica por email ni se unen
-  identidades o datos por nombre. No se incluye el campo email, metadata, credenciales o JWT. El nombre visible
-  es el perfil name del proveedor y puede estar configurado como correo.
-- `page`/`page_size` se envían a Auth0; cada búsqueda hace un solo GET de página.
-  Se conserva su orden determinista `name:1`, `primary_order=true`; ya no se promete
-  el desempate local por ID de dev. Los resultados pueden cambiar entre páginas
-  por cambios concurrentes o demora del índice del proveedor.
-- `count` procede del total del proveedor. Un total **mayor o igual a 1.000**, o una
-  ventana que excedería el límite recuperable, produce 422
-  `urn:snippets:problem:directory-search-too-broad`, `parameter=name`. En ese límite
-  no podemos distinguir con seguridad el total completo de un total acotado; se
-  exige refinar y no se publica un count truncado como si fuese completo.
-- El índice es eventual: un usuario recién creado puede tardar en aparecer. Validar
-  el destinatario usa GET /api/v2/users/{id}, inmediatamente consistente, nunca la
-  ausencia en una búsqueda. Sólo su 404 confirma destinatario inexistente (422
-  `invalid-recipient` público); otros errores no se convierten en ausencia.
-- Token/credencial inválidos, rate limit, timeouts, respuestas inválidas y caídas
-  producen 502 `urn:snippets:problem:directory-unavailable`. No se exponen detalles
-  internos del proveedor ni se devuelve una lista vacía ficticia. El permiso de
-  compartir sigue siendo de Permissions y no se escribe un share ante incertidumbre.
-
-No se cachean perfiles. El único cache es el token M2M en memoria, hasta antes de
-su expiración, con renovación serializada. Un 401 lo invalida; la llamada actual
-falla, sin bucles de retry. El token no tiene `toString` que muestre su valor y no
-se guarda en jobs, eventos, bases, archivos, frontend ni logs.
-
-### Configuración y credencial separada
-
-| Entrada | Uso |
-| --- | --- |
-| AUTH_MODE=auth0 | Autenticación de usuarios y selección del adaptador |
-| AUTH_ISSUER | Issuer HTTPS canónico aprobado en SNI-71; Management comparte ese tenant |
-| AUTH0_DIRECTORY_CLIENT_ID | Client ID público de una M2M **dedicada al directorio** |
-| snippets.directory.auth0.client-secret | Secreto M2M mediante configtree/almacén de secretos |
-| AUTH0_DIRECTORY_CLIENT_SECRET | Alternativa de inyección local por proceso; nunca versionar/imprimir |
-
-Timeouts `snippets.directory.auth0.connect-timeout` (2s) y `.read-timeout` (5s)
-son configurables. La respuesta remota está limitada a 1 MiB. Se solicita sólo
-`read:users`; un grant con scopes adicionales o sin confirmación de ese alcance
-se rechaza, sin usarlo para listar usuarios. No se siguen redirects con credenciales.
-
-El operador debe crear/configurar una M2M separada con permiso **read:users** para
-la audience `https://<tenant>/api/v2/`. No reutilizar la SPA ni la aplicación
-administrativa Terraform y no ampliar sus permisos para resolver un 403 a ciegas.
-No se aprovisiona esa credencial, cambia el tenant ni activa un ambiente como
-resultado de este código. Con credencial ausente, la autenticación SNI-72 continúa
-funcionando; sólo directorio/sharing fallan explícitamente.
-
-En runtime usar un secreto de Swarm/configtree, con target
-`snippets.directory.auth0.client-secret` bajo el directorio importado mediante
-`SPRING_CONFIG_IMPORT=optional:configtree:/run/secrets/`. Mantenerlo separado por
-ambiente y fuera del registro público de release/variables de UI. La configuración
-de issuer/audience de SNI-72 se conserva. Esta guía no modifica CD ni monta repos.
-
-### Conservación y aceptación
-
-Se conservan intactos los IDs `dev-*`, ownership, shares, reglas y auditoría previos.
-Usuarios Auth0 nuevos usan su `sub`; no heredan datos por coincidencia de email.
-Una eventual transición requiere inventariar todas las referencias, respaldo,
-mapeo explícito y autorización independiente. No se ejecuta ninguna migración.
-Workers usan el actor/contexto durable y no necesitan ni reciben el bearer del
-usuario ni la credencial Management. Consultar el [contrato autenticado](authentication.md).
-
-Las pruebas de adaptador usan un servidor HTTP de Management **controlado**: no
-son una aceptación del tenant real. Comprueban grant mínimo/expiración, consulta
-nativa/escape/paginación, lookup por ID, 404 frente a caídas, DTO y modos sin
-fallback. Los tests HTTP de API y seguridad comprueban los errores públicos y que
-una credencial ausente no rompe el resto de rutas autenticadas.
-
-### Primera aceptación local, parcial — 17/11/2026
-
-SNI-73 ya está integrado. Se usó el tenant real y su M2M dedicada, con scope
-exacto `read:users`, contra tres aplicaciones y dos PostgreSQL nuevos en un
-laboratorio local aislado. La [evidencia](evidence/sni74-auth0-local-2026-11-17.json)
-registra resultados reales separados de las pruebas controladas del adaptador.
-No contiene bearer, secreto Management ni perfiles del directorio.
-
-Se comprobaron creación confirmada/reintento con el mismo UUID, contenido exacto,
-consulta del directorio, sharing idempotente y permisos del lector: lectura/listado
-permitidos, edición/resharing/creación de tests denegados. También se observaron
-el rechazo 401 de un JWT vencido, la recuperación por ingreso interactivo y el
-logout con eliminación de la vista privada. La renovación silenciosa no está
-garantizada: localhost pidió consentimiento interactivo; no se modificaron grants
-ni protecciones para evitarlo.
-
-Un worker separado, sin bearer ni credencial Management, procesó un job real
-pendiente y obtuvo `PASSED` en PrintScript. Su arranque fue posterior al vencimiento
-registrado del token original. No se registró la expiración del token exacto usado
-para la actualización posterior: esto prueba independencia de credenciales del
-worker, pero no acredita esa correlación temporal específica. El outbox inspeccionado
-no contenía campos de credenciales ni cadenas con formato JWT.
-
-**Esta primera ejecución quedó parcial:** el usuario pospuso la prueba con el tercero por no
-disponer de su contraseña. Faltan sus denegaciones/aislamiento, ejecución interactiva
-autenticada y la correlación exacta de expiración/job. No se activó OAuth en DEV/PROD,
-no se migraron datos previos y no se sustituyeron esas pruebas por identidades dev.
-La herramienta temporal del navegador se retiró del código de UI al terminar.
-
-### Aceptación local completada con cuenta alternativa — 17/11/2026
-
-El usuario completó el ingreso de otra cuenta, con un subject distinto del propietario
-y del lector. La [ejecución complementaria](evidence/sni74-auth0-supplement-2026-11-17.json)
-acredita sus denegaciones: detalle/tests/inicios de ejecución ocultos con 404,
-listado sin el fixture y rechazo de header dev forjado. Consultar, leer eventos o
-cancelar una ejecución de otro actor devuelve 403 `execution-actor-mismatch`.
-La nueva cuenta sí pudo crear contenido propio y ejecutarlo con solicitud de input
-y output real, sin heredar ownership por email.
-
-También pasaron ejecución autenticada INTERACTIVE y TEST con eventos incrementales.
-Un update admitido registró ahora la expiración del JWT exacto usado; su job quedó
-pendiente y un worker sin bearer ni credencial Management lo completó después de
-esa expiración más 70 segundos. La auditoría confirmó el actor original y resultado
-`PASSED`. Esto acredita procesamiento después del vencimiento, no una interrupción
-del JWT a mitad de una ejecución. No se encontraron credenciales/JWT en el outbox.
-
-La aceptación local combina dos laboratorios aislados: propietario/lector/logout
-y expiración de la primera ejecución, más el tercero alternativo, ejecución y job
-de la complementaria. No se reescribe la evidencia parcial histórica como si todos
-los casos hubieran ocurrido en la misma sesión. No se migraron datos existentes.
-
-**La activación de la VM DEV tiene una aceptación separada:** este recorrido local
-no acredita el login público. El 17/11 Thiago autorizó preparar y aplicar ese corte
-una vez terminadas las pruebas de Juanchi. El procedimiento, preservación de New Relic
-y recuperación se documentan en
-[infra SNI-74](https://github.com/JJT-INGSIS/snippet-searcher-infra/blob/dev/docs/sni-74-dev-auth0.md).
-La evidencia local no cambia por el resultado de ese despliegue ni declara PROD activado.
-La herramienta temporal de UI se retiró al finalizar las comprobaciones.
-
-Referencias técnicas verificadas:
-[buscar y sus límites](https://auth0.com/docs/manage-users/user-search/user-search-best-practices),
-[sintaxis nativa](https://auth0.com/docs/manage-users/user-search/user-search-query-syntax),
-[lookup por ID](https://auth0.com/docs/manage-users/user-search/get-users-by-id-or-email),
-[tokens Management](https://auth0.com/docs/secure/tokens/access-tokens/management-api-access-tokens/get-management-api-access-tokens-for-production).

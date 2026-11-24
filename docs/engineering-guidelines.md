@@ -80,7 +80,7 @@ It does NOT own:
 - snippet metadata;
 - PrintScript behavior.
 
-Authentication will be delegated to Auth0 when introduced by the course.
+Auth0 authenticates users. Snippets validates access tokens at its HTTP boundary.
 
 
 ## printscript-service
@@ -104,9 +104,7 @@ It does NOT own:
 
 ## Storage
 
-The course will provide the official storage interface and its Azure-backed implementation.
-
-Until then, as the course authorised on 2026-10-07, `snippets-service` uses its own minimal `SnippetContentStorage` interface with a local file adapter. See [storage.md](storage.md). Adapting it to the official contract is tracked in SNI-19.
+Snippets stores content through its `SnippetContentStorage` interface. The service provides local and Asset Service adapters. See [storage.md](storage.md).
 
 Do NOT:
 
