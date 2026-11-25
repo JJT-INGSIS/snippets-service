@@ -8,6 +8,7 @@ import com.jjt.ingsis.snippets.language.Language
 import com.jjt.ingsis.snippets.language.LanguageValidator
 import com.jjt.ingsis.snippets.language.ValidationResult
 import com.jjt.ingsis.snippets.listing.ListedSnippet
+import com.jjt.ingsis.snippets.listing.ListedSnippetAssembler
 import com.jjt.ingsis.snippets.metadata.ContentLinkResult
 import com.jjt.ingsis.snippets.metadata.ContentReplacementResult
 import com.jjt.ingsis.snippets.metadata.LinkedSnippet
@@ -108,7 +109,7 @@ private fun reader(
     ReadSnippet(
         gate = ConfirmedSnippetGate(identity, links, access),
         content = ContentReading(links, storage),
-        language = printScript,
+        assembler = ListedSnippetAssembler(printScript),
         lint =
             com.jjt.ingsis.snippets.lintquery.DetailLintReading { _, _ ->
                 com.jjt.ingsis.snippets.lintquery.DetailLint.Found(

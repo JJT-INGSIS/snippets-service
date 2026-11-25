@@ -4,7 +4,6 @@ import com.jjt.ingsis.snippets.metadata.SnippetMetadata
 import com.jjt.ingsis.snippets.metadata.SnippetState
 import java.util.UUID
 
-// Future HTTP representation; a pending reservation cannot be converted to a successful response.
 data class CreationResponse(
     val id: UUID,
     val name: String,

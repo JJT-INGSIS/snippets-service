@@ -33,7 +33,6 @@ class OutboxSchedule(
 
     @Scheduled(fixedDelayString = "\${snippets.outbox.poll-delay:2s}")
     fun publish() {
-        // Spring's scheduler reports unexpected failures; leases make the next cycle recoverable.
         val published = publisher.publishBatch()
         if (published > 0) logger.debug("Outbox batch published={}", published)
     }

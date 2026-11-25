@@ -1,5 +1,6 @@
 package com.jjt.ingsis.snippets.http.security
 
+import com.jjt.ingsis.snippets.identity.AuthenticationModes
 import jakarta.servlet.DispatcherType
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication
@@ -27,8 +28,9 @@ class ApiSecurityConfiguration {
         properties: AuthProperties,
         environment: Environment,
     ): SecurityFilterChain {
-        require(properties.mode in setOf("disabled", "dev", "auth0")) { "Invalid snippets.auth.mode" }
-        require(properties.mode != "dev" || environment.acceptsProfiles(Profiles.of("dev"))) {
+        require(properties.mode in AuthenticationModes.SUPPORTED) { "Invalid ${AuthenticationModes.PROPERTY}" }
+        val developmentProfileActive = environment.acceptsProfiles(Profiles.of(AuthenticationModes.DEVELOPMENT_PROFILE))
+        require(properties.mode != AuthenticationModes.DEVELOPMENT || developmentProfileActive) {
             "Dev identity requires the dev profile"
         }
         http
@@ -39,7 +41,7 @@ class ApiSecurityConfiguration {
             .httpBasic { it.disable() }
             .formLogin { it.disable() }
             .logout { it.disable() }
-        if (properties.mode == "auth0") {
+        if (properties.mode == AuthenticationModes.AUTH0) {
             http
                 .authorizeHttpRequests {
                     it
@@ -51,14 +53,13 @@ class ApiSecurityConfiguration {
                         .authenticated()
                 }.oauth2ResourceServer { it.jwt { } }
         } else {
-            // Existing use cases reject disabled/missing identities; never invent a user.
             http.authorizeHttpRequests { it.anyRequest().permitAll() }
         }
         return http.build()
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "snippets.auth", name = ["mode"], havingValue = "auth0")
+    @ConditionalOnProperty(name = [AuthenticationModes.PROPERTY], havingValue = AuthenticationModes.AUTH0)
     fun userJwtDecoder(properties: AuthProperties): JwtDecoder {
         val issuer = URI.create(properties.issuer)
         val authority = issuer.scheme == "https" && !issuer.host.isNullOrBlank() && issuer.userInfo == null

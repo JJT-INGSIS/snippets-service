@@ -4,10 +4,9 @@ import com.jjt.ingsis.snippets.access.ReadDecision
 import com.jjt.ingsis.snippets.access.ReadFailure
 import com.jjt.ingsis.snippets.access.ReadGate
 import com.jjt.ingsis.snippets.identity.ActorContext
-import com.jjt.ingsis.snippets.language.Language
 import com.jjt.ingsis.snippets.lintquery.DetailLint
 import com.jjt.ingsis.snippets.lintquery.DetailLintReading
-import com.jjt.ingsis.snippets.listing.ListedSnippet
+import com.jjt.ingsis.snippets.listing.ListedSnippetAssembler
 import com.jjt.ingsis.snippets.metadata.LinkedSnippet
 import com.jjt.ingsis.snippets.metadata.MetadataPersistenceException
 import com.jjt.ingsis.snippets.permissions.SnippetAccess
@@ -17,7 +16,7 @@ import org.springframework.stereotype.Service
 class ReadSnippet(
     private val gate: ReadGate,
     private val content: ContentReading,
-    private val language: Language,
+    private val assembler: ListedSnippetAssembler,
     private val lint: DetailLintReading,
 ) {
     fun read(
@@ -45,16 +44,9 @@ class ReadSnippet(
     ): DetailOutcome =
         when (val read = content.read(linked)) {
             is ContentRead.Read -> {
-                val metadata = read.snippet.metadata
                 when (val finding = lint.read(read.snippet, access)) {
                     is DetailLint.Found -> {
-                        val snippet =
-                            ListedSnippet(
-                                metadata = metadata,
-                                access = access,
-                                extension = language.extensionOf(metadata.language),
-                                lint = finding.finding,
-                            )
+                        val snippet = assembler.assemble(read.snippet.metadata, access, finding.finding)
                         DetailOutcome.Found(SnippetDetail(snippet, read.code))
                     }
 

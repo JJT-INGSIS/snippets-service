@@ -62,7 +62,7 @@ private fun useCase(
         identityResolver = identity,
         accessLister = lister,
         search = search,
-        language = printScript,
+        assembler = ListedSnippetAssembler(printScript),
         lint =
             LintReadPreparation { accesses, _ ->
                 PreparedLintRead.Ready(

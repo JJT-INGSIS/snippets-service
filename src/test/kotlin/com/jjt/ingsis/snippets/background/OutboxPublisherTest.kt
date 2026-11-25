@@ -41,7 +41,7 @@ class OutboxPublisherTest {
         val publisher =
             OutboxPublisher(
                 store,
-                EventStream {
+                {
                     sent.add(it)
                     "1-0"
                 },

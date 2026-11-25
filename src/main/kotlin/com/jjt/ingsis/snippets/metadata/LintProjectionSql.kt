@@ -8,7 +8,6 @@ import tools.jackson.core.type.TypeReference
 import tools.jackson.databind.json.JsonMapper
 import java.sql.ResultSet
 
-// Shared by list and detail: validity and diagnostic visibility have one definition.
 internal object LintProjectionSql {
     private val json = JsonMapper.builder().findAndAddModules().build()
     private val diagnosticType = object : TypeReference<List<Diagnostic>>() {}

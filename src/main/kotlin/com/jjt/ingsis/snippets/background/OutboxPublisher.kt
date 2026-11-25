@@ -47,13 +47,15 @@ class OutboxPublisher(
             try {
                 stream.publish(event)
             } catch (_: EventStreamUnavailable) {
-                deliveries.retry(delivery, nextAttempt(delivery.attempt), "REDIS_WRITE_UNAVAILABLE")
+                val retryScheduled =
+                    deliveries.retry(delivery, nextAttempt(delivery.attempt), "REDIS_WRITE_UNAVAILABLE")
                 logger.warn(
-                    "Outbox retry eventId={} jobId={} correlationId={} attempt={}",
+                    "Outbox retry eventId={} jobId={} correlationId={} attempt={} retryScheduled={}",
                     event.eventId,
                     event.jobId,
                     event.correlationId,
                     delivery.attempt,
+                    retryScheduled,
                 )
                 return false
             }
